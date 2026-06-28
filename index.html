@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="kk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#28433f">
+  <title>SanaBase AI</title>
+  <link rel="manifest" href="public/manifest.json">
+  <link rel="stylesheet" href="public/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs" type="module"></script>
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="mark">SB</div>
+      <div>
+        <strong>SanaBase AI</strong>
+        <span>Жеке білім базасы</span>
+      </div>
+    </div>
+    <nav class="nav" aria-label="Main">
+      <button class="nav-item active" data-view="chat">Chat</button>
+      <button class="nav-item" data-view="library">Knowledge</button>
+      <button class="nav-item" data-view="translate">Translate</button>
+      <button class="nav-item" data-view="quiz">Quiz</button>
+      <button class="nav-item" data-view="crm">CRM</button>
+      <button class="nav-item" data-view="notes">Notes</button>
+    </nav>
+    <div class="status">
+      <span id="docCount">0 docs</span>
+      <span id="noteCount">0 notes</span>
+    </div>
+  </aside>
+
+  <main class="shell">
+    <header class="topbar">
+      <div>
+        <h1 id="viewTitle">AI Chat</h1>
+        <p id="viewSub">Құжаттарыңызға сүйеніп жауап береді.</p>
+      </div>
+      <label class="upload">
+        <input id="fileInput" type="file" multiple accept=".pdf,.docx,.xlsx,.xls,.txt,.md,.csv,.tsv">
+        Upload
+      </label>
+    </header>
+
+    <section class="view active" id="chat">
+      <div class="conversation" id="messages"></div>
+      <form class="composer" id="chatForm">
+        <textarea id="chatPrompt" placeholder="Сұрағыңызды жазыңыз..." rows="2"></textarea>
+        <button type="submit">Send</button>
+      </form>
+    </section>
+
+    <section class="view" id="library">
+      <div class="toolbar">
+        <input id="searchDocs" type="search" placeholder="Құжаттан іздеу">
+        <button id="clearDocs">Clear</button>
+      </div>
+      <div class="grid" id="docsGrid"></div>
+    </section>
+
+    <section class="view" id="translate">
+      <div class="split">
+        <textarea id="translateInput" placeholder="Аударылатын мәтін немесе сұрақ"></textarea>
+        <div class="panel">
+          <select id="targetLang">
+            <option>Kazakh</option>
+            <option>English</option>
+            <option>Russian</option>
+            <option>Turkish</option>
+            <option>Chinese</option>
+          </select>
+          <button id="translateBtn">Translate</button>
+          <pre id="translateOut"></pre>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="quiz">
+      <div class="tool-card">
+        <textarea id="quizPrompt" placeholder="Қай тақырыптан quiz керек? Бос қалдырсаңыз барлық база қолданылады."></textarea>
+        <button id="quizBtn">Generate Quiz</button>
+        <pre id="quizOut"></pre>
+      </div>
+    </section>
+
+    <section class="view" id="crm">
+      <div class="tool-card">
+        <textarea id="crmPrompt" placeholder="CRM бойынша не талдаймыз? Мысалы: сатылым, лид статусы, менеджер нәтижесі, клиенттер сегменті. Бос қалдырсаңыз толық CRM аудит жасайды."></textarea>
+        <button id="crmBtn">Analyze CRM</button>
+        <pre id="crmOut"></pre>
+      </div>
+    </section>
+
+    <section class="view" id="notes">
+      <div class="notes-layout">
+        <form id="noteForm" class="note-form">
+          <input id="noteTitle" placeholder="Note title">
+          <textarea id="noteBody" placeholder="Ой, жоспар, лекция конспекті..."></textarea>
+          <button type="submit">Save Note</button>
+        </form>
+        <div class="note-list" id="notesList"></div>
+      </div>
+    </section>
+  </main>
+
+  <script src="public/app.js"></script>
+</body>
+</html>

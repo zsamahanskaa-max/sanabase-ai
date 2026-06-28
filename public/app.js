@@ -2,6 +2,7 @@ const state = loadState();
 const titles = {
   chat: ["AI Chat", "Құжаттарыңызға сүйеніп жауап береді."],
   library: ["Knowledge Base", "PDF, Word, Excel және мәтін материалдары."],
+  match: ["Price Match", "Екі Excel-ді код бойынша салыстырып, бірінші құжаттың санын өзгертпей толықтырады."],
   translate: ["Translation", "Мәтінді қалаған тілге аударыңыз."],
   quiz: ["Quiz Generator", "Базаңыздан тест және жауап кілтін жасаңыз."],
   crm: ["CRM Analysis", "Excel/CSV CRM базасын талдаңыз."],
@@ -19,6 +20,7 @@ $("chatForm").addEventListener("submit", chat);
 $("translateBtn").addEventListener("click", translate);
 $("quizBtn").addEventListener("click", quiz);
 $("crmBtn").addEventListener("click", crm);
+$("matchBtn").addEventListener("click", matchPrices);
 $("noteForm").addEventListener("submit", saveNote);
 $("searchDocs").addEventListener("input", render);
 $("clearDocs").addEventListener("click", () => {
@@ -28,7 +30,7 @@ $("clearDocs").addEventListener("click", () => {
 });
 
 render();
-addMessage("ai", "Сәлем! PDF, Word, Excel немесе CSV жүктеңіз. Сервер жоқ кезде де сайт файлды браузерде оқып, база бойынша қысқа жауап, quiz, аударма және CRM талдау жасайды.");
+addMessage("ai", "Сәлем! PDF, Word, Excel немесе CSV жүктеңіз. Нақты прайс салыстыру үшін Price Match бөліміне өтіп, 1-құжат пен almat company price файлын салыңыз.");
 
 function setView(view) {
   document.querySelectorAll(".nav-item").forEach(b => b.classList.toggle("active", b.dataset.view === view));
@@ -103,6 +105,187 @@ async function crm() {
   }
 }
 
+async function matchPrices() {
+  const baseFile = $("basePriceFile").files[0];
+  const priceFile = $("almatPriceFile").files[0];
+  const out = $("matchOut");
+  if (!baseFile || !priceFile) {
+    out.textContent = "Екі файлды да таңдаңыз: 1-құжат және almat company price.";
+    return;
+  }
+  if (!window.XLSX) {
+    out.textContent = "Excel кітапханасы жүктелмеді. Интернетті тексеріп, бетті қайта ашыңыз.";
+    return;
+  }
+
+  out.textContent = "Файлдар оқылып жатыр...";
+  try {
+    const base = await readTableFile(baseFile);
+    const price = await readTableFile(priceFile);
+    const result = mergeByCode(base, price, $("codeColumnHint").value, $("qtyColumnHint").value);
+    downloadWorkbook(result.rows, "sanabase_completed_price.xlsx");
+    out.textContent = [
+      "Дайын файл жүктелді: sanabase_completed_price.xlsx",
+      `1-құжат жолдары: ${result.baseRows}`,
+      `almat company price жолдары: ${result.priceRows}`,
+      `Код бойынша табылғаны: ${result.matched}`,
+      `Толықтырылған ұяшықтар: ${result.filled}`,
+      `Қосылған жаңа бағандар: ${result.addedColumns}`,
+      `Қорғалған сан бағандары: ${result.protectedColumns.join(", ") || "табылмады"}`,
+      `Код бағандары: 1-құжат = ${result.baseCodeHeader}, almat = ${result.priceCodeHeader}`
+    ].join("\n");
+  } catch (error) {
+    out.textContent = `Қате: ${error.message}`;
+  }
+}
+
+function mergeByCode(base, price, codeHint, qtyHint) {
+  const baseHeader = normalizeHeader(base.rows[0]);
+  const priceHeader = normalizeHeader(price.rows[0]);
+  const baseCodeIndex = findColumn(baseHeader, codeHint, codeKeywords());
+  const priceCodeIndex = findColumn(priceHeader, codeHint, codeKeywords());
+  if (baseCodeIndex < 0) throw new Error("1-құжаттан код бағанын таба алмадым. Код бағанының атын жазыңыз.");
+  if (priceCodeIndex < 0) throw new Error("almat company price ішінен код бағанын таба алмадым. Код бағанының атын жазыңыз.");
+
+  const qtyIndexes = findQuantityColumns(baseHeader, qtyHint);
+  const outputHeader = [...baseHeader];
+  const headerMap = new Map(baseHeader.map((header, index) => [headerKey(header), index]));
+  const priceToOutput = priceHeader.map(header => {
+    const key = headerKey(header);
+    if (headerMap.has(key)) return headerMap.get(key);
+    outputHeader.push(header);
+    const newIndex = outputHeader.length - 1;
+    headerMap.set(key, newIndex);
+    return newIndex;
+  });
+
+  const priceMap = new Map();
+  price.rows.slice(1).forEach(row => {
+    const code = normalizeCode(row[priceCodeIndex]);
+    if (code && !priceMap.has(code)) priceMap.set(code, row);
+  });
+
+  let matched = 0;
+  let filled = 0;
+  const outputRows = [outputHeader];
+  base.rows.slice(1).forEach(baseRow => {
+    const code = normalizeCode(baseRow[baseCodeIndex]);
+    const outRow = new Array(outputHeader.length).fill("");
+    baseHeader.forEach((_, index) => {
+      outRow[index] = cellValue(baseRow[index]);
+    });
+
+    const priceRow = priceMap.get(code);
+    if (priceRow) {
+      matched += 1;
+      priceHeader.forEach((_, priceIndex) => {
+        const outputIndex = priceToOutput[priceIndex];
+        if (qtyIndexes.includes(outputIndex)) return;
+        const next = cellValue(priceRow[priceIndex]);
+        if (!next) return;
+        if (!outRow[outputIndex]) {
+          outRow[outputIndex] = next;
+          filled += 1;
+        }
+      });
+    }
+    outputRows.push(outRow);
+  });
+
+  return {
+    rows: outputRows,
+    baseRows: Math.max(base.rows.length - 1, 0),
+    priceRows: Math.max(price.rows.length - 1, 0),
+    matched,
+    filled,
+    addedColumns: outputHeader.length - baseHeader.length,
+    protectedColumns: qtyIndexes.map(index => outputHeader[index]),
+    baseCodeHeader: baseHeader[baseCodeIndex],
+    priceCodeHeader: priceHeader[priceCodeIndex]
+  };
+}
+
+async function readTableFile(file) {
+  const ext = file.name.split(".").pop().toLowerCase();
+  if (["xlsx", "xls"].includes(ext)) {
+    const buffer = await file.arrayBuffer();
+    const workbook = XLSX.read(buffer, { type: "array" });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    return { name: file.name, rows: trimRows(XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" })) };
+  }
+  if (["csv", "tsv"].includes(ext)) {
+    const delimiter = ext === "tsv" ? "\t" : ",";
+    const rows = (await file.text()).split(/\r?\n/).map(line => line.split(delimiter));
+    return { name: file.name, rows: trimRows(rows) };
+  }
+  throw new Error("Тек Excel, CSV немесе TSV файл салыңыз.");
+}
+
+function downloadWorkbook(rows, filename) {
+  const sheet = XLSX.utils.aoa_to_sheet(rows);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, sheet, "Completed");
+  XLSX.writeFile(workbook, filename);
+}
+
+function normalizeHeader(row) {
+  return row.map((value, index) => String(value || `Column ${index + 1}`).trim());
+}
+
+function trimRows(rows) {
+  return rows
+    .filter(row => row.some(cell => String(cell ?? "").trim()))
+    .map(row => row.map(cellValue));
+}
+
+function findColumn(header, hint, keywords) {
+  const cleanHint = normalizeText(hint);
+  if (cleanHint) {
+    const exact = header.findIndex(name => normalizeText(name) === cleanHint);
+    if (exact >= 0) return exact;
+    const partial = header.findIndex(name => normalizeText(name).includes(cleanHint));
+    if (partial >= 0) return partial;
+  }
+  return header.findIndex(name => {
+    const value = normalizeText(name);
+    return keywords.some(keyword => value === keyword || value.includes(keyword));
+  });
+}
+
+function findQuantityColumns(header, hint) {
+  const hinted = findColumn(header, hint, quantityKeywords());
+  const found = header
+    .map((name, index) => ({ name: normalizeText(name), index }))
+    .filter(item => quantityKeywords().some(keyword => item.name === keyword || item.name.includes(keyword)))
+    .map(item => item.index);
+  if (hinted >= 0 && !found.includes(hinted)) found.push(hinted);
+  return found;
+}
+
+function codeKeywords() {
+  return ["код", "code", "sku", "артикул", "article", "item", "id", "barcode", "штрих", "номенклатура"];
+}
+
+function quantityKeywords() {
+  return ["саны", "сан", "количество", "кол-во", "qty", "quantity", "остаток", "stock", "count", "көлем"];
+}
+
+function normalizeCode(value) {
+  return String(value ?? "").trim().toUpperCase().replace(/\s+/g, "");
+}
+
+function normalizeText(value) {
+  return String(value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function headerKey(value) {
+  return normalizeText(value).replace(/[^\p{L}\p{N}]+/gu, "");
+}
+
+function cellValue(value) {
+  return value == null ? "" : String(value).trim();
+}
+
 function saveNote(event) {
   event.preventDefault();
   const title = $("noteTitle").value.trim() || "Untitled note";
@@ -149,13 +332,8 @@ async function browserImport(file) {
   }
   if (["xlsx", "xls"].includes(ext)) {
     if (!window.XLSX) return unsupported(file, "Excel оқу кітапханасы жүктелмеді.");
-    const buffer = await file.arrayBuffer();
-    const workbook = XLSX.read(buffer, { type: "array" });
-    const sheets = workbook.SheetNames.map(name => {
-      const rows = XLSX.utils.sheet_to_json(workbook.Sheets[name], { header: 1, defval: "" });
-      return `Sheet: ${name}\n` + rows.map(row => row.join("\t")).join("\n");
-    });
-    return { name: file.name, type: file.type || ext, text: sheets.join("\n\n---\n\n") };
+    const table = await readTableFile(file);
+    return { name: file.name, type: file.type || ext, text: table.rows.map(row => row.join("\t")).join("\n") };
   }
   if (ext === "docx") {
     if (!window.mammoth) return unsupported(file, "Word оқу кітапханасы жүктелмеді.");
@@ -190,9 +368,9 @@ function unsupported(file, warning) {
 function localAnswer(mode, prompt, language) {
   const context = buildContext();
   if (!context.trim()) {
-    return "Алдымен PDF, Word, Excel немесе CSV файл жүктеңіз. Содан кейін мен сол база бойынша жауап беремін.";
+    return "Алдымен PDF, Word, Excel немесе CSV файл жүктеңіз. Прайс салыстыру үшін Price Match бөлімін қолданыңыз.";
   }
-  if (mode === "quiz") return makeQuiz(context, prompt);
+  if (mode === "quiz") return makeQuiz(context);
   if (mode === "crm") return analyzeCrm(context);
   if (mode === "translate") return simpleTranslate(prompt, language);
   return answerFromContext(prompt, context);
@@ -216,10 +394,10 @@ function answerFromContext(prompt, context) {
   if (!sentences.length) {
     return "Бұл сұраққа нақты сәйкес жол табылмады. Базаңыздан ең маңызды үзінді:\n\n" + context.slice(0, 1200);
   }
-  return "База бойынша қысқа жауап:\n\n" + sentences.join("\n\n") + "\n\nНақтырақ сұрасаңыз, осы үзінділерге сүйеніп тереңдетіп беремін.";
+  return "База бойынша қысқа жауап:\n\n" + sentences.join("\n\n");
 }
 
-function makeQuiz(context, prompt) {
+function makeQuiz(context) {
   const pool = context.split(/\n+/).map(line => line.trim()).filter(line => line.length > 40).slice(0, 8);
   const selected = pool.length ? pool : [context.slice(0, 400)];
   return selected.slice(0, 5).map((line, index) => {
@@ -232,19 +410,13 @@ function analyzeCrm(context) {
   const rows = context.split(/\n/).filter(Boolean);
   const header = rows.find(row => row.includes("\t") || row.includes(",")) || "";
   const money = rows.join("\n").match(/\b\d{3,}(?:[.,]\d+)?\b/g) || [];
-  const statuses = countMatches(rows.join(" ").toLowerCase(), ["new", "lead", "won", "lost", "open", "closed", "paid", "pending", "жаңа", "жеңді", "жабық", "төленді"]);
   return [
     "CRM қысқаша аудит:",
     `- Жол саны: шамамен ${rows.length}`,
     `- Бағандар: ${header.slice(0, 220) || "анықталмады"}`,
     `- Сандық мәндер: ${money.length ? money.slice(0, 12).join(", ") : "табылмады"}`,
-    `- Статус сигналдары: ${Object.entries(statuses).map(([k, v]) => `${k}: ${v}`).join(", ") || "аз"}`,
     "",
-    "Ұсыныс:",
-    "1. Лид статустарын бір форматқа келтіріңіз.",
-    "2. Табысы жоғары клиенттерді бөлек сегментке шығарыңыз.",
-    "3. Жабылмай тұрған сделкаларға жауапты менеджер мен соңғы байланыс күнін тексеріңіз.",
-    "4. Келесі қадам ретінде Excel-де status, amount, manager, date бағандарын нақтылап қайта жүктеңіз."
+    "Егер екі прайсты код бойынша толықтыру керек болса, Price Match бөлімін қолданыңыз."
   ].join("\n");
 }
 
@@ -256,15 +428,7 @@ function simpleTranslate(text, language) {
     Turkish: "Turkish meaning",
     Chinese: "Chinese meaning"
   };
-  return `${labels[language] || "Translation"}:\n\n${text}\n\nЕскерту: бұл карта жоқ статикалық нұсқаның жеңіл аударма режимі. Толық сапалы AI аударма үшін кейін серверлік deploy және API лимиті керек.`;
-}
-
-function countMatches(text, words) {
-  return words.reduce((acc, word) => {
-    const count = (text.match(new RegExp(`\\b${escapeRegExp(word)}\\b`, "g")) || []).length;
-    if (count) acc[word] = count;
-    return acc;
-  }, {});
+  return `${labels[language] || "Translation"}:\n\n${text}`;
 }
 
 function keywords(value) {
@@ -357,8 +521,4 @@ function escapeHtml(value) {
     "\"": "&quot;",
     "'": "&#39;"
   }[char]));
-}
-
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

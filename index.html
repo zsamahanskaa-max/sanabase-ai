@@ -23,6 +23,7 @@
     <nav class="nav" aria-label="Main">
       <button class="nav-item active" data-view="chat">Chat</button>
       <button class="nav-item" data-view="library">Knowledge</button>
+      <button class="nav-item" data-view="match">Price Match</button>
       <button class="nav-item" data-view="translate">Translate</button>
       <button class="nav-item" data-view="quiz">Quiz</button>
       <button class="nav-item" data-view="crm">CRM</button>
@@ -60,6 +61,33 @@
         <button id="clearDocs">Clear</button>
       </div>
       <div class="grid" id="docsGrid"></div>
+    </section>
+
+    <section class="view" id="match">
+      <div class="tool-card match-tool">
+        <div class="match-grid">
+          <label>
+            <span>1-құжат: саны өзгермейтін негізгі файл</span>
+            <input id="basePriceFile" type="file" accept=".xlsx,.xls,.csv,.tsv">
+          </label>
+          <label>
+            <span>2-құжат: almat company price</span>
+            <input id="almatPriceFile" type="file" accept=".xlsx,.xls,.csv,.tsv">
+          </label>
+        </div>
+        <div class="match-grid">
+          <label>
+            <span>Код бағаны, бос қалса өзі табады</span>
+            <input id="codeColumnHint" placeholder="Мысалы: код, артикул, SKU">
+          </label>
+          <label>
+            <span>Сан бағаны қорғалады</span>
+            <input id="qtyColumnHint" placeholder="Мысалы: саны, количество, qty">
+          </label>
+        </div>
+        <button id="matchBtn">Код бойынша толықтырып, Excel жүктеу</button>
+        <pre id="matchOut"></pre>
+      </div>
     </section>
 
     <section class="view" id="translate">
@@ -107,6 +135,6 @@
     </section>
   </main>
 
-  <script src="public/app.js?v=20260629"></script>
+  <script src="public/app.js?v=20260629-2"></script>
 </body>
 </html>

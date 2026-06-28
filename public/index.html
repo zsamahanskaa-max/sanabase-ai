@@ -5,8 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#28433f">
   <title>SanaBase AI</title>
-  <link rel="manifest" href="/manifest.json">
-  <link rel="stylesheet" href="/styles.css">
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs" type="module"></script>
 </head>
 <body>
   <aside class="sidebar">
@@ -61,7 +64,7 @@
 
     <section class="view" id="translate">
       <div class="split">
-        <textarea id="translateInput" placeholder="Аударылатын мәтін немесе сұрау"></textarea>
+        <textarea id="translateInput" placeholder="Аударылатын мәтін немесе сұрақ"></textarea>
         <div class="panel">
           <select id="targetLang">
             <option>Kazakh</option>
@@ -86,7 +89,7 @@
 
     <section class="view" id="crm">
       <div class="tool-card">
-        <textarea id="crmPrompt" placeholder="CRM бойынша не талдаймыз? Мысалы: сатылым, лид статус, менеджер нәтижесі, клиенттер сегменті. Бос қалдырсаңыз толық CRM аудит жасайды."></textarea>
+        <textarea id="crmPrompt" placeholder="CRM бойынша не талдаймыз? Мысалы: сатылым, лид статусы, менеджер нәтижесі, клиенттер сегменті. Бос қалдырсаңыз толық CRM аудит жасайды."></textarea>
         <button id="crmBtn">Analyze CRM</button>
         <pre id="crmOut"></pre>
       </div>
@@ -104,6 +107,6 @@
     </section>
   </main>
 
-  <script src="/app.js"></script>
+  <script src="app.js?v=20260629"></script>
 </body>
 </html>

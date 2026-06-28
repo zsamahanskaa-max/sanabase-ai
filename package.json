@@ -1,0 +1,13 @@
+{
+  "name": "sanabase-ai",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SanaBase AI knowledge base, CRM and document assistant.",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "mammoth": "latest",
+    "pdf-parse": "latest",
+    "xlsx": "latest"
+  }
+}

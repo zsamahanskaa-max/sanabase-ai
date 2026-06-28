@@ -1,7 +1,7 @@
 const state = loadState();
 const titles = {
   chat: ["AI Chat", "Құжаттарыңызға сүйеніп жауап береді."],
-  library: ["Knowledge Base", "PDF, Word және мәтін материалдары."],
+  library: ["Knowledge Base", "PDF, Word, Excel және мәтін материалдары."],
   translate: ["Translation", "Мәтінді қалаған тілге аударыңыз."],
   quiz: ["Quiz Generator", "Базаңыздан тест және жауап кілтін жасаңыз."],
   crm: ["CRM Analysis", "Excel/CSV CRM базасын талдаңыз."],
@@ -28,7 +28,7 @@ $("clearDocs").addEventListener("click", () => {
 });
 
 render();
-addMessage("ai", "Сәлем! PDF немесе Word жүктеңіз, содан кейін білім базаңызбен сөйлесе аласыз.");
+addMessage("ai", "Сәлем! PDF, Word, Excel немесе CSV жүктеңіз. Сервер жоқ кезде де сайт файлды браузерде оқып, база бойынша қысқа жауап, quiz, аударма және CRM талдау жасайды.");
 
 function setView(view) {
   document.querySelectorAll(".nav-item").forEach(b => b.classList.toggle("active", b.dataset.view === view));
@@ -40,8 +40,7 @@ function setView(view) {
 async function importFiles(event) {
   for (const file of event.target.files) {
     addMessage("ai", `${file.name} импортталып жатыр...`);
-    const data = await fileToBase64(file);
-    const result = await api("/api/import", { name: file.name, type: file.type, data });
+    const result = await extractFile(file);
     state.docs.unshift({
       id: crypto.randomUUID(),
       name: result.name,
@@ -86,7 +85,7 @@ async function translate() {
 async function quiz() {
   $("quizOut").textContent = "Quiz жасалып жатыр...";
   try {
-    const result = await ai("quiz", $("quizPrompt").value || "Create a quiz from the full knowledge base.");
+    const result = await ai("quiz", $("quizPrompt").value || "Барлық білім базасынан quiz жаса.");
     $("quizOut").textContent = result.text;
   } catch (error) {
     $("quizOut").textContent = `Қате: ${error.message}`;
@@ -96,7 +95,7 @@ async function quiz() {
 async function crm() {
   $("crmOut").textContent = "CRM талдау жасалып жатыр...";
   try {
-    const prompt = $("crmPrompt").value || "Analyze the CRM data. Show pipeline health, revenue signals, customer segments, risks, and recommended next actions.";
+    const prompt = $("crmPrompt").value || "CRM дерегін толық талда: pipeline, табыс, клиент сегменттері, тәуекелдер, келесі әрекеттер.";
     const result = await ai("crm", prompt);
     $("crmOut").textContent = result.text;
   } catch (error) {
@@ -117,13 +116,164 @@ function saveNote(event) {
 }
 
 async function ai(mode, prompt, language = "Kazakh") {
-  return api("/api/ai", {
-    mode,
-    prompt,
-    language,
-    context: buildContext(),
-    notes: state.notes.map(n => `${n.title}\n${n.body}`).join("\n\n")
-  });
+  try {
+    return await api("api/ai", {
+      mode,
+      prompt,
+      language,
+      context: buildContext(),
+      notes: state.notes.map(n => `${n.title}\n${n.body}`).join("\n\n")
+    });
+  } catch {
+    return { text: localAnswer(mode, prompt, language) };
+  }
+}
+
+async function extractFile(file) {
+  try {
+    return await serverImport(file);
+  } catch {
+    return browserImport(file);
+  }
+}
+
+async function serverImport(file) {
+  const data = await fileToBase64(file);
+  return api("api/import", { name: file.name, type: file.type, data });
+}
+
+async function browserImport(file) {
+  const ext = file.name.split(".").pop().toLowerCase();
+  if (["txt", "md", "csv", "tsv"].includes(ext)) {
+    return { name: file.name, type: file.type || ext, text: await file.text() };
+  }
+  if (["xlsx", "xls"].includes(ext)) {
+    if (!window.XLSX) return unsupported(file, "Excel оқу кітапханасы жүктелмеді.");
+    const buffer = await file.arrayBuffer();
+    const workbook = XLSX.read(buffer, { type: "array" });
+    const sheets = workbook.SheetNames.map(name => {
+      const rows = XLSX.utils.sheet_to_json(workbook.Sheets[name], { header: 1, defval: "" });
+      return `Sheet: ${name}\n` + rows.map(row => row.join("\t")).join("\n");
+    });
+    return { name: file.name, type: file.type || ext, text: sheets.join("\n\n---\n\n") };
+  }
+  if (ext === "docx") {
+    if (!window.mammoth) return unsupported(file, "Word оқу кітапханасы жүктелмеді.");
+    const buffer = await file.arrayBuffer();
+    const result = await mammoth.extractRawText({ arrayBuffer: buffer });
+    return { name: file.name, type: file.type || ext, text: result.value };
+  }
+  if (ext === "pdf") {
+    return readPdf(file);
+  }
+  return unsupported(file, "Бұл файл түрін браузерде оқу әзірге мүмкін емес.");
+}
+
+async function readPdf(file) {
+  const pdfjs = globalThis.pdfjsLib || await import("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs");
+  pdfjs.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs";
+  const data = await file.arrayBuffer();
+  const pdf = await pdfjs.getDocument({ data }).promise;
+  const pages = [];
+  for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+    const page = await pdf.getPage(pageNumber);
+    const content = await page.getTextContent();
+    pages.push(content.items.map(item => item.str).join(" "));
+  }
+  return { name: file.name, type: file.type || "pdf", text: pages.join("\n\n") };
+}
+
+function unsupported(file, warning) {
+  return { name: file.name, type: file.type || "unknown", text: "", warning };
+}
+
+function localAnswer(mode, prompt, language) {
+  const context = buildContext();
+  if (!context.trim()) {
+    return "Алдымен PDF, Word, Excel немесе CSV файл жүктеңіз. Содан кейін мен сол база бойынша жауап беремін.";
+  }
+  if (mode === "quiz") return makeQuiz(context, prompt);
+  if (mode === "crm") return analyzeCrm(context);
+  if (mode === "translate") return simpleTranslate(prompt, language);
+  return answerFromContext(prompt, context);
+}
+
+function answerFromContext(prompt, context) {
+  const queryWords = keywords(prompt);
+  const sentences = context
+    .split(/(?<=[.!?])\s+|\n+/)
+    .map(s => s.trim())
+    .filter(Boolean)
+    .map(sentence => ({
+      sentence,
+      score: queryWords.reduce((sum, word) => sum + (sentence.toLowerCase().includes(word) ? 1 : 0), 0)
+    }))
+    .filter(item => item.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 6)
+    .map(item => item.sentence);
+
+  if (!sentences.length) {
+    return "Бұл сұраққа нақты сәйкес жол табылмады. Базаңыздан ең маңызды үзінді:\n\n" + context.slice(0, 1200);
+  }
+  return "База бойынша қысқа жауап:\n\n" + sentences.join("\n\n") + "\n\nНақтырақ сұрасаңыз, осы үзінділерге сүйеніп тереңдетіп беремін.";
+}
+
+function makeQuiz(context, prompt) {
+  const pool = context.split(/\n+/).map(line => line.trim()).filter(line => line.length > 40).slice(0, 8);
+  const selected = pool.length ? pool : [context.slice(0, 400)];
+  return selected.slice(0, 5).map((line, index) => {
+    const short = line.slice(0, 120);
+    return `${index + 1}. Мына ойдың негізгі мағынасы қандай?\n   "${short}..."\n   A) Негізгі дерек\n   B) Қатысы жоқ ақпарат\n   C) Қате тұжырым\n   Жауап: A`;
+  }).join("\n\n");
+}
+
+function analyzeCrm(context) {
+  const rows = context.split(/\n/).filter(Boolean);
+  const header = rows.find(row => row.includes("\t") || row.includes(",")) || "";
+  const money = rows.join("\n").match(/\b\d{3,}(?:[.,]\d+)?\b/g) || [];
+  const statuses = countMatches(rows.join(" ").toLowerCase(), ["new", "lead", "won", "lost", "open", "closed", "paid", "pending", "жаңа", "жеңді", "жабық", "төленді"]);
+  return [
+    "CRM қысқаша аудит:",
+    `- Жол саны: шамамен ${rows.length}`,
+    `- Бағандар: ${header.slice(0, 220) || "анықталмады"}`,
+    `- Сандық мәндер: ${money.length ? money.slice(0, 12).join(", ") : "табылмады"}`,
+    `- Статус сигналдары: ${Object.entries(statuses).map(([k, v]) => `${k}: ${v}`).join(", ") || "аз"}`,
+    "",
+    "Ұсыныс:",
+    "1. Лид статустарын бір форматқа келтіріңіз.",
+    "2. Табысы жоғары клиенттерді бөлек сегментке шығарыңыз.",
+    "3. Жабылмай тұрған сделкаларға жауапты менеджер мен соңғы байланыс күнін тексеріңіз.",
+    "4. Келесі қадам ретінде Excel-де status, amount, manager, date бағандарын нақтылап қайта жүктеңіз."
+  ].join("\n");
+}
+
+function simpleTranslate(text, language) {
+  const labels = {
+    Kazakh: "Қазақша мағынасы",
+    English: "English meaning",
+    Russian: "Русский смысл",
+    Turkish: "Turkish meaning",
+    Chinese: "Chinese meaning"
+  };
+  return `${labels[language] || "Translation"}:\n\n${text}\n\nЕскерту: бұл карта жоқ статикалық нұсқаның жеңіл аударма режимі. Толық сапалы AI аударма үшін кейін серверлік deploy және API лимиті керек.`;
+}
+
+function countMatches(text, words) {
+  return words.reduce((acc, word) => {
+    const count = (text.match(new RegExp(`\\b${escapeRegExp(word)}\\b`, "g")) || []).length;
+    if (count) acc[word] = count;
+    return acc;
+  }, {});
+}
+
+function keywords(value) {
+  return value
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .split(/\s+/)
+    .filter(word => word.length > 2)
+    .slice(0, 20);
 }
 
 function buildContext() {
@@ -165,7 +315,7 @@ function render() {
     .forEach(doc => {
       const card = document.createElement("article");
       card.className = "doc";
-      card.innerHTML = `<h3>${escapeHtml(doc.name)}</h3><p>${escapeHtml(doc.warning || doc.text || "No selectable text found.")}</p>`;
+      card.innerHTML = `<h3>${escapeHtml(doc.name)}</h3><p>${escapeHtml(doc.warning || doc.text || "Selectable text табылмады.")}</p>`;
       $("docsGrid").appendChild(card);
     });
 
@@ -207,4 +357,8 @@ function escapeHtml(value) {
     "\"": "&quot;",
     "'": "&#39;"
   }[char]));
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

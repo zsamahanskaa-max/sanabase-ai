@@ -160,7 +160,7 @@ textarea:focus, input:focus, select:focus { border-color: var(--leaf); }
   gap: 14px;
 }
 
-.doc, .tool-card, .note-form, .note {
+.doc, .tool-card, .note-form, .note, .brain-card {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: white;
@@ -168,8 +168,8 @@ textarea:focus, input:focus, select:focus { border-color: var(--leaf); }
   box-shadow: 0 8px 25px rgba(31, 48, 45, .06);
 }
 
-.doc h3, .note h3 { margin: 0 0 8px; font-size: 16px; }
-.doc p, .note p {
+.doc h3, .note h3, .brain-card h3 { margin: 0 0 8px; font-size: 16px; }
+.doc p, .note p, .brain-card p {
   display: -webkit-box;
   -webkit-line-clamp: 5;
   -webkit-box-orient: vertical;
@@ -232,6 +232,68 @@ pre {
   line-height: 1.5;
 }
 
+.brain-tool, .brain-list {
+  display: grid;
+  gap: 14px;
+}
+
+.brain-card {
+  display: grid;
+  gap: 12px;
+}
+
+.brain-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+}
+
+.brain-type, .tag, .related span {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 5px 9px;
+  font-size: 12px;
+  color: var(--muted);
+  background: #f7fbf9;
+}
+
+.tag-row, .related {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.tag {
+  color: var(--leaf);
+  background: #eef8f2;
+  border-color: #cfe8d8;
+}
+
+.muted-tag {
+  color: var(--muted);
+  background: #f7f7f7;
+  border-color: var(--line);
+}
+
+.brain-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.brain-fields label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.secondary-upload {
+  justify-content: center;
+}
+
 @media (max-width: 820px) {
   body { grid-template-columns: 1fr; }
   .sidebar {
@@ -246,5 +308,5 @@ pre {
   .topbar { padding: 16px; align-items: flex-start; }
   .view { padding: 16px; }
   .conversation { height: calc(100vh - 260px); }
-  .composer, .toolbar, .split, .notes-layout, .match-grid { grid-template-columns: 1fr; }
+  .composer, .toolbar, .split, .notes-layout, .match-grid, .brain-fields, .brain-head { grid-template-columns: 1fr; }
 }

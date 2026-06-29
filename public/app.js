@@ -9,32 +9,40 @@ const titles = {
   translate: ["Translation", "Мәтінді қалаған тілге аударыңыз."],
   quiz: ["Quiz Generator", "Базаңыздан тест және жауап кілтін жасаңыз."],
   crm: ["CRM Analysis", "Excel/CSV CRM базасын талдаңыз."],
+  tasks: ["Tasks", "Trello сияқты тапсырмалар тақтасы."],
   notes: ["Notes", "Ойлар мен конспектілерді сақтаңыз."]
 };
 
 const $ = (id) => document.getElementById(id);
+const on = (id, event, handler) => {
+  const node = $(id);
+  if (node) node.addEventListener(event, handler);
+};
 
 document.querySelectorAll(".nav-item").forEach(button => {
   button.addEventListener("click", () => setView(button.dataset.view));
 });
 
-$("fileInput").addEventListener("change", importFiles);
-$("chatForm").addEventListener("submit", chat);
-$("translateBtn").addEventListener("click", translate);
-$("quizBtn").addEventListener("click", quiz);
-$("crmBtn").addEventListener("click", crm);
-$("matchBtn").addEventListener("click", matchPrices);
-$("noteForm").addEventListener("submit", saveNote);
-$("searchDocs").addEventListener("input", render);
-$("brainSearch").addEventListener("input", render);
-$("brainCrmBtn").addEventListener("click", brainCrm);
-$("brainExportBtn").addEventListener("click", exportBrain);
-$("brainImportFile").addEventListener("change", importBrain);
-$("cloudSaveBtn").addEventListener("click", saveCloudSettings);
-$("cloudPushBtn").addEventListener("click", () => pushCloud(true));
-$("cloudPullBtn").addEventListener("click", () => pullCloud(true));
-$("cloudClearBtn").addEventListener("click", clearCloudSettings);
-$("clearDocs").addEventListener("click", () => {
+on("fileInput", "change", importFiles);
+on("chatForm", "submit", chat);
+on("translateBtn", "click", translate);
+on("quizBtn", "click", quiz);
+on("crmBtn", "click", crm);
+on("matchBtn", "click", matchPrices);
+on("taskForm", "submit", saveTask);
+on("taskSearch", "input", render);
+on("taskQuickCrmBtn", "click", taskFromCrm);
+on("noteForm", "submit", saveNote);
+on("searchDocs", "input", render);
+on("brainSearch", "input", render);
+on("brainCrmBtn", "click", brainCrm);
+on("brainExportBtn", "click", exportBrain);
+on("brainImportFile", "change", importBrain);
+on("cloudSaveBtn", "click", saveCloudSettings);
+on("cloudPushBtn", "click", () => pushCloud(true));
+on("cloudPullBtn", "click", () => pullCloud(true));
+on("cloudClearBtn", "click", clearCloudSettings);
+on("clearDocs", "click", () => {
   state.docs = [];
   persist();
   render();
@@ -489,6 +497,63 @@ function saveNote(event) {
   render();
 }
 
+function saveTask(event) {
+  event.preventDefault();
+  const title = $("taskTitle").value.trim();
+  if (!title) return;
+  state.tasks.unshift({
+    id: crypto.randomUUID(),
+    title,
+    body: $("taskBody").value.trim(),
+    status: $("taskStatus").value || "todo",
+    priority: $("taskPriority").value || "medium",
+    due: $("taskDue").value || "",
+    owner: $("taskOwner").value.trim(),
+    link: $("taskLink").value.trim(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  });
+  ["taskTitle", "taskBody", "taskDue", "taskOwner", "taskLink"].forEach(id => { $(id).value = ""; });
+  $("taskPriority").value = "medium";
+  $("taskStatus").value = "todo";
+  persist();
+  render();
+}
+
+function moveTask(id, status) {
+  const task = state.tasks.find(item => item.id === id);
+  if (!task) return;
+  task.status = status;
+  task.updatedAt = new Date().toISOString();
+  persist();
+  render();
+}
+
+function deleteTask(id) {
+  state.tasks = state.tasks.filter(task => task.id !== id);
+  persist();
+  render();
+}
+
+function taskFromCrm() {
+  const title = "CRM follow-up";
+  state.tasks.unshift({
+    id: crypto.randomUUID(),
+    title,
+    body: "CRM/құжат бойынша келесі әрекетті нақтылау.",
+    status: "todo",
+    priority: "high",
+    due: "",
+    owner: "",
+    link: "CRM",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  });
+  persist();
+  render();
+  setView("tasks");
+}
+
 function brainCrm() {
   const out = $("brainOut");
   if (!state.docs.length) {
@@ -514,6 +579,7 @@ function exportBrain() {
   const payload = {
     exportedAt: new Date().toISOString(),
     docs: state.docs,
+    tasks: state.tasks,
     notes: state.notes
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
@@ -532,14 +598,23 @@ async function importBrain(event) {
   try {
     const data = JSON.parse(await file.text());
     const incomingDocs = Array.isArray(data.docs) ? data.docs : [];
+    const incomingTasks = Array.isArray(data.tasks) ? data.tasks : [];
     const incomingNotes = Array.isArray(data.notes) ? data.notes : [];
     const existingDocKeys = new Set(state.docs.map(doc => doc.id || doc.name));
+    const existingTaskKeys = new Set(state.tasks.map(task => task.id || task.title));
     const existingNoteKeys = new Set(state.notes.map(note => note.id || `${note.title}:${note.createdAt}`));
     incomingDocs.forEach(doc => {
       const key = doc.id || doc.name;
       if (!existingDocKeys.has(key)) {
         state.docs.unshift(normalizeDoc(doc));
         existingDocKeys.add(key);
+      }
+    });
+    incomingTasks.forEach(task => {
+      const key = task.id || task.title;
+      if (!existingTaskKeys.has(key)) {
+        state.tasks.unshift(normalizeTask(task));
+        existingTaskKeys.add(key);
       }
     });
     incomingNotes.forEach(note => {
@@ -556,7 +631,7 @@ async function importBrain(event) {
     });
     persist();
     render();
-    $("brainOut").textContent = `Импорт дайын: ${incomingDocs.length} құжат, ${incomingNotes.length} note оқылды.`;
+    $("brainOut").textContent = `Импорт дайын: ${incomingDocs.length} құжат, ${incomingTasks.length} task, ${incomingNotes.length} note оқылды.`;
   } catch (error) {
     $("brainOut").textContent = `Import қатесі: ${error.message}`;
   } finally {
@@ -610,9 +685,10 @@ async function pushCloud(showStatus = false) {
       workspace_id: cloudConfig.workspace,
       payload: {
         docs: state.docs,
+        tasks: state.tasks,
         notes: state.notes,
         savedAt: new Date().toISOString(),
-        version: 1
+        version: 2
       },
       updated_at: new Date().toISOString()
     };
@@ -646,6 +722,7 @@ async function pullCloud(showStatus = false) {
     }
     const payload = rows[0].payload || {};
     state.docs = Array.isArray(payload.docs) ? payload.docs.map(normalizeDoc) : [];
+    state.tasks = Array.isArray(payload.tasks) ? payload.tasks.map(normalizeTask) : [];
     state.notes = Array.isArray(payload.notes) ? payload.notes : [];
     persist({ sync: false });
     render();
@@ -887,6 +964,21 @@ function normalizeDoc(doc) {
   };
 }
 
+function normalizeTask(task) {
+  return {
+    id: task.id || crypto.randomUUID(),
+    title: task.title || "Untitled task",
+    body: task.body || "",
+    status: ["todo", "doing", "done"].includes(task.status) ? task.status : "todo",
+    priority: ["low", "medium", "high"].includes(task.priority) ? task.priority : "medium",
+    due: task.due || "",
+    owner: task.owner || "",
+    link: task.link || "",
+    createdAt: task.createdAt || new Date().toISOString(),
+    updatedAt: task.updatedAt || task.createdAt || new Date().toISOString()
+  };
+}
+
 function findRelatedDocs(doc) {
   const tags = new Set(doc.tags || []);
   const manual = new Set((doc.links || []).map(item => item.toLowerCase()));
@@ -909,7 +1001,10 @@ function buildContext() {
   const notes = state.notes
     .slice(0, 10)
     .map(note => `Note: ${note.title}\n${note.body}`);
-  return docs.concat(notes).join("\n\n---\n\n");
+  const tasks = state.tasks
+    .slice(0, 30)
+    .map(task => `Task: ${task.title}\nStatus: ${task.status}\nPriority: ${task.priority}\nDue: ${task.due || "-"}\nOwner: ${task.owner || "-"}\n${task.body}`);
+  return docs.concat(tasks, notes).join("\n\n---\n\n");
 }
 
 async function api(url, payload) {
@@ -933,10 +1028,13 @@ function addMessage(kind, text) {
 }
 
 function render() {
-  $("docCount").textContent = `${state.docs.length} docs`;
-  $("noteCount").textContent = `${state.notes.length} notes`;
+  if ($("docCount")) $("docCount").textContent = `${state.docs.length} docs`;
+  if ($("noteCount")) $("noteCount").textContent = `${state.notes.length} notes`;
+  if ($("taskCount")) $("taskCount").textContent = `${state.tasks.length} tasks`;
   state.docs = state.docs.map(normalizeDoc);
-  const query = $("searchDocs").value?.toLowerCase() || "";
+  state.tasks = state.tasks.map(normalizeTask);
+  const query = $("searchDocs")?.value?.toLowerCase() || "";
+  if (!$("docsGrid")) return;
   $("docsGrid").innerHTML = "";
   state.docs
     .filter(doc => `${doc.name} ${doc.text}`.toLowerCase().includes(query))
@@ -946,15 +1044,81 @@ function render() {
       card.innerHTML = `<h3>${escapeHtml(doc.name)}</h3><p>${escapeHtml(doc.warning || doc.text || "Selectable text табылмады.")}</p>`;
       $("docsGrid").appendChild(card);
     });
-  $("notesList").innerHTML = "";
-  state.notes.forEach(note => {
-    const card = document.createElement("article");
-    card.className = "note";
-    card.innerHTML = `<h3>${escapeHtml(note.title)}</h3><p>${escapeHtml(note.body)}</p>`;
-    $("notesList").appendChild(card);
-  });
+  if ($("notesList")) {
+    $("notesList").innerHTML = "";
+    state.notes.forEach(note => {
+      const card = document.createElement("article");
+      card.className = "note";
+      card.innerHTML = `<h3>${escapeHtml(note.title)}</h3><p>${escapeHtml(note.body)}</p>`;
+      $("notesList").appendChild(card);
+    });
+  }
+  renderTasks();
   renderBrain();
   renderCloudSettings();
+}
+
+function renderTasks() {
+  const board = $("taskBoard");
+  if (!board) return;
+  const query = $("taskSearch").value?.toLowerCase() || "";
+  const columns = [
+    ["todo", "Істеу"],
+    ["doing", "Жүріп жатыр"],
+    ["done", "Дайын"]
+  ];
+  board.innerHTML = "";
+  columns.forEach(([status, label]) => {
+    const items = state.tasks.filter(task => task.status === status && `${task.title} ${task.body} ${task.owner} ${task.link}`.toLowerCase().includes(query));
+    const column = document.createElement("section");
+    column.className = "kanban-column";
+    column.innerHTML = `
+      <div class="kanban-head">
+        <h3>${label}</h3>
+        <span>${items.length}</span>
+      </div>
+      <div class="kanban-list">
+        ${items.map(task => taskCard(task)).join("") || `<article class="task-card empty-task">Тапсырма жоқ</article>`}
+      </div>
+    `;
+    board.appendChild(column);
+  });
+  board.querySelectorAll("[data-task-move]").forEach(button => {
+    button.addEventListener("click", () => moveTask(button.dataset.taskMove, button.dataset.status));
+  });
+  board.querySelectorAll("[data-task-delete]").forEach(button => {
+    button.addEventListener("click", () => deleteTask(button.dataset.taskDelete));
+  });
+}
+
+function taskCard(task) {
+  const moves = [
+    ["todo", "Істеу"],
+    ["doing", "Жүру"],
+    ["done", "Дайын"]
+  ].filter(([status]) => status !== task.status);
+  return `
+    <article class="task-card priority-${escapeHtml(task.priority)}">
+      <div class="task-top">
+        <strong>${escapeHtml(task.title)}</strong>
+        <span>${escapeHtml(priorityLabel(task.priority))}</span>
+      </div>
+      <p>${escapeHtml(task.body || "Сипаттама жоқ")}</p>
+      <div class="task-meta">
+        ${task.due ? `<span>Deadline: ${escapeHtml(task.due)}</span>` : ""}
+        ${task.owner ? `<span>Жауапты: ${escapeHtml(task.owner)}</span>` : ""}
+        ${task.link ? `<span>Байланыс: ${escapeHtml(task.link)}</span>` : ""}
+      </div>
+      <div class="task-actions">
+        ${moves.map(([status, label]) => `<button type="button" data-task-move="${escapeHtml(task.id)}" data-status="${status}">${label}</button>`).join("")}
+        <button type="button" data-task-delete="${escapeHtml(task.id)}">Өшіру</button>
+      </div>
+    </article>
+  `;
+}
+
+function priorityLabel(priority) {
+  return { low: "Low", medium: "Medium", high: "High" }[priority] || "Medium";
 }
 
 function renderBrain() {
@@ -1017,10 +1181,11 @@ function loadState() {
     const saved = JSON.parse(localStorage.getItem("sanabase-state")) || {};
     return {
       docs: Array.isArray(saved.docs) ? saved.docs.map(normalizeDoc) : [],
+      tasks: Array.isArray(saved.tasks) ? saved.tasks.map(normalizeTask) : [],
       notes: Array.isArray(saved.notes) ? saved.notes : []
     };
   } catch {
-    return { docs: [], notes: [] };
+    return { docs: [], tasks: [], notes: [] };
   }
 }
 

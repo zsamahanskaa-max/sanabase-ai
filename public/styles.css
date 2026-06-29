@@ -555,6 +555,14 @@ pre {
   color: var(--sage);
 }
 
+#cloudSaveBtn,
+#cloudClearBtn,
+#cloudConfigExportBtn,
+.cloud-config-upload,
+.cloud-grid {
+  display: none;
+}
+
 .cloud-help {
   border: 1px dashed #c7d6d0;
   border-radius: 8px;

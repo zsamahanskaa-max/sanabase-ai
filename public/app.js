@@ -30,7 +30,7 @@ $("clearDocs").addEventListener("click", () => {
 });
 
 render();
-addMessage("ai", "Сәлем! Прайс салыстыру үшін Price Match бөліміне өтіп, 1-құжат пен almat company price файлын салыңыз. Қорап/саны формулалары сақталады.");
+addMessage("ai", "Сәлем! Price Match бөлімі 1-құжаттың формуласы бар қорап/саны бағандарын сақтап, бағаны almat company price арқылы қояды.");
 
 function setView(view) {
   document.querySelectorAll(".nav-item").forEach(b => b.classList.toggle("active", b.dataset.view === view));
@@ -122,14 +122,19 @@ async function matchPrices() {
   try {
     const base = await readTableFile(baseFile);
     const price = await readTableFile(priceFile);
-    const result = mergeByCode(base, price);
-    downloadWorkbook(result, "sanabase_completed_price.xlsx");
+    const result = mergeByCode(base, price, {
+      updateMode: $("priceUpdateMode")?.value || "fill-empty",
+      duplicateMode: $("duplicateMode")?.value || "first"
+    });
+    downloadWorkbook(result, datedFilename("completed_price"));
     out.textContent = [
-      "Дайын файл жүктелді: sanabase_completed_price.xlsx",
+      "Дайын файл жүктелді.",
       `1-құжат жолдары: ${result.baseRows}`,
       `almat company price жолдары: ${result.priceRows}`,
       `Код бойынша табылғаны: ${result.matched}`,
+      `Табылмаған кодтар: ${result.notFound.length}`,
       `Баға қойылған ұяшықтар: ${result.filled}`,
+      `Change log жолдары: ${result.changeLog.length}`,
       `Қосылған баға бағаны: ${result.addedColumns}`,
       `Формуласы бар ұяшықтар өзгермеді: ${result.formulaProtected}`,
       `Қорғалған саны/қорап бағандары: ${result.protectedColumns.join(", ") || "табылмады"}`,
@@ -140,14 +145,13 @@ async function matchPrices() {
   }
 }
 
-function mergeByCode(base, price) {
+function mergeByCode(base, price, options = {}) {
+  const updateMode = options.updateMode || "fill-empty";
+  const duplicateMode = options.duplicateMode || "first";
   const baseHeader = normalizeHeader(base.rows[0]);
   const priceHeader = normalizeHeader(price.rows[0]);
   const { baseCodeIndex, priceCodeIndex } = resolveCodeColumns(base.rows, baseHeader, price.rows, priceHeader);
-  const protectedIndexes = uniqueIndexes([
-    ...findQuantityColumns(baseHeader),
-    ...findPackageColumns(baseHeader)
-  ]);
+  const protectedIndexes = uniqueIndexes([...findQuantityColumns(baseHeader), ...findPackageColumns(baseHeader)]);
   const sourcePriceIndex = resolvePriceColumn(price.rows, priceHeader);
   const basePriceIndexes = findPriceColumns(baseHeader).filter(index => !protectedIndexes.includes(index));
   const targetPriceIndexes = basePriceIndexes.length ? basePriceIndexes : [baseHeader.length];
@@ -157,12 +161,15 @@ function mergeByCode(base, price) {
   const priceMap = new Map();
   price.rows.slice(1).forEach(row => {
     const code = normalizeCode(row[priceCodeIndex]);
-    if (code && !priceMap.has(code)) priceMap.set(code, row);
+    if (!code) return;
+    priceMap.set(code, chooseDuplicateRow(priceMap.get(code), row, duplicateMode, sourcePriceIndex));
   });
 
   let matched = 0;
   let filled = 0;
   let formulaProtected = 0;
+  const changeLog = [["Row", "Code", "Item", "Column", "Old price", "New price", "Duplicate mode", "Update mode"]];
+  const notFound = [["Row", "Code", "Item"]];
   const outputRows = base.workbook ? null : [outputHeader];
   const targetSheet = base.sheet;
   const sheetRange = targetSheet ? XLSX.utils.decode_range(targetSheet["!ref"] || "A1") : null;
@@ -178,6 +185,7 @@ function mergeByCode(base, price) {
     const rowIndex = rowOffset + 1;
     const code = normalizeCode(baseRow[baseCodeIndex]);
     const priceRow = priceMap.get(code);
+    const itemName = guessItemName(baseRow, baseHeader, baseCodeIndex);
     const outRow = outputRows ? new Array(outputHeader.length).fill("") : null;
     if (outRow) baseHeader.forEach((_, index) => { outRow[index] = cellValue(baseRow[index]); });
 
@@ -188,6 +196,8 @@ function mergeByCode(base, price) {
         const sourceIndex = findMatchingPriceSource(baseHeader[outputIndex], priceHeader, sourcePriceIndex);
         const next = cellValue(priceRow[sourceIndex]);
         if (!next) return;
+        const oldValue = targetSheet ? getSheetCellValue(targetSheet, rowIndex, outputIndex) : cellValue(outRow?.[outputIndex]);
+        if (updateMode === "fill-empty" && oldValue) return;
 
         if (targetSheet) {
           if (hasFormula(targetSheet, rowIndex, outputIndex)) {
@@ -198,8 +208,11 @@ function mergeByCode(base, price) {
         } else if (outRow) {
           outRow[outputIndex] = next;
         }
+        changeLog.push([rowIndex + 1, code, itemName, outputHeader[outputIndex], oldValue, next, duplicateMode, updateMode]);
         filled += 1;
       });
+    } else if (code) {
+      notFound.push([rowIndex + 1, code, itemName]);
     }
     if (outRow) outputRows.push(outRow);
   });
@@ -207,6 +220,8 @@ function mergeByCode(base, price) {
   return {
     workbook: base.workbook,
     rows: outputRows,
+    changeLog,
+    notFound,
     baseRows: Math.max(base.rows.length - 1, 0),
     priceRows: Math.max(price.rows.length - 1, 0),
     matched,
@@ -249,14 +264,18 @@ function worksheetToRows(sheet) {
 }
 
 function downloadWorkbook(result, filename) {
-  if (result.workbook) {
-    XLSX.writeFile(result.workbook, filename, { bookType: "xlsx", cellStyles: true });
-    return;
-  }
-  const sheet = XLSX.utils.aoa_to_sheet(result.rows);
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, sheet, "Completed");
-  XLSX.writeFile(workbook, filename);
+  const workbook = result.workbook || XLSX.utils.book_new();
+  if (!result.workbook) XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(result.rows), "Completed");
+  appendOrReplaceSheet(workbook, "Change log", result.changeLog);
+  appendOrReplaceSheet(workbook, "Not found", result.notFound);
+  XLSX.writeFile(workbook, filename, { bookType: "xlsx", cellStyles: true });
+}
+
+function appendOrReplaceSheet(workbook, name, rows) {
+  const existing = workbook.SheetNames.indexOf(name);
+  if (existing >= 0) workbook.SheetNames.splice(existing, 1);
+  delete workbook.Sheets[name];
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(rows), name);
 }
 
 function normalizeHeader(row) {
@@ -264,9 +283,7 @@ function normalizeHeader(row) {
 }
 
 function trimRows(rows) {
-  return rows
-    .filter(row => row.some(cell => String(cell ?? "").trim()))
-    .map(row => row.map(cellValue));
+  return rows.filter(row => row.some(cell => String(cell ?? "").trim())).map(row => row.map(cellValue));
 }
 
 function findColumn(header, hint, keywords) {
@@ -286,9 +303,7 @@ function findColumn(header, hint, keywords) {
 function resolveCodeColumns(baseRows, baseHeader, priceRows, priceHeader) {
   const baseDirect = findColumn(baseHeader, "", codeKeywords());
   const priceDirect = findColumn(priceHeader, "", codeKeywords());
-  if (baseDirect >= 0 && priceDirect >= 0) {
-    return { baseCodeIndex: baseDirect, priceCodeIndex: priceDirect };
-  }
+  if (baseDirect >= 0 && priceDirect >= 0) return { baseCodeIndex: baseDirect, priceCodeIndex: priceDirect };
 
   let best = { baseCodeIndex: baseDirect >= 0 ? baseDirect : 0, priceCodeIndex: priceDirect >= 0 ? priceDirect : 0, score: -1 };
   baseHeader.forEach((_, baseIndex) => {
@@ -309,6 +324,21 @@ function columnMatchScore(baseRows, baseIndex, priceRows, priceIndex) {
   baseValues.forEach(value => { if (priceValues.has(value)) matches += 1; });
   const codeLike = [...baseValues].filter(value => value.length >= 2 && value.length <= 40 && /[A-ZА-Я0-9]/i.test(value)).length;
   return matches * 20 + codeLike;
+}
+
+function chooseDuplicateRow(current, next, mode, priceIndex) {
+  if (!current) return next;
+  if (mode === "last") return next;
+  if (mode === "min" || mode === "max") {
+    const currentPrice = parseNumber(current[priceIndex]);
+    const nextPrice = parseNumber(next[priceIndex]);
+    if (currentPrice == null) return next;
+    if (nextPrice == null) return current;
+    return mode === "min"
+      ? (nextPrice < currentPrice ? next : current)
+      : (nextPrice > currentPrice ? next : current);
+  }
+  return current;
 }
 
 function findQuantityColumns(header) {
@@ -354,6 +384,12 @@ function findMatchingPriceSource(targetHeader, priceHeader, fallbackIndex) {
   return fallbackIndex;
 }
 
+function guessItemName(row, header, codeIndex) {
+  const nameIndex = header.findIndex(name => ["атауы", "наименование", "name", "товар", "product"].some(key => normalizeText(name).includes(key)));
+  if (nameIndex >= 0) return cellValue(row[nameIndex]);
+  return cellValue(row[codeIndex + 1]) || cellValue(row[0]);
+}
+
 function codeKeywords() {
   return ["код", "code", "sku", "артикул", "article", "item", "id", "barcode", "штрих", "номенклатура"];
 }
@@ -394,6 +430,10 @@ function cellText(cell) {
   return "";
 }
 
+function getSheetCellValue(sheet, rowIndex, columnIndex) {
+  return cellText(sheet[XLSX.utils.encode_cell({ r: rowIndex, c: columnIndex })]);
+}
+
 function hasFormula(sheet, rowIndex, columnIndex) {
   const cell = sheet[XLSX.utils.encode_cell({ r: rowIndex, c: columnIndex })];
   return Boolean(cell && cell.f);
@@ -403,11 +443,7 @@ function setSheetCell(sheet, rowIndex, columnIndex, value) {
   const address = XLSX.utils.encode_cell({ r: rowIndex, c: columnIndex });
   const existing = sheet[address] || {};
   const numeric = parseNumber(value);
-  sheet[address] = {
-    ...existing,
-    t: numeric == null ? "s" : "n",
-    v: numeric == null ? value : numeric
-  };
+  sheet[address] = { ...existing, t: numeric == null ? "s" : "n", v: numeric == null ? value : numeric };
   delete sheet[address].f;
   delete sheet[address].w;
 }
@@ -417,6 +453,10 @@ function parseNumber(value) {
   if (!/^-?\d+(\.\d+)?$/.test(clean)) return null;
   const number = Number(clean);
   return Number.isFinite(number) ? number : null;
+}
+
+function datedFilename(prefix) {
+  return `${prefix}_${new Date().toISOString().slice(0, 10)}.xlsx`;
 }
 
 function uniqueIndexes(indexes) {
@@ -527,10 +567,7 @@ function answerFromContext(prompt, context) {
     .sort((a, b) => b.score - a.score)
     .slice(0, 6)
     .map(item => item.sentence);
-
-  if (!sentences.length) {
-    return "Бұл сұраққа нақты сәйкес жол табылмады. Базаңыздан ең маңызды үзінді:\n\n" + context.slice(0, 1200);
-  }
+  if (!sentences.length) return "Бұл сұраққа нақты сәйкес жол табылмады. Базаңыздан ең маңызды үзінді:\n\n" + context.slice(0, 1200);
   return "База бойынша қысқа жауап:\n\n" + sentences.join("\n\n");
 }
 
@@ -569,20 +606,11 @@ function simpleTranslate(text, language) {
 }
 
 function keywords(value) {
-  return value
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s]/gu, " ")
-    .split(/\s+/)
-    .filter(word => word.length > 2)
-    .slice(0, 20);
+  return value.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").split(/\s+/).filter(word => word.length > 2).slice(0, 20);
 }
 
 function buildContext() {
-  return state.docs
-    .filter(doc => doc.text)
-    .slice(0, 8)
-    .map(doc => `Document: ${doc.name}\n${doc.text.slice(0, 12000)}`)
-    .join("\n\n---\n\n");
+  return state.docs.filter(doc => doc.text).slice(0, 8).map(doc => `Document: ${doc.name}\n${doc.text.slice(0, 12000)}`).join("\n\n---\n\n");
 }
 
 async function api(url, payload) {
@@ -608,7 +636,6 @@ function addMessage(kind, text) {
 function render() {
   $("docCount").textContent = `${state.docs.length} docs`;
   $("noteCount").textContent = `${state.notes.length} notes`;
-
   const query = $("searchDocs").value?.toLowerCase() || "";
   $("docsGrid").innerHTML = "";
   state.docs
@@ -619,7 +646,6 @@ function render() {
       card.innerHTML = `<h3>${escapeHtml(doc.name)}</h3><p>${escapeHtml(doc.warning || doc.text || "Selectable text табылмады.")}</p>`;
       $("docsGrid").appendChild(card);
     });
-
   $("notesList").innerHTML = "";
   state.notes.forEach(note => {
     const card = document.createElement("article");

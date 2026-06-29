@@ -77,6 +77,54 @@
             Backup енгізу
           </label>
         </div>
+        <div class="cloud-panel">
+          <div class="brain-head">
+            <div>
+              <h3>Cloud сақтау</h3>
+              <p>Supabase арқылы база браузерден жоғалмайды.</p>
+            </div>
+            <span class="brain-type" id="cloudBadge">Local</span>
+          </div>
+          <div class="cloud-grid">
+            <label>
+              <span>Supabase URL</span>
+              <input id="cloudUrl" placeholder="https://xxxx.supabase.co">
+            </label>
+            <label>
+              <span>Anon key</span>
+              <input id="cloudKey" type="password" placeholder="eyJ...">
+            </label>
+            <label>
+              <span>Workspace коды</span>
+              <input id="cloudWorkspace" placeholder="my-company-brain">
+            </label>
+          </div>
+          <div class="cloud-actions">
+            <button id="cloudSaveBtn" type="button">Cloud қосу</button>
+            <button id="cloudPushBtn" type="button">Cloud-қа сақтау</button>
+            <button id="cloudPullBtn" type="button">Cloud-тан алу</button>
+            <button id="cloudClearBtn" type="button">Cloud өшіру</button>
+          </div>
+          <details class="cloud-sql">
+            <summary>Supabase SQL</summary>
+            <textarea readonly>create table if not exists sanabase_brain (
+  id text primary key,
+  workspace_id text not null,
+  payload jsonb not null,
+  updated_at timestamptz not null default now()
+);
+
+alter table sanabase_brain enable row level security;
+
+create policy "sanabase brain public sync"
+on sanabase_brain
+for all
+to anon
+using (true)
+with check (true);</textarea>
+          </details>
+          <p id="cloudStatus">Cloud қосылмаған. Local backup әлі жұмыс істейді.</p>
+        </div>
         <pre id="brainOut">Құжаттарды Upload арқылы жүктеңіз. Бұл бөлім құжаттарды сақтайды, тегпен байланыстырады және сол базадан CRM қорытынды жасайды.</pre>
         <div class="brain-list" id="brainList"></div>
       </div>
@@ -163,6 +211,6 @@
     </section>
   </main>
 
-  <script src="app.js?v=20260629-6"></script>
+  <script src="app.js?v=20260629-7"></script>
 </body>
 </html>

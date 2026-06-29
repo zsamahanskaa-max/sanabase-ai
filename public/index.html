@@ -24,6 +24,7 @@
       <button class="nav-item active" data-view="chat">Chat</button>
       <button class="nav-item" data-view="library">Knowledge</button>
       <button class="nav-item" data-view="match">Price Match</button>
+      <button class="nav-item" data-view="brain">Brain</button>
       <button class="nav-item" data-view="translate">Translate</button>
       <button class="nav-item" data-view="quiz">Quiz</button>
       <button class="nav-item" data-view="crm">CRM</button>
@@ -61,6 +62,24 @@
         <button id="clearDocs">Clear</button>
       </div>
       <div class="grid" id="docsGrid"></div>
+    </section>
+
+    <section class="view" id="brain">
+      <div class="tool-card brain-tool">
+        <div class="toolbar">
+          <input id="brainSearch" type="search" placeholder="Second Brain ішінен іздеу">
+          <button id="brainCrmBtn">CRM жасау</button>
+        </div>
+        <div class="match-grid">
+          <button id="brainExportBtn" type="button">Brain backup жүктеу</button>
+          <label class="upload secondary-upload">
+            <input id="brainImportFile" type="file" accept=".json">
+            Backup енгізу
+          </label>
+        </div>
+        <pre id="brainOut">Құжаттарды Upload арқылы жүктеңіз. Бұл бөлім құжаттарды сақтайды, тегпен байланыстырады және сол базадан CRM қорытынды жасайды.</pre>
+        <div class="brain-list" id="brainList"></div>
+      </div>
     </section>
 
     <section class="view" id="match">
@@ -144,6 +163,6 @@
     </section>
   </main>
 
-  <script src="app.js?v=20260629-5"></script>
+  <script src="app.js?v=20260629-6"></script>
 </body>
 </html>

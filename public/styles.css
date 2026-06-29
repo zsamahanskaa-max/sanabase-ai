@@ -230,10 +230,66 @@ pre {
   gap: 16px;
 }
 .note-form { display: grid; gap: 10px; align-content: start; }
+.note-form-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 150px;
+  gap: 10px;
+}
+.notes-main {
+  min-width: 0;
+}
+.folder-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.folder-row button {
+  width: auto;
+  background: white;
+  color: var(--sage);
+}
+.folder-row button.active {
+  background: var(--sage);
+  color: white;
+}
+.folder-row span {
+  display: inline-block;
+  margin-left: 6px;
+  opacity: .75;
+}
 .note-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 14px;
+}
+.note {
+  display: grid;
+  gap: 10px;
+  border-left: 4px solid var(--sky);
+}
+.note-long {
+  grid-column: span 2;
+  border-left-color: var(--leaf);
+}
+.note-idea { border-left-color: var(--gold); }
+.note-meeting { border-left-color: var(--rose); }
+.note-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+}
+.note-head span {
+  color: var(--muted);
+  font-size: 12px;
+}
+.note-head button {
+  background: white;
+  color: var(--sage);
+}
+.empty-note {
+  border-left-color: var(--line);
 }
 
 .tasks-layout {
@@ -590,13 +646,19 @@ pre {
     max-width: 100%;
     padding: 12px 13px;
   }
-  .composer, .toolbar, .split, .notes-layout, .tasks-layout, .match-grid, .brain-fields, .brain-head, .cloud-grid, .task-form-grid, .assistant-controls {
+  .composer, .toolbar, .split, .notes-layout, .tasks-layout, .match-grid, .brain-fields, .brain-head, .cloud-grid, .task-form-grid, .note-form-grid, .assistant-controls {
     grid-template-columns: 1fr;
   }
   .toolbar {
     align-items: stretch;
   }
   .grid, .note-list {
+    grid-template-columns: 1fr;
+  }
+  .note-long {
+    grid-column: auto;
+  }
+  .note-head {
     grid-template-columns: 1fr;
   }
   .split textarea, .tool-card textarea, .note-form textarea {

@@ -46,6 +46,8 @@ on("brainImportFile", "change", importBrain);
 on("cloudSaveBtn", "click", saveCloudSettings);
 on("cloudPushBtn", "click", () => pushCloud(true));
 on("cloudPullBtn", "click", () => pullCloud(true));
+on("cloudConfigExportBtn", "click", exportCloudConfig);
+on("cloudConfigImportFile", "change", importCloudConfig);
 on("cloudClearBtn", "click", clearCloudSettings);
 on("clearDocs", "click", () => {
   state.docs = [];
@@ -719,12 +721,12 @@ function saveCloudSettings() {
   cloudConfig.key = $("cloudKey").value.trim();
   cloudConfig.workspace = $("cloudWorkspace").value.trim() || "default";
   if (!cloudConfig.url || !cloudConfig.key) {
-    setCloudStatus("Supabase URL және anon key енгізіңіз.", false);
+    setCloudStatus("Cloud қосу үшін Supabase URL және anon key енгізіңіз. Workspace кодын өзіңіз қоя аласыз.", false);
     return;
   }
   localStorage.setItem("sanabase-cloud", JSON.stringify(cloudConfig));
   renderCloudSettings();
-  setCloudStatus("Cloud қосылды. Қазір Cloud-қа сақтау батырмасын басуға болады.", true);
+  setCloudStatus("Cloud қосылды. Енді Cloud-қа сақтау басыңыз немесе өзгерістер автоматты сақталады.", true);
 }
 
 function clearCloudSettings() {
@@ -736,9 +738,49 @@ function clearCloudSettings() {
   setCloudStatus("Cloud өшірілді. Құжаттар local режимде қалды.", false);
 }
 
+function exportCloudConfig() {
+  const current = {
+    url: cleanSupabaseUrl($("cloudUrl")?.value || cloudConfig.url),
+    key: $("cloudKey")?.value?.trim() || cloudConfig.key,
+    workspace: $("cloudWorkspace")?.value?.trim() || cloudConfig.workspace || "default",
+    exportedAt: new Date().toISOString(),
+    app: "SanaBase AI"
+  };
+  if (!current.url || !current.key) {
+    setCloudStatus("Алдымен Supabase URL және anon key енгізіп, Cloud қосу басыңыз.", false);
+    return;
+  }
+  const blob = new Blob([JSON.stringify(current, null, 2)], { type: "application/json" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = `sanabase_cloud_${current.workspace}.json`;
+  link.click();
+  URL.revokeObjectURL(link.href);
+  setCloudStatus("Cloud баптауы жүктелді. Оны телефонда Cloud баптауын енгізу арқылы қосуға болады.", true);
+}
+
+async function importCloudConfig(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  try {
+    const data = JSON.parse(await file.text());
+    cloudConfig.url = cleanSupabaseUrl(data.url || "");
+    cloudConfig.key = String(data.key || "").trim();
+    cloudConfig.workspace = String(data.workspace || "default").trim() || "default";
+    if (!cloudConfig.url || !cloudConfig.key) throw new Error("config ішінде url немесе key жоқ");
+    localStorage.setItem("sanabase-cloud", JSON.stringify(cloudConfig));
+    renderCloudSettings();
+    setCloudStatus("Cloud баптауы енгізілді. Енді Cloud-тан алу немесе Cloud-қа сақтау басыңыз.", true);
+  } catch (error) {
+    setCloudStatus(`Cloud баптауын оқу қатесі: ${shortError(error)}`, false);
+  } finally {
+    event.target.value = "";
+  }
+}
+
 async function pushCloud(showStatus = false) {
   if (!cloudReady()) {
-    if (showStatus) setCloudStatus("Cloud қосылмаған. URL, anon key және workspace енгізіңіз.", false);
+    if (showStatus) setCloudStatus("Cloud қосылмаған: осы браузерде Supabase URL/anon key/workspace сақталмаған. Cloud қосу немесе Cloud баптауын енгізу қолданыңыз.", false);
     return;
   }
   try {
@@ -769,7 +811,7 @@ async function pushCloud(showStatus = false) {
 
 async function pullCloud(showStatus = false) {
   if (!cloudReady()) {
-    if (showStatus) setCloudStatus("Cloud қосылмаған. URL, anon key және workspace енгізіңіз.", false);
+    if (showStatus) setCloudStatus("Cloud қосылмаған: осы браузерде Supabase URL/anon key/workspace сақталмаған. Cloud қосу немесе Cloud баптауын енгізу қолданыңыз.", false);
     return;
   }
   try {
@@ -807,7 +849,7 @@ function renderCloudSettings() {
   $("cloudKey").value = cloudConfig.key || "";
   $("cloudWorkspace").value = cloudConfig.workspace || "";
   $("cloudBadge").textContent = cloudReady() ? "Cloud" : "Local";
-  setCloudStatus(cloudReady() ? `Cloud дайын: ${cloudConfig.workspace}` : "Cloud қосылмаған. Local backup әлі жұмыс істейді.", cloudReady());
+  setCloudStatus(cloudReady() ? `Cloud дайын: ${cloudConfig.workspace}. Өзгерістер автоматты сақталады.` : "Cloud қосылмаған. Дерек қазір тек осы браузерде сақталады. Телефонға көшіру үшін Cloud баптауын енгізіңіз.", cloudReady());
 }
 
 function loadCloudConfig() {

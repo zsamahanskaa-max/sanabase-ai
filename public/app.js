@@ -3,6 +3,7 @@ const titles = {
   chat: ["AI Chat", "Құжаттарыңызға сүйеніп жауап береді."],
   library: ["Knowledge Base", "PDF, Word, Excel және мәтін материалдары."],
   match: ["Price Match", "Формуласы бар қорап/саны бағандарын өзгертпей, бағасын almat company price арқылы қояды."],
+  brain: ["Second Brain", "Құжаттарды сақтап, тегпен байланыстырып, сол базадан CRM жасау."],
   translate: ["Translation", "Мәтінді қалаған тілге аударыңыз."],
   quiz: ["Quiz Generator", "Базаңыздан тест және жауап кілтін жасаңыз."],
   crm: ["CRM Analysis", "Excel/CSV CRM базасын талдаңыз."],
@@ -23,6 +24,10 @@ $("crmBtn").addEventListener("click", crm);
 $("matchBtn").addEventListener("click", matchPrices);
 $("noteForm").addEventListener("submit", saveNote);
 $("searchDocs").addEventListener("input", render);
+$("brainSearch").addEventListener("input", render);
+$("brainCrmBtn").addEventListener("click", brainCrm);
+$("brainExportBtn").addEventListener("click", exportBrain);
+$("brainImportFile").addEventListener("change", importBrain);
 $("clearDocs").addEventListener("click", () => {
   state.docs = [];
   persist();
@@ -49,6 +54,8 @@ async function importFiles(event) {
       type: result.type,
       text: result.text || "",
       warning: result.warning || "",
+      tags: inferTags(result.name, result.text || ""),
+      links: [],
       createdAt: new Date().toISOString()
     });
     persist();
@@ -475,6 +482,93 @@ function saveNote(event) {
   render();
 }
 
+function brainCrm() {
+  const out = $("brainOut");
+  if (!state.docs.length) {
+    out.textContent = "Алдымен PDF, Word, Excel немесе CSV құжаттарын жүктеңіз.";
+    return;
+  }
+  const context = buildContext();
+  const links = state.docs.map(doc => {
+    const related = findRelatedDocs(doc).map(item => item.name).slice(0, 4).join(", ");
+    return `- ${doc.name}: ${related || "байланыс табылмады"}`;
+  }).join("\n");
+  out.textContent = [
+    analyzeCrm(context),
+    "",
+    "Second Brain байланыстары:",
+    links,
+    "",
+    "Ұсыныс: клиент, тауар, код, статус, жауапты менеджер және келесі әрекет бағандары бар Excel/CSV жүктесеңіз, CRM талдау дәлірек болады."
+  ].join("\n");
+}
+
+function exportBrain() {
+  const payload = {
+    exportedAt: new Date().toISOString(),
+    docs: state.docs,
+    notes: state.notes
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = `sanabase_brain_${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(link.href);
+}
+
+async function importBrain(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  try {
+    const data = JSON.parse(await file.text());
+    const incomingDocs = Array.isArray(data.docs) ? data.docs : [];
+    const incomingNotes = Array.isArray(data.notes) ? data.notes : [];
+    const existingDocKeys = new Set(state.docs.map(doc => doc.id || doc.name));
+    const existingNoteKeys = new Set(state.notes.map(note => note.id || `${note.title}:${note.createdAt}`));
+    incomingDocs.forEach(doc => {
+      const key = doc.id || doc.name;
+      if (!existingDocKeys.has(key)) {
+        state.docs.unshift(normalizeDoc(doc));
+        existingDocKeys.add(key);
+      }
+    });
+    incomingNotes.forEach(note => {
+      const key = note.id || `${note.title}:${note.createdAt}`;
+      if (!existingNoteKeys.has(key)) {
+        state.notes.unshift({
+          id: note.id || crypto.randomUUID(),
+          title: note.title || "Imported note",
+          body: note.body || "",
+          createdAt: note.createdAt || new Date().toISOString()
+        });
+        existingNoteKeys.add(key);
+      }
+    });
+    persist();
+    render();
+    $("brainOut").textContent = `Импорт дайын: ${incomingDocs.length} құжат, ${incomingNotes.length} note оқылды.`;
+  } catch (error) {
+    $("brainOut").textContent = `Import қатесі: ${error.message}`;
+  } finally {
+    event.target.value = "";
+  }
+}
+
+function saveBrainMeta(id) {
+  const doc = state.docs.find(item => item.id === id);
+  if (!doc) return;
+  const tagsInput = document.querySelector(`[data-tags-for="${CSS.escape(id)}"]`);
+  const linksInput = document.querySelector(`[data-links-for="${CSS.escape(id)}"]`);
+  doc.tags = splitList(tagsInput?.value || "");
+  doc.links = splitList(linksInput?.value || "");
+  persist();
+  render();
+  $("brainOut").textContent = `${doc.name} сақталды.`;
+}
+
 async function ai(mode, prompt, language = "Kazakh") {
   try {
     return await api("api/ai", {
@@ -609,8 +703,66 @@ function keywords(value) {
   return value.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").split(/\s+/).filter(word => word.length > 2).slice(0, 20);
 }
 
+function splitList(value) {
+  return String(value || "")
+    .split(/[,;\n]/)
+    .map(item => item.trim())
+    .filter(Boolean)
+    .slice(0, 20);
+}
+
+function inferTags(name, text) {
+  const source = `${name} ${text}`.toLowerCase();
+  const tags = [];
+  [
+    ["price", /price|баға|прайс|цена|тауар|товар|код/],
+    ["crm", /crm|клиент|лид|сатылым|продаж|manager|менеджер/],
+    ["contract", /contract|договор|келісім|шарт/],
+    ["finance", /invoice|счет|төлем|оплата|payment|amount|сумма/],
+    ["warehouse", /склад|қойма|остаток|stock|quantity|саны|қорап|коробка/]
+  ].forEach(([tag, pattern]) => {
+    if (pattern.test(source)) tags.push(tag);
+  });
+  return [...new Set(tags.concat(keywords(name).slice(0, 4)))].slice(0, 8);
+}
+
+function normalizeDoc(doc) {
+  const text = doc.text || "";
+  return {
+    id: doc.id || crypto.randomUUID(),
+    name: doc.name || "Imported document",
+    type: doc.type || "unknown",
+    text,
+    warning: doc.warning || "",
+    tags: Array.isArray(doc.tags) && doc.tags.length ? doc.tags : inferTags(doc.name || "", text),
+    links: Array.isArray(doc.links) ? doc.links : [],
+    createdAt: doc.createdAt || new Date().toISOString()
+  };
+}
+
+function findRelatedDocs(doc) {
+  const tags = new Set(doc.tags || []);
+  const manual = new Set((doc.links || []).map(item => item.toLowerCase()));
+  return state.docs
+    .filter(item => item.id !== doc.id)
+    .map(item => {
+      const tagScore = (item.tags || []).filter(tag => tags.has(tag)).length;
+      const manualScore = manual.has(item.id.toLowerCase()) || manual.has(item.name.toLowerCase()) ? 5 : 0;
+      return { ...item, score: tagScore + manualScore };
+    })
+    .filter(item => item.score > 0)
+    .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
+}
+
 function buildContext() {
-  return state.docs.filter(doc => doc.text).slice(0, 8).map(doc => `Document: ${doc.name}\n${doc.text.slice(0, 12000)}`).join("\n\n---\n\n");
+  const docs = state.docs
+    .filter(doc => doc.text)
+    .slice(0, 10)
+    .map(doc => `Document: ${doc.name}\nTags: ${(doc.tags || []).join(", ")}\nLinks: ${(doc.links || []).join(", ")}\n${doc.text.slice(0, 12000)}`);
+  const notes = state.notes
+    .slice(0, 10)
+    .map(note => `Note: ${note.title}\n${note.body}`);
+  return docs.concat(notes).join("\n\n---\n\n");
 }
 
 async function api(url, payload) {
@@ -636,6 +788,7 @@ function addMessage(kind, text) {
 function render() {
   $("docCount").textContent = `${state.docs.length} docs`;
   $("noteCount").textContent = `${state.notes.length} notes`;
+  state.docs = state.docs.map(normalizeDoc);
   const query = $("searchDocs").value?.toLowerCase() || "";
   $("docsGrid").innerHTML = "";
   state.docs
@@ -653,6 +806,53 @@ function render() {
     card.innerHTML = `<h3>${escapeHtml(note.title)}</h3><p>${escapeHtml(note.body)}</p>`;
     $("notesList").appendChild(card);
   });
+  renderBrain();
+}
+
+function renderBrain() {
+  const list = $("brainList");
+  if (!list) return;
+  const query = $("brainSearch").value?.toLowerCase() || "";
+  const docs = state.docs.filter(doc => `${doc.name} ${(doc.tags || []).join(" ")} ${(doc.links || []).join(" ")} ${doc.text}`.toLowerCase().includes(query));
+  list.innerHTML = "";
+  if (!docs.length) {
+    list.innerHTML = `<article class="brain-card"><h3>Құжат жоқ</h3><p>Upload арқылы PDF, Word, Excel немесе CSV жүктеңіз. Сосын бұл жерде тег, байланыс және CRM жасау ашылады.</p></article>`;
+    return;
+  }
+  docs.forEach(doc => {
+    const related = findRelatedDocs(doc).slice(0, 5);
+    const card = document.createElement("article");
+    card.className = "brain-card";
+    card.innerHTML = `
+      <div class="brain-head">
+        <div>
+          <h3>${escapeHtml(doc.name)}</h3>
+          <p>${escapeHtml(doc.warning || doc.text || "Мәтін табылмады.")}</p>
+        </div>
+        <span class="brain-type">${escapeHtml(doc.type || "file")}</span>
+      </div>
+      <div class="tag-row">${(doc.tags || []).map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join("") || `<span class="tag muted-tag">no tags</span>`}</div>
+      <div class="brain-fields">
+        <label>
+          <span>Тегтер</span>
+          <input data-tags-for="${escapeHtml(doc.id)}" value="${escapeHtml((doc.tags || []).join(", "))}" placeholder="price, crm, клиент">
+        </label>
+        <label>
+          <span>Байланысқан құжаттар</span>
+          <input data-links-for="${escapeHtml(doc.id)}" value="${escapeHtml((doc.links || []).join(", "))}" placeholder="құжат аты немесе ID">
+        </label>
+      </div>
+      <div class="related">
+        <strong>Авто байланыс:</strong>
+        ${related.length ? related.map(item => `<span>${escapeHtml(item.name)}</span>`).join("") : "<span>табылмады</span>"}
+      </div>
+      <button type="button" data-save-brain="${escapeHtml(doc.id)}">Сақтау</button>
+    `;
+    list.appendChild(card);
+  });
+  list.querySelectorAll("[data-save-brain]").forEach(button => {
+    button.addEventListener("click", () => saveBrainMeta(button.dataset.saveBrain));
+  });
 }
 
 function fileToBase64(file) {
@@ -666,7 +866,11 @@ function fileToBase64(file) {
 
 function loadState() {
   try {
-    return JSON.parse(localStorage.getItem("sanabase-state")) || { docs: [], notes: [] };
+    const saved = JSON.parse(localStorage.getItem("sanabase-state")) || {};
+    return {
+      docs: Array.isArray(saved.docs) ? saved.docs.map(normalizeDoc) : [],
+      notes: Array.isArray(saved.notes) ? saved.notes : []
+    };
   } catch {
     return { docs: [], notes: [] };
   }

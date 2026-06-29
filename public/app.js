@@ -55,6 +55,7 @@ on("cloudConfigExportBtn", "click", exportCloudConfig);
 on("cloudConfigImportFile", "change", importCloudConfig);
 on("cloudClearBtn", "click", clearCloudSettings);
 on("clearDocs", "click", () => {
+  if (!confirm("Барлық сақталған құжаттарды өшіреміз бе?")) return;
   state.docs = [];
   persist();
   render();
@@ -1275,13 +1276,44 @@ function render() {
     .forEach(doc => {
       const card = document.createElement("article");
       card.className = "doc";
-      card.innerHTML = `<h3>${escapeHtml(doc.name)}</h3><p>${escapeHtml(doc.warning || doc.text || "Selectable text табылмады.")}</p>`;
+      card.innerHTML = `
+        <div class="doc-head">
+          <div>
+            <h3>${escapeHtml(doc.name)}</h3>
+            <span>${formatDate(doc.createdAt)} · ${(doc.tags || []).slice(0, 3).map(escapeHtml).join(", ") || "tag жоқ"}</span>
+          </div>
+          <button type="button" data-doc-delete="${escapeHtml(doc.id)}">Өшіру</button>
+        </div>
+        <p>${escapeHtml(doc.warning || doc.text || "Selectable text табылмады.")}</p>
+      `;
       $("docsGrid").appendChild(card);
     });
+  $("docsGrid").querySelectorAll("[data-doc-delete]").forEach(button => {
+    button.addEventListener("click", () => deleteDoc(button.dataset.docDelete));
+  });
   renderNotes();
   renderTasks();
   renderBrain();
   renderCloudSettings();
+}
+
+function deleteDoc(id) {
+  const doc = state.docs.find(item => item.id === id);
+  if (!doc) return;
+  if (!confirm(`${doc.name} құжатын өшіреміз бе?`)) return;
+  state.docs = state.docs.filter(item => item.id !== id);
+  state.docs.forEach(item => {
+    item.links = (item.links || []).filter(link => link !== id && link !== doc.name);
+  });
+  persist();
+  render();
+}
+
+function formatDate(value) {
+  if (!value) return "күні жоқ";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "күні жоқ";
+  return date.toLocaleDateString("kk-KZ", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
 function renderNotes() {

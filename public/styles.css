@@ -205,6 +205,32 @@ textarea:focus, input:focus, select:focus { border-color: var(--leaf); }
   color: var(--muted);
 }
 
+.doc {
+  display: grid;
+  gap: 10px;
+}
+
+.doc-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+}
+
+.doc-head span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.doc-head button {
+  width: auto;
+  min-height: 36px;
+  padding: 7px 10px;
+  background: white;
+  color: var(--rose);
+  border-color: #f0c8c8;
+}
+
 .split {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 360px;

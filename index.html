@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#28433f">
   <title>SanaBase AI</title>
-  <link rel="manifest" href="public/manifest.json?v=20260630-7">
-  <link rel="stylesheet" href="public/styles.css?v=20260630-7">
+  <link rel="manifest" href="public/manifest.json?v=20260630-8">
+  <link rel="stylesheet" href="public/styles.css?v=20260630-8">
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs" type="module"></script>
@@ -30,6 +30,7 @@
       <button class="nav-item" data-view="quiz">Тест</button>
       <button class="nav-item" data-view="crm">CRM</button>
       <button class="nav-item" data-view="tasks">Тапсырмалар</button>
+      <button class="nav-item" data-view="goals">Мақсаттар</button>
       <button class="nav-item" data-view="notes">Жазбалар</button>
     </nav>
     <div class="status">
@@ -429,6 +430,112 @@ with check (true);</textarea>
       </div>
     </section>
 
+    <section class="view" id="goals">
+      <div class="goal-shell">
+        <div class="goal-dashboard" id="goalDashboard"></div>
+        <div class="goal-toolbar">
+          <input id="goalSearch" type="search" placeholder="Мақсат, проект, челлендж ішінен іздеу">
+          <select id="goalFilter">
+            <option value="all">Барлығы</option>
+            <option value="active">Орындалып жатыр</option>
+            <option value="done">Аяқталды</option>
+            <option value="overdue">Кешіккен</option>
+            <option value="high">Жоғары приоритет</option>
+          </select>
+        </div>
+        <div class="goal-layout">
+          <form id="goalForm" class="goal-form">
+            <h3>Мақсат қосу</h3>
+            <input id="goalTitle" placeholder="Мақсат атауы">
+            <textarea id="goalDescription" placeholder="Сипаттама"></textarea>
+            <div class="goal-form-grid">
+              <select id="goalCategory">
+                <option>Бизнес</option>
+                <option>Қаржы</option>
+                <option>Денсаулық</option>
+                <option>Оқу</option>
+                <option>Отбасы</option>
+                <option>Жеке даму</option>
+              </select>
+              <select id="goalStatus">
+                <option value="planned">Жоспарда</option>
+                <option value="active">Орындалып жатыр</option>
+                <option value="done">Аяқталды</option>
+                <option value="paused">Тоқтап тұр</option>
+              </select>
+            </div>
+            <div class="goal-form-grid">
+              <input id="goalStart" type="date">
+              <input id="goalEnd" type="date">
+            </div>
+            <textarea id="goalStages" placeholder="Этаптар: әр жолға бір этап"></textarea>
+            <button type="submit">Мақсат қосу</button>
+          </form>
+
+          <form id="projectForm" class="goal-form">
+            <h3>Проект қосу</h3>
+            <input id="projectTitle" placeholder="Проект атауы">
+            <textarea id="projectGoal" placeholder="Проект мақсаты"></textarea>
+            <div class="goal-form-grid">
+              <select id="projectCategory">
+                <option>Бизнес</option>
+                <option>AI жобалар</option>
+                <option>CRM</option>
+                <option>Сату</option>
+                <option>Қаржы</option>
+                <option>Оқу</option>
+              </select>
+              <select id="projectPriority">
+                <option value="medium">Орта</option>
+                <option value="low">Төмен</option>
+                <option value="high">Жоғары</option>
+                <option value="critical">Өте маңызды</option>
+              </select>
+            </div>
+            <div class="goal-form-grid">
+              <input id="projectStart" type="date">
+              <input id="projectEnd" type="date">
+            </div>
+            <select id="projectStatus">
+              <option value="idea">Идея</option>
+              <option value="planned">Жоспарда</option>
+              <option value="active">Жасалып жатыр</option>
+              <option value="review">Тексеруде</option>
+              <option value="done">Аяқталды</option>
+            </select>
+            <textarea id="projectModules" placeholder="Бөлімдер: әр жолға бір бөлім"></textarea>
+            <textarea id="projectTasks" placeholder="Тапсырмалар: әр жолға бір тапсырма"></textarea>
+            <button type="submit">Проект қосу</button>
+          </form>
+
+          <form id="challengeForm" class="goal-form">
+            <h3>Челлендж қосу</h3>
+            <input id="challengeTitle" placeholder="Челлендж атауы">
+            <textarea id="challengeDescription" placeholder="Сипаттама"></textarea>
+            <div class="goal-form-grid">
+              <input id="challengeTotal" type="number" min="1" value="30" placeholder="Жалпы күн саны">
+              <input id="challengeStart" type="date">
+            </div>
+            <button type="submit">Челлендж қосу</button>
+          </form>
+        </div>
+        <div class="goal-columns">
+          <section>
+            <h3>Мақсаттар</h3>
+            <div id="goalList" class="goal-list"></div>
+          </section>
+          <section>
+            <h3>Проекттер</h3>
+            <div id="projectList" class="goal-list"></div>
+          </section>
+          <section>
+            <h3>Челлендждер</h3>
+            <div id="challengeList" class="goal-list"></div>
+          </section>
+        </div>
+      </div>
+    </section>
+
     <section class="view" id="notes">
       <div class="notes-layout">
         <form id="noteForm" class="note-form">
@@ -461,6 +568,6 @@ with check (true);</textarea>
     </section>
   </main>
 
-  <script src="public/app.js?v=20260630-7"></script>
+  <script src="public/app.js?v=20260630-8"></script>
 </body>
 </html>

@@ -209,7 +209,7 @@ textarea:focus, input:focus, select:focus { border-color: var(--leaf); }
   gap: 14px;
 }
 
-.doc, .tool-card, .note-form, .note, .brain-card, .task-form, .kanban-column {
+.doc, .tool-card, .note-form, .note, .brain-card, .task-form, .kanban-column, .goal-form, .goal-card, .goal-stat {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: white;
@@ -462,6 +462,208 @@ pre {
 .empty-task {
   color: var(--muted);
   border-style: dashed;
+  border-left-color: var(--line);
+}
+
+.goal-shell {
+  display: grid;
+  gap: 16px;
+}
+
+.goal-dashboard {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(120px, 1fr));
+  gap: 12px;
+}
+
+.goal-stat {
+  display: grid;
+  gap: 8px;
+  background: #102823;
+  color: white;
+  box-shadow: none;
+}
+
+.goal-stat span {
+  color: #bfd0ca;
+  font-size: 12px;
+}
+
+.goal-stat strong {
+  font-size: 24px;
+}
+
+.goal-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  gap: 10px;
+}
+
+.goal-layout,
+.goal-columns {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+
+.goal-form {
+  display: grid;
+  gap: 10px;
+}
+
+.goal-form textarea {
+  min-height: 92px;
+  resize: vertical;
+}
+
+.goal-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.goal-columns > section > h3 {
+  margin: 0 0 10px;
+}
+
+.goal-list {
+  display: grid;
+  gap: 12px;
+}
+
+.goal-card {
+  display: grid;
+  gap: 10px;
+  border-left: 4px solid var(--leaf);
+}
+
+.goal-card.priority-high,
+.goal-card.priority-critical,
+.goal-card.is-overdue {
+  border-left-color: var(--rose);
+}
+
+.goal-card h4 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.goal-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.goal-card-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+}
+
+.goal-card-head span,
+.goal-meta span,
+.module-row span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.goal-card-head button {
+  min-height: 34px;
+  padding: 6px 9px;
+  background: white;
+  color: var(--rose);
+  border-color: #f0c8c8;
+}
+
+.progress-bar {
+  height: 10px;
+  border-radius: 999px;
+  background: #e8eee9;
+  overflow: hidden;
+}
+
+.progress-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--leaf), var(--gold));
+}
+
+.goal-meta,
+.module-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.goal-meta span,
+.module-row span {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: #fbfaf7;
+}
+
+.goal-checks {
+  display: grid;
+  gap: 8px;
+}
+
+.goal-checks label {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  color: var(--ink);
+}
+
+.goal-checks input {
+  width: 18px;
+  min-height: 18px;
+  margin-top: 2px;
+}
+
+.challenge-card > button {
+  justify-self: start;
+  background: var(--leaf);
+}
+
+.challenge-card > button.done-today {
+  background: white;
+  color: var(--leaf);
+}
+
+.challenge-days {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(13px, 1fr));
+  gap: 5px;
+}
+
+.challenge-days span {
+  aspect-ratio: 1;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+  background: #f7f8f5;
+}
+
+.challenge-days span.done {
+  background: var(--leaf);
+  border-color: var(--leaf);
+}
+
+.challenge-days span.missed {
+  background: #f4dfdd;
+  border-color: #e4bbb6;
+}
+
+.challenge-days span.today {
+  outline: 2px solid var(--gold);
+  outline-offset: 1px;
+}
+
+.empty-goal {
   border-left-color: var(--line);
 }
 
@@ -965,7 +1167,7 @@ pre {
     max-width: 100%;
     padding: 12px 13px;
   }
-  .composer, .toolbar, .split, .notes-layout, .tasks-layout, .cal-layout, .cal-hero, .match-grid, .brain-fields, .brain-head, .cloud-grid, .task-form-grid, .note-form-grid, .cal-form-grid, .assistant-controls {
+  .composer, .toolbar, .split, .notes-layout, .tasks-layout, .cal-layout, .cal-hero, .match-grid, .brain-fields, .brain-head, .cloud-grid, .task-form-grid, .note-form-grid, .cal-form-grid, .assistant-controls, .goal-toolbar, .goal-layout, .goal-columns, .goal-form-grid {
     grid-template-columns: 1fr;
   }
   .toolbar {
@@ -991,7 +1193,8 @@ pre {
     grid-template-columns: 1fr;
   }
   .cal-dashboard,
-  .cal-board {
+  .cal-board,
+  .goal-dashboard {
     grid-template-columns: 1fr;
   }
   .cal-view-switch,
@@ -1019,7 +1222,7 @@ pre {
   .notify-strip { padding-left: 12px; padding-right: 12px; }
   .nav-item { min-width: 82px; font-size: 12px; }
   textarea, input, select { font-size: 16px; }
-  .doc, .tool-card, .note-form, .note, .brain-card, .task-form, .kanban-column, .cal-form, .cal-column, .cal-history {
+  .doc, .tool-card, .note-form, .note, .brain-card, .task-form, .kanban-column, .cal-form, .cal-column, .cal-history, .goal-form, .goal-card, .goal-stat {
     padding: 13px;
   }
   .conversation {

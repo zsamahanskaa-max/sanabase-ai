@@ -17,6 +17,7 @@ const titles = {
   quiz: ["Тест жасау", "Базаңыздан тест және жауап кілтін жасаңыз."],
   crm: ["CRM талдау", "Excel/CSV CRM базасын талдаңыз."],
   tasks: ["Тапсырмалар", "Trello сияқты тапсырмалар тақтасы."],
+  goals: ["Мақсаттар / Проекттер / Челлендждер", "Үлкен мақсаттарды этапқа бөліп, прогресті пайызбен бақылаңыз."],
   notes: ["Жазбалар", "Ойлар мен конспектілерді сақтаңыз."]
 };
 
@@ -41,6 +42,11 @@ on("matchBtn", "click", matchPrices);
 on("taskForm", "submit", saveTask);
 on("taskSearch", "input", render);
 on("taskQuickCrmBtn", "click", taskFromCrm);
+on("goalForm", "submit", saveGoal);
+on("projectForm", "submit", saveProject);
+on("challengeForm", "submit", saveChallenge);
+on("goalSearch", "input", render);
+on("goalFilter", "change", render);
 on("noteForm", "submit", saveNote);
 on("noteSearch", "input", render);
 on("noteFolderFilter", "change", render);
@@ -646,6 +652,133 @@ function taskFromCrm() {
   setView("tasks");
 }
 
+function saveGoal(event) {
+  event.preventDefault();
+  const title = $("goalTitle")?.value.trim();
+  if (!title) return;
+  const stages = splitLines($("goalStages")?.value).map(name => ({
+    id: crypto.randomUUID(),
+    title: name,
+    description: "",
+    deadline: $("goalEnd")?.value || "",
+    status: "todo",
+    done: false
+  }));
+  state.goals.unshift(normalizeGoal({
+    title,
+    description: $("goalDescription")?.value.trim() || "",
+    category: $("goalCategory")?.value || "Бизнес",
+    status: $("goalStatus")?.value || "active",
+    startDate: $("goalStart")?.value || isoDate(),
+    endDate: $("goalEnd")?.value || "",
+    stages
+  }));
+  event.target.reset();
+  persist();
+  render();
+}
+
+function saveProject(event) {
+  event.preventDefault();
+  const title = $("projectTitle")?.value.trim();
+  if (!title) return;
+  const modules = splitLines($("projectModules")?.value).map(name => ({ id: crypto.randomUUID(), title: name }));
+  const tasks = splitLines($("projectTasks")?.value).map(name => ({
+    id: crypto.randomUUID(),
+    title: name,
+    description: "",
+    status: "todo",
+    done: false,
+    deadline: $("projectEnd")?.value || "",
+    owner: ""
+  }));
+  state.projects.unshift(normalizeProject({
+    title,
+    goal: $("projectGoal")?.value.trim() || "",
+    category: $("projectCategory")?.value || "Бизнес",
+    priority: $("projectPriority")?.value || "medium",
+    status: $("projectStatus")?.value || "active",
+    startDate: $("projectStart")?.value || isoDate(),
+    endDate: $("projectEnd")?.value || "",
+    modules,
+    tasks
+  }));
+  event.target.reset();
+  persist();
+  render();
+}
+
+function saveChallenge(event) {
+  event.preventDefault();
+  const title = $("challengeTitle")?.value.trim();
+  if (!title) return;
+  const totalDays = Math.max(1, Number($("challengeTotal")?.value || 30));
+  const startDate = $("challengeStart")?.value || isoDate();
+  state.challenges.unshift(normalizeChallenge({
+    title,
+    description: $("challengeDescription")?.value.trim() || "",
+    totalDays,
+    startDate,
+    endDate: addDays(startDate, totalDays - 1),
+    doneDates: []
+  }));
+  event.target.reset();
+  if ($("challengeTotal")) $("challengeTotal").value = "30";
+  persist();
+  render();
+}
+
+function splitLines(value) {
+  return String(value || "").split(/\n/).map(line => line.trim()).filter(Boolean).slice(0, 80);
+}
+
+function toggleGoalStage(goalId, stageId) {
+  const goal = state.goals.find(item => item.id === goalId);
+  const stage = goal?.stages.find(item => item.id === stageId);
+  if (!stage) return;
+  stage.done = !stage.done;
+  stage.status = stage.done ? "done" : "todo";
+  goal.updatedAt = new Date().toISOString();
+  persist();
+  render();
+}
+
+function toggleProjectTask(projectId, taskId) {
+  const project = state.projects.find(item => item.id === projectId);
+  const task = project?.tasks.find(item => item.id === taskId);
+  if (!task) return;
+  task.done = !task.done;
+  task.status = task.done ? "done" : "todo";
+  project.updatedAt = new Date().toISOString();
+  persist();
+  render();
+}
+
+function markChallengeToday(id) {
+  const challenge = state.challenges.find(item => item.id === id);
+  if (!challenge) return;
+  const today = isoDate();
+  challenge.doneDates = Array.isArray(challenge.doneDates) ? challenge.doneDates : [];
+  if (challenge.doneDates.includes(today)) {
+    challenge.doneDates = challenge.doneDates.filter(date => date !== today);
+  } else {
+    challenge.doneDates.push(today);
+  }
+  challenge.updatedAt = new Date().toISOString();
+  persist();
+  render();
+}
+
+function deleteGoalItem(type, id) {
+  const map = { goal: "goals", project: "projects", challenge: "challenges" };
+  const key = map[type];
+  if (!key) return;
+  if (!confirm("Өшіреміз бе?")) return;
+  state[key] = state[key].filter(item => item.id !== id);
+  persist();
+  render();
+}
+
 async function enableNotifications() {
   localStorage.setItem("sanabase-reminders-enabled", "1");
   if (!("Notification" in window)) {
@@ -699,6 +832,18 @@ function reminderCandidates() {
   state.tasks.forEach(task => {
     if (task.status === "done" || !task.due) return;
     items.push(reminderItem(`task:${task.id}`, task.title, task.due, task.priority, "Тапсырма", task.body));
+  });
+  state.goals.forEach(goal => {
+    if (goal.status === "done" || !goal.endDate) return;
+    items.push(reminderItem(`goal:${goal.id}`, goal.title, goal.endDate, "high", "Мақсат", goal.description));
+  });
+  state.projects.forEach(project => {
+    if (project.status === "done" || !project.endDate) return;
+    items.push(reminderItem(`project:${project.id}`, project.title, project.endDate, project.priority === "critical" ? "high" : project.priority, "Проект", project.goal));
+  });
+  state.challenges.forEach(challenge => {
+    if (challenge.doneDates?.includes(today)) return;
+    items.push(reminderItem(`challenge:${challenge.id}`, challenge.title, today, "medium", "Челлендж", "Бүгін орындауды белгілеңіз."));
   });
   activeCalItems(cal.calendar_events).forEach(event => {
     if (["done", "closed", "paid", "sent"].includes(event.status)) return;
@@ -1444,7 +1589,10 @@ function exportBrain() {
     tasks: state.tasks,
     images: state.images,
     calendarOS: state.calendarOS,
-    notes: state.notes
+    notes: state.notes,
+    goals: state.goals,
+    projects: state.projects,
+    challenges: state.challenges
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
   const link = document.createElement("a");
@@ -1465,11 +1613,17 @@ async function importBrain(event) {
     const incomingTasks = Array.isArray(data.tasks) ? data.tasks : [];
     const incomingImages = Array.isArray(data.images) ? data.images : [];
     const incomingNotes = Array.isArray(data.notes) ? data.notes : [];
+    const incomingGoals = Array.isArray(data.goals) ? data.goals : [];
+    const incomingProjects = Array.isArray(data.projects) ? data.projects : [];
+    const incomingChallenges = Array.isArray(data.challenges) ? data.challenges : [];
     if (data.calendarOS) mergeCalendarBackup(data.calendarOS);
     const existingDocKeys = new Set(state.docs.map(doc => doc.id || doc.name));
     const existingTaskKeys = new Set(state.tasks.map(task => task.id || task.title));
     const existingImageKeys = new Set(state.images.map(image => image.id || image.name));
     const existingNoteKeys = new Set(state.notes.map(note => note.id || `${note.title}:${note.createdAt}`));
+    const existingGoalKeys = new Set(state.goals.map(item => item.id || item.title));
+    const existingProjectKeys = new Set(state.projects.map(item => item.id || item.title));
+    const existingChallengeKeys = new Set(state.challenges.map(item => item.id || item.title));
     incomingDocs.forEach(doc => {
       const key = doc.id || doc.name;
       if (!existingDocKeys.has(key)) {
@@ -1496,6 +1650,27 @@ async function importBrain(event) {
       if (!existingNoteKeys.has(key)) {
         state.notes.unshift(normalizeNote(note));
         existingNoteKeys.add(key);
+      }
+    });
+    incomingGoals.forEach(goal => {
+      const key = goal.id || goal.title;
+      if (!existingGoalKeys.has(key)) {
+        state.goals.unshift(normalizeGoal(goal));
+        existingGoalKeys.add(key);
+      }
+    });
+    incomingProjects.forEach(project => {
+      const key = project.id || project.title;
+      if (!existingProjectKeys.has(key)) {
+        state.projects.unshift(normalizeProject(project));
+        existingProjectKeys.add(key);
+      }
+    });
+    incomingChallenges.forEach(challenge => {
+      const key = challenge.id || challenge.title;
+      if (!existingChallengeKeys.has(key)) {
+        state.challenges.unshift(normalizeChallenge(challenge));
+        existingChallengeKeys.add(key);
       }
     });
     persist();
@@ -1653,8 +1828,11 @@ async function pushCloud(showStatus = false) {
         images: state.images,
         calendarOS: state.calendarOS,
         notes: state.notes,
+        goals: state.goals,
+        projects: state.projects,
+        challenges: state.challenges,
         savedAt: new Date().toISOString(),
-        version: 4
+        version: 5
       },
       updated_at: new Date().toISOString()
     };
@@ -1692,6 +1870,9 @@ async function pullCloud(showStatus = false) {
     state.images = Array.isArray(payload.images) ? payload.images.map(normalizeImage) : [];
     state.calendarOS = normalizeCalendarOS(payload.calendarOS || defaultCalendarOS());
     state.notes = Array.isArray(payload.notes) ? payload.notes.map(normalizeNote) : [];
+    state.goals = Array.isArray(payload.goals) ? payload.goals.map(normalizeGoal) : [];
+    state.projects = Array.isArray(payload.projects) ? payload.projects.map(normalizeProject) : [];
+    state.challenges = Array.isArray(payload.challenges) ? payload.challenges.map(normalizeChallenge) : [];
     persist({ sync: false });
     render();
     setCloudStatus(`Бұлттан алынды: ${rows[0].updated_at || "дайын"}`, true);
@@ -2022,6 +2203,79 @@ function normalizeTask(task) {
   };
 }
 
+function normalizeGoal(goal) {
+  return {
+    id: goal.id || crypto.randomUUID(),
+    title: goal.title || "Мақсат",
+    description: goal.description || "",
+    category: goal.category || "Жеке даму",
+    status: ["planned", "active", "done", "paused"].includes(goal.status) ? goal.status : "active",
+    startDate: goal.startDate || "",
+    endDate: goal.endDate || "",
+    stages: Array.isArray(goal.stages) ? goal.stages.map(normalizeGoalStage) : [],
+    createdAt: goal.createdAt || new Date().toISOString(),
+    updatedAt: goal.updatedAt || goal.createdAt || new Date().toISOString()
+  };
+}
+
+function normalizeGoalStage(stage) {
+  const done = Boolean(stage.done || stage.status === "done");
+  return {
+    id: stage.id || crypto.randomUUID(),
+    title: stage.title || "Этап",
+    description: stage.description || "",
+    deadline: stage.deadline || "",
+    status: done ? "done" : (["todo", "doing"].includes(stage.status) ? stage.status : "todo"),
+    done
+  };
+}
+
+function normalizeProject(project) {
+  return {
+    id: project.id || crypto.randomUUID(),
+    title: project.title || "Проект",
+    goal: project.goal || "",
+    category: project.category || "Бизнес",
+    priority: ["low", "medium", "high", "critical"].includes(project.priority) ? project.priority : "medium",
+    status: ["idea", "planned", "active", "review", "done"].includes(project.status) ? project.status : "active",
+    startDate: project.startDate || "",
+    endDate: project.endDate || "",
+    modules: Array.isArray(project.modules) ? project.modules.map(module => ({ id: module.id || crypto.randomUUID(), title: module.title || "Бөлім" })) : [],
+    tasks: Array.isArray(project.tasks) ? project.tasks.map(normalizeProjectTask) : [],
+    createdAt: project.createdAt || new Date().toISOString(),
+    updatedAt: project.updatedAt || project.createdAt || new Date().toISOString()
+  };
+}
+
+function normalizeProjectTask(task) {
+  const done = Boolean(task.done || task.status === "done");
+  return {
+    id: task.id || crypto.randomUUID(),
+    title: task.title || "Тапсырма",
+    description: task.description || "",
+    status: done ? "done" : (["todo", "doing"].includes(task.status) ? task.status : "todo"),
+    done,
+    deadline: task.deadline || "",
+    owner: task.owner || ""
+  };
+}
+
+function normalizeChallenge(challenge) {
+  const totalDays = Math.max(1, Number(challenge.totalDays || 30));
+  const startDate = challenge.startDate || isoDate();
+  return {
+    id: challenge.id || crypto.randomUUID(),
+    title: challenge.title || "Челлендж",
+    description: challenge.description || "",
+    totalDays,
+    startDate,
+    endDate: challenge.endDate || addDays(startDate, totalDays - 1),
+    doneDates: Array.isArray(challenge.doneDates) ? [...new Set(challenge.doneDates)].sort() : [],
+    createdAt: challenge.createdAt || new Date().toISOString(),
+    updatedAt: challenge.updatedAt || challenge.createdAt || new Date().toISOString()
+  };
+}
+
 function normalizeImage(image) {
   const folder = image.folder || "Суреттер";
   return {
@@ -2114,7 +2368,16 @@ function buildContext() {
   const images = state.images
     .slice(0, 30)
     .map(image => `Сурет: ${image.name}\nПапка: ${image.folder || "Суреттер"}\nТегтер: ${(image.tags || []).join(", ")}`);
-  return docs.concat(images, tasks, notes).join("\n\n---\n\n");
+  const goals = state.goals
+    .slice(0, 20)
+    .map(goal => `Мақсат: ${goal.title}\nКатегория: ${goal.category}\nСтатус: ${goalStatusLabel(goal.status)}\nДедлайн: ${goal.endDate || "-"}\nПрогресс: ${goalProgress(goal).percent}%\n${goal.description}`);
+  const projects = state.projects
+    .slice(0, 20)
+    .map(project => `Проект: ${project.title}\nСтатус: ${projectStatusLabel(project.status)}\nПриоритет: ${goalPriorityLabel(project.priority)}\nДедлайн: ${project.endDate || "-"}\nПрогресс: ${projectProgress(project).percent}%\n${project.goal}`);
+  const challenges = state.challenges
+    .slice(0, 20)
+    .map(challenge => `Челлендж: ${challenge.title}\nКүн: ${challengeProgress(challenge).done}/${challenge.totalDays}\nПрогресс: ${challengeProgress(challenge).percent}%\nStreak: ${challengeProgress(challenge).streak}\n${challenge.description}`);
+  return docs.concat(images, tasks, notes, goals, projects, challenges).join("\n\n---\n\n");
 }
 
 async function api(url, payload) {
@@ -2139,6 +2402,9 @@ function addMessage(kind, text) {
 
 function render() {
   if (!Array.isArray(state.images)) state.images = [];
+  if (!Array.isArray(state.goals)) state.goals = [];
+  if (!Array.isArray(state.projects)) state.projects = [];
+  if (!Array.isArray(state.challenges)) state.challenges = [];
   if (!state.calendarOS) state.calendarOS = defaultCalendarOS();
   if ($("docCount")) $("docCount").textContent = `${state.docs.length} құжат`;
   state.notes = state.notes.map(normalizeNote);
@@ -2148,6 +2414,9 @@ function render() {
   state.docs = state.docs.map(normalizeDoc);
   state.images = state.images.map(normalizeImage);
   state.tasks = state.tasks.map(normalizeTask);
+  state.goals = state.goals.map(normalizeGoal);
+  state.projects = state.projects.map(normalizeProject);
+  state.challenges = state.challenges.map(normalizeChallenge);
   const query = $("searchDocs")?.value?.toLowerCase() || "";
   if (!$("docsGrid")) return;
   $("docsGrid").innerHTML = "";
@@ -2175,6 +2444,7 @@ function render() {
   renderTasks();
   renderBrain();
   renderCalendarOS();
+  renderGoals();
   renderCloudSettings();
 }
 
@@ -2344,6 +2614,197 @@ function priorityLabel(priority) {
   return { low: "Төмен", medium: "Орташа", high: "Жоғары" }[priority] || "Орташа";
 }
 
+function renderGoals() {
+  if (!$("goalDashboard")) return;
+  const query = $("goalSearch")?.value?.toLowerCase() || "";
+  const filter = $("goalFilter")?.value || "all";
+  const goals = state.goals.filter(item => passGoalFilter(item, "goal", query, filter));
+  const projects = state.projects.filter(item => passGoalFilter(item, "project", query, filter));
+  const challenges = state.challenges.filter(item => passGoalFilter(item, "challenge", query, filter));
+  renderGoalDashboard();
+  $("goalList").innerHTML = goals.map(goalCard).join("") || emptyGoalCard("Мақсат жоқ", "Үлкен нәтижені этаптарға бөліп қосыңыз.");
+  $("projectList").innerHTML = projects.map(projectCard).join("") || emptyGoalCard("Проект жоқ", "Жоба бөлімдері мен тапсырмаларын қосыңыз.");
+  $("challengeList").innerHTML = challenges.map(challengeCard).join("") || emptyGoalCard("Челлендж жоқ", "Күн сайын орындалатын әдет қосыңыз.");
+  $("goals").querySelectorAll("[data-goal-stage]").forEach(button => {
+    button.addEventListener("change", () => toggleGoalStage(button.dataset.goalId, button.dataset.goalStage));
+  });
+  $("goals").querySelectorAll("[data-project-task]").forEach(button => {
+    button.addEventListener("change", () => toggleProjectTask(button.dataset.projectId, button.dataset.projectTask));
+  });
+  $("goals").querySelectorAll("[data-challenge-today]").forEach(button => {
+    button.addEventListener("click", () => markChallengeToday(button.dataset.challengeToday));
+  });
+  $("goals").querySelectorAll("[data-goal-delete]").forEach(button => {
+    button.addEventListener("click", () => deleteGoalItem(button.dataset.goalType, button.dataset.goalDelete));
+  });
+}
+
+function renderGoalDashboard() {
+  const activeGoals = state.goals.filter(item => item.status !== "done").length;
+  const activeProjects = state.projects.filter(item => item.status !== "done").length;
+  const activeChallenges = state.challenges.filter(item => challengeProgress(item).percent < 100).length;
+  const progresses = [
+    ...state.goals.map(goalProgress),
+    ...state.projects.map(projectProgress),
+    ...state.challenges.map(challengeProgress)
+  ];
+  const average = progresses.length ? Math.round(progresses.reduce((sum, item) => sum + item.percent, 0) / progresses.length) : 0;
+  const today = isoDate();
+  const dueToday = [
+    ...state.goals.filter(item => item.endDate === today),
+    ...state.projects.filter(item => item.endDate === today),
+    ...state.challenges.filter(item => item.endDate === today)
+  ].length;
+  const overdue = [
+    ...state.goals.filter(item => isGoalOverdue(item)),
+    ...state.projects.filter(item => isGoalOverdue(item)),
+    ...state.challenges.filter(item => item.endDate < today && challengeProgress(item).percent < 100)
+  ].length;
+  $("goalDashboard").innerHTML = [
+    ["Белсенді мақсат", activeGoals],
+    ["Белсенді проект", activeProjects],
+    ["Белсенді челлендж", activeChallenges],
+    ["Орташа прогресс", `${average}%`],
+    ["Бүгін керек", dueToday],
+    ["Кешіккен", overdue]
+  ].map(([label, value]) => `<article class="goal-stat"><span>${label}</span><strong>${value}</strong></article>`).join("");
+}
+
+function passGoalFilter(item, type, query, filter) {
+  const text = JSON.stringify(item).toLowerCase();
+  if (query && !text.includes(query)) return false;
+  if (filter === "all") return true;
+  if (filter === "active") return type === "challenge" ? challengeProgress(item).percent < 100 : item.status !== "done";
+  if (filter === "done") return type === "challenge" ? challengeProgress(item).percent >= 100 : item.status === "done";
+  if (filter === "overdue") return type === "challenge" ? item.endDate < isoDate() && challengeProgress(item).percent < 100 : isGoalOverdue(item);
+  if (filter === "high") return item.priority === "high" || item.priority === "critical";
+  return true;
+}
+
+function goalCard(goal) {
+  const progress = goalProgress(goal);
+  return `
+    <article class="goal-card ${isGoalOverdue(goal) ? "is-overdue" : ""}">
+      <div class="goal-card-head">
+        <div><h4>${escapeHtml(goal.title)}</h4><span>${escapeHtml(goal.category)} · ${escapeHtml(goalStatusLabel(goal.status))}</span></div>
+        <button type="button" data-goal-delete="${escapeHtml(goal.id)}" data-goal-type="goal">Өшіру</button>
+      </div>
+      <p>${escapeHtml(goal.description || "Сипаттама жоқ")}</p>
+      ${progressBar(progress.percent)}
+      <div class="goal-meta"><span>${progress.percent}% орындалды</span><span>${progress.remaining} этап қалды</span>${goal.endDate ? `<span>Дедлайн: ${escapeHtml(goal.endDate)}</span>` : ""}</div>
+      <div class="goal-checks">
+        ${goal.stages.map(stage => `<label><input type="checkbox" data-goal-id="${escapeHtml(goal.id)}" data-goal-stage="${escapeHtml(stage.id)}" ${stage.done ? "checked" : ""}> <span>${escapeHtml(stage.title)}</span></label>`).join("") || `<span class="muted-tag">Этап жоқ</span>`}
+      </div>
+    </article>
+  `;
+}
+
+function projectCard(project) {
+  const progress = projectProgress(project);
+  return `
+    <article class="goal-card priority-${escapeHtml(project.priority)} ${isGoalOverdue(project) ? "is-overdue" : ""}">
+      <div class="goal-card-head">
+        <div><h4>${escapeHtml(project.title)}</h4><span>${escapeHtml(projectStatusLabel(project.status))} · ${escapeHtml(goalPriorityLabel(project.priority))}</span></div>
+        <button type="button" data-goal-delete="${escapeHtml(project.id)}" data-goal-type="project">Өшіру</button>
+      </div>
+      <p>${escapeHtml(project.goal || "Проект мақсаты жазылмаған")}</p>
+      ${progressBar(progress.percent)}
+      <div class="goal-meta"><span>${progress.percent}%</span><span>${progress.done}/${progress.total} тапсырма</span>${project.endDate ? `<span>Дедлайн: ${escapeHtml(project.endDate)}</span>` : ""}</div>
+      <div class="module-row">${project.modules.map(module => `<span>${escapeHtml(module.title)}</span>`).join("") || `<span>Бөлім жоқ</span>`}</div>
+      <div class="goal-checks">
+        ${project.tasks.map(task => `<label><input type="checkbox" data-project-id="${escapeHtml(project.id)}" data-project-task="${escapeHtml(task.id)}" ${task.done ? "checked" : ""}> <span>${escapeHtml(task.title)}</span></label>`).join("") || `<span class="muted-tag">Тапсырма жоқ</span>`}
+      </div>
+    </article>
+  `;
+}
+
+function challengeCard(challenge) {
+  const progress = challengeProgress(challenge);
+  const doneToday = challenge.doneDates.includes(isoDate());
+  return `
+    <article class="goal-card challenge-card">
+      <div class="goal-card-head">
+        <div><h4>${escapeHtml(challenge.title)}</h4><span>${progress.done} күн орындалды · streak ${progress.streak}</span></div>
+        <button type="button" data-goal-delete="${escapeHtml(challenge.id)}" data-goal-type="challenge">Өшіру</button>
+      </div>
+      <p>${escapeHtml(challenge.description || "Күн сайын белгілеуге арналған челлендж")}</p>
+      ${progressBar(progress.percent)}
+      <div class="goal-meta"><span>${progress.percent}%</span><span>${progress.remaining} күн қалды</span><span>${escapeHtml(challenge.startDate)} - ${escapeHtml(challenge.endDate)}</span></div>
+      <button type="button" class="${doneToday ? "done-today" : ""}" data-challenge-today="${escapeHtml(challenge.id)}">${doneToday ? "Бүгін орындалды" : "Бүгін орындадым"}</button>
+      <div class="challenge-days">${challengeDays(challenge).map(day => `<span class="${day.className}" title="${escapeHtml(day.date)}"></span>`).join("")}</div>
+    </article>
+  `;
+}
+
+function progressBar(percent) {
+  const safe = Math.max(0, Math.min(100, Number(percent) || 0));
+  return `<div class="progress-bar"><span style="width:${safe}%"></span></div>`;
+}
+
+function emptyGoalCard(title, body) {
+  return `<article class="goal-card empty-goal"><h4>${title}</h4><p>${body}</p></article>`;
+}
+
+function goalProgress(goal) {
+  const total = goal.stages.length;
+  const done = goal.stages.filter(stage => stage.done).length;
+  return progressParts(done, total);
+}
+
+function projectProgress(project) {
+  const total = project.tasks.length;
+  const done = project.tasks.filter(task => task.done).length;
+  return progressParts(done, total);
+}
+
+function challengeProgress(challenge) {
+  const done = Math.min(challenge.doneDates.length, challenge.totalDays);
+  return { ...progressParts(done, challenge.totalDays), streak: challengeStreak(challenge) };
+}
+
+function progressParts(done, total) {
+  return { done, total, remaining: Math.max(0, total - done), percent: total ? Math.round((done / total) * 100) : 0 };
+}
+
+function challengeStreak(challenge) {
+  const done = new Set(challenge.doneDates);
+  let cursor = isoDate();
+  let streak = 0;
+  while (done.has(cursor)) {
+    streak += 1;
+    cursor = addDays(cursor, -1);
+  }
+  return streak;
+}
+
+function challengeDays(challenge) {
+  const today = isoDate();
+  const done = new Set(challenge.doneDates);
+  return Array.from({ length: Math.min(challenge.totalDays, 120) }, (_, index) => {
+    const date = addDays(challenge.startDate, index);
+    return {
+      date,
+      className: [done.has(date) ? "done" : date < today ? "missed" : "", date === today ? "today" : ""].filter(Boolean).join(" ")
+    };
+  });
+}
+
+function isGoalOverdue(item) {
+  return item.endDate && item.endDate < isoDate() && item.status !== "done";
+}
+
+function goalStatusLabel(status) {
+  return { planned: "Жоспарда", active: "Орындалып жатыр", done: "Аяқталды", paused: "Тоқтап тұр" }[status] || "Орындалып жатыр";
+}
+
+function projectStatusLabel(status) {
+  return { idea: "Идея", planned: "Жоспарда", active: "Жасалып жатыр", review: "Тексеруде", done: "Аяқталды" }[status] || "Жасалып жатыр";
+}
+
+function goalPriorityLabel(priority) {
+  return { low: "Төмен", medium: "Орта", high: "Жоғары", critical: "Өте маңызды" }[priority] || "Орта";
+}
+
 function renderBrain() {
   const list = $("brainList");
   if (!list) return;
@@ -2426,20 +2887,29 @@ function fileToBase64(file) {
 function loadState() {
   try {
     const saved = JSON.parse(localStorage.getItem("sanabase-state")) || {};
+    const savedGoals = JSON.parse(localStorage.getItem("goals") || "null");
+    const savedProjects = JSON.parse(localStorage.getItem("projects") || "null");
+    const savedChallenges = JSON.parse(localStorage.getItem("challenges") || "null");
     return {
       docs: Array.isArray(saved.docs) ? saved.docs.map(normalizeDoc) : [],
       tasks: Array.isArray(saved.tasks) ? saved.tasks.map(normalizeTask) : [],
       images: Array.isArray(saved.images) ? saved.images.map(normalizeImage) : [],
       calendarOS: normalizeCalendarOS(saved.calendarOS || {}),
-      notes: Array.isArray(saved.notes) ? saved.notes.map(normalizeNote) : []
+      notes: Array.isArray(saved.notes) ? saved.notes.map(normalizeNote) : [],
+      goals: Array.isArray(saved.goals) ? saved.goals.map(normalizeGoal) : (Array.isArray(savedGoals) ? savedGoals.map(normalizeGoal) : []),
+      projects: Array.isArray(saved.projects) ? saved.projects.map(normalizeProject) : (Array.isArray(savedProjects) ? savedProjects.map(normalizeProject) : []),
+      challenges: Array.isArray(saved.challenges) ? saved.challenges.map(normalizeChallenge) : (Array.isArray(savedChallenges) ? savedChallenges.map(normalizeChallenge) : [])
     };
   } catch {
-    return { docs: [], tasks: [], images: [], calendarOS: defaultCalendarOS(), notes: [] };
+    return { docs: [], tasks: [], images: [], calendarOS: defaultCalendarOS(), notes: [], goals: [], projects: [], challenges: [] };
   }
 }
 
 function persist(options = {}) {
   localStorage.setItem("sanabase-state", JSON.stringify(state));
+  localStorage.setItem("goals", JSON.stringify(state.goals || []));
+  localStorage.setItem("projects", JSON.stringify(state.projects || []));
+  localStorage.setItem("challenges", JSON.stringify(state.challenges || []));
   if (options.sync !== false) scheduleCloudPush();
 }
 

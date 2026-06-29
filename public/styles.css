@@ -536,6 +536,26 @@ pre {
   color: var(--sage);
 }
 
+.cloud-config-upload {
+  background: white;
+  color: var(--sage);
+}
+
+.cloud-help {
+  border: 1px dashed #c7d6d0;
+  border-radius: 8px;
+  background: white;
+  padding: 12px;
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.cloud-help strong {
+  color: var(--sage);
+}
+
 .cloud-sql summary {
   cursor: pointer;
   color: var(--sage);

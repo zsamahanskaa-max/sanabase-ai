@@ -2,7 +2,7 @@ const state = loadState();
 const titles = {
   chat: ["AI Chat", "Құжаттарыңызға сүйеніп жауап береді."],
   library: ["Knowledge Base", "PDF, Word, Excel және мәтін материалдары."],
-  match: ["Price Match", "Екі Excel-ді код бойынша салыстырып, бірінші құжаттың санын өзгертпей толықтырады."],
+  match: ["Price Match", "Формуласы бар қорап/саны бағандарын өзгертпей, бағасын almat company price арқылы қояды."],
   translate: ["Translation", "Мәтінді қалаған тілге аударыңыз."],
   quiz: ["Quiz Generator", "Базаңыздан тест және жауап кілтін жасаңыз."],
   crm: ["CRM Analysis", "Excel/CSV CRM базасын талдаңыз."],
@@ -30,7 +30,7 @@ $("clearDocs").addEventListener("click", () => {
 });
 
 render();
-addMessage("ai", "Сәлем! PDF, Word, Excel немесе CSV жүктеңіз. Нақты прайс салыстыру үшін Price Match бөліміне өтіп, 1-құжат пен almat company price файлын салыңыз.");
+addMessage("ai", "Сәлем! Прайс салыстыру үшін Price Match бөліміне өтіп, 1-құжат пен almat company price файлын салыңыз. Қорап/саны формулалары сақталады.");
 
 function setView(view) {
   document.querySelectorAll(".nav-item").forEach(b => b.classList.toggle("active", b.dataset.view === view));
@@ -122,16 +122,17 @@ async function matchPrices() {
   try {
     const base = await readTableFile(baseFile);
     const price = await readTableFile(priceFile);
-    const result = mergeByCode(base, price, "", "");
-    downloadWorkbook(result.rows, "sanabase_completed_price.xlsx");
+    const result = mergeByCode(base, price);
+    downloadWorkbook(result, "sanabase_completed_price.xlsx");
     out.textContent = [
       "Дайын файл жүктелді: sanabase_completed_price.xlsx",
       `1-құжат жолдары: ${result.baseRows}`,
       `almat company price жолдары: ${result.priceRows}`,
       `Код бойынша табылғаны: ${result.matched}`,
-      `Толықтырылған ұяшықтар: ${result.filled}`,
-      `Қосылған жаңа бағандар: ${result.addedColumns}`,
-      `Қорғалған сан бағандары: ${result.protectedColumns.join(", ") || "табылмады"}`,
+      `Баға қойылған ұяшықтар: ${result.filled}`,
+      `Қосылған баға бағаны: ${result.addedColumns}`,
+      `Формуласы бар ұяшықтар өзгермеді: ${result.formulaProtected}`,
+      `Қорғалған саны/қорап бағандары: ${result.protectedColumns.join(", ") || "табылмады"}`,
       `Код бағандары: 1-құжат = ${result.baseCodeHeader}, almat = ${result.priceCodeHeader}`
     ].join("\n");
   } catch (error) {
@@ -139,23 +140,19 @@ async function matchPrices() {
   }
 }
 
-function mergeByCode(base, price, codeHint, qtyHint) {
+function mergeByCode(base, price) {
   const baseHeader = normalizeHeader(base.rows[0]);
   const priceHeader = normalizeHeader(price.rows[0]);
-  const baseCodeIndex = resolveCodeColumn(base.rows, baseHeader, codeHint);
-  const priceCodeIndex = resolveCodeColumn(price.rows, priceHeader, codeHint);
-
-  const qtyIndexes = findQuantityColumns(baseHeader, qtyHint);
+  const { baseCodeIndex, priceCodeIndex } = resolveCodeColumns(base.rows, baseHeader, price.rows, priceHeader);
+  const protectedIndexes = uniqueIndexes([
+    ...findQuantityColumns(baseHeader),
+    ...findPackageColumns(baseHeader)
+  ]);
+  const sourcePriceIndex = resolvePriceColumn(price.rows, priceHeader);
+  const basePriceIndexes = findPriceColumns(baseHeader).filter(index => !protectedIndexes.includes(index));
+  const targetPriceIndexes = basePriceIndexes.length ? basePriceIndexes : [baseHeader.length];
   const outputHeader = [...baseHeader];
-  const headerMap = new Map(baseHeader.map((header, index) => [headerKey(header), index]));
-  const priceToOutput = priceHeader.map(header => {
-    const key = headerKey(header);
-    if (headerMap.has(key)) return headerMap.get(key);
-    outputHeader.push(header);
-    const newIndex = outputHeader.length - 1;
-    headerMap.set(key, newIndex);
-    return newIndex;
-  });
+  if (!basePriceIndexes.length) outputHeader.push("Almat price");
 
   const priceMap = new Map();
   price.rows.slice(1).forEach(row => {
@@ -165,39 +162,58 @@ function mergeByCode(base, price, codeHint, qtyHint) {
 
   let matched = 0;
   let filled = 0;
-  const outputRows = [outputHeader];
-  base.rows.slice(1).forEach(baseRow => {
-    const code = normalizeCode(baseRow[baseCodeIndex]);
-    const outRow = new Array(outputHeader.length).fill("");
-    baseHeader.forEach((_, index) => {
-      outRow[index] = cellValue(baseRow[index]);
-    });
+  let formulaProtected = 0;
+  const outputRows = base.workbook ? null : [outputHeader];
+  const targetSheet = base.sheet;
+  const sheetRange = targetSheet ? XLSX.utils.decode_range(targetSheet["!ref"] || "A1") : null;
 
+  if (targetSheet && outputHeader.length > baseHeader.length) {
+    const address = XLSX.utils.encode_cell({ r: 0, c: outputHeader.length - 1 });
+    targetSheet[address] = { t: "s", v: "Almat price" };
+    sheetRange.e.c = Math.max(sheetRange.e.c, outputHeader.length - 1);
+    targetSheet["!ref"] = XLSX.utils.encode_range(sheetRange);
+  }
+
+  base.rows.slice(1).forEach((baseRow, rowOffset) => {
+    const rowIndex = rowOffset + 1;
+    const code = normalizeCode(baseRow[baseCodeIndex]);
     const priceRow = priceMap.get(code);
+    const outRow = outputRows ? new Array(outputHeader.length).fill("") : null;
+    if (outRow) baseHeader.forEach((_, index) => { outRow[index] = cellValue(baseRow[index]); });
+
     if (priceRow) {
       matched += 1;
-      priceHeader.forEach((_, priceIndex) => {
-        const outputIndex = priceToOutput[priceIndex];
-        if (qtyIndexes.includes(outputIndex)) return;
-        const next = cellValue(priceRow[priceIndex]);
+      targetPriceIndexes.forEach(outputIndex => {
+        if (protectedIndexes.includes(outputIndex)) return;
+        const sourceIndex = findMatchingPriceSource(baseHeader[outputIndex], priceHeader, sourcePriceIndex);
+        const next = cellValue(priceRow[sourceIndex]);
         if (!next) return;
-        if (!outRow[outputIndex]) {
+
+        if (targetSheet) {
+          if (hasFormula(targetSheet, rowIndex, outputIndex)) {
+            formulaProtected += 1;
+            return;
+          }
+          setSheetCell(targetSheet, rowIndex, outputIndex, next);
+        } else if (outRow) {
           outRow[outputIndex] = next;
-          filled += 1;
         }
+        filled += 1;
       });
     }
-    outputRows.push(outRow);
+    if (outRow) outputRows.push(outRow);
   });
 
   return {
+    workbook: base.workbook,
     rows: outputRows,
     baseRows: Math.max(base.rows.length - 1, 0),
     priceRows: Math.max(price.rows.length - 1, 0),
     matched,
     filled,
     addedColumns: outputHeader.length - baseHeader.length,
-    protectedColumns: qtyIndexes.map(index => outputHeader[index]),
+    formulaProtected,
+    protectedColumns: protectedIndexes.map(index => outputHeader[index]),
     baseCodeHeader: baseHeader[baseCodeIndex],
     priceCodeHeader: priceHeader[priceCodeIndex]
   };
@@ -207,9 +223,9 @@ async function readTableFile(file) {
   const ext = file.name.split(".").pop().toLowerCase();
   if (["xlsx", "xls"].includes(ext)) {
     const buffer = await file.arrayBuffer();
-    const workbook = XLSX.read(buffer, { type: "array" });
+    const workbook = XLSX.read(buffer, { type: "array", cellFormula: true, cellStyles: true, cellNF: true, cellDates: true });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    return { name: file.name, rows: trimRows(XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" })) };
+    return { name: file.name, workbook, sheet, rows: trimRows(worksheetToRows(sheet)) };
   }
   if (["csv", "tsv"].includes(ext)) {
     const delimiter = ext === "tsv" ? "\t" : ",";
@@ -219,8 +235,25 @@ async function readTableFile(file) {
   throw new Error("Тек Excel, CSV немесе TSV файл салыңыз.");
 }
 
-function downloadWorkbook(rows, filename) {
-  const sheet = XLSX.utils.aoa_to_sheet(rows);
+function worksheetToRows(sheet) {
+  const range = XLSX.utils.decode_range(sheet["!ref"] || "A1");
+  const rows = [];
+  for (let r = range.s.r; r <= range.e.r; r += 1) {
+    const row = [];
+    for (let c = range.s.c; c <= range.e.c; c += 1) {
+      row.push(cellText(sheet[XLSX.utils.encode_cell({ r, c })]));
+    }
+    rows.push(row);
+  }
+  return rows;
+}
+
+function downloadWorkbook(result, filename) {
+  if (result.workbook) {
+    XLSX.writeFile(result.workbook, filename, { bookType: "xlsx", cellStyles: true });
+    return;
+  }
+  const sheet = XLSX.utils.aoa_to_sheet(result.rows);
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, sheet, "Completed");
   XLSX.writeFile(workbook, filename);
@@ -250,30 +283,75 @@ function findColumn(header, hint, keywords) {
   });
 }
 
-function resolveCodeColumn(rows, header, hint) {
-  const direct = findColumn(header, hint, codeKeywords());
-  if (direct >= 0) return direct;
+function resolveCodeColumns(baseRows, baseHeader, priceRows, priceHeader) {
+  const baseDirect = findColumn(baseHeader, "", codeKeywords());
+  const priceDirect = findColumn(priceHeader, "", codeKeywords());
+  if (baseDirect >= 0 && priceDirect >= 0) {
+    return { baseCodeIndex: baseDirect, priceCodeIndex: priceDirect };
+  }
 
-  const sample = rows.slice(1, 80);
-  const scores = header.map((_, index) => {
-    const values = sample.map(row => normalizeCode(row[index])).filter(Boolean);
-    const unique = new Set(values).size;
-    const codeLike = values.filter(value => /[A-ZА-Я0-9]/i.test(value) && value.length >= 2 && value.length <= 40).length;
-    const numericOnly = values.filter(value => /^\d+$/.test(value)).length;
-    return { index, score: unique * 3 + codeLike * 2 + numericOnly };
+  let best = { baseCodeIndex: baseDirect >= 0 ? baseDirect : 0, priceCodeIndex: priceDirect >= 0 ? priceDirect : 0, score: -1 };
+  baseHeader.forEach((_, baseIndex) => {
+    priceHeader.forEach((__, priceIndex) => {
+      if (baseDirect >= 0 && baseIndex !== baseDirect) return;
+      if (priceDirect >= 0 && priceIndex !== priceDirect) return;
+      const score = columnMatchScore(baseRows, baseIndex, priceRows, priceIndex);
+      if (score > best.score) best = { baseCodeIndex: baseIndex, priceCodeIndex: priceIndex, score };
+    });
   });
-  scores.sort((a, b) => b.score - a.score);
-  return scores[0]?.index ?? 0;
+  return best;
 }
 
-function findQuantityColumns(header, hint) {
-  const hinted = findColumn(header, hint, quantityKeywords());
-  const found = header
+function columnMatchScore(baseRows, baseIndex, priceRows, priceIndex) {
+  const baseValues = new Set(baseRows.slice(1, 250).map(row => normalizeCode(row[baseIndex])).filter(Boolean));
+  const priceValues = new Set(priceRows.slice(1, 500).map(row => normalizeCode(row[priceIndex])).filter(Boolean));
+  let matches = 0;
+  baseValues.forEach(value => { if (priceValues.has(value)) matches += 1; });
+  const codeLike = [...baseValues].filter(value => value.length >= 2 && value.length <= 40 && /[A-ZА-Я0-9]/i.test(value)).length;
+  return matches * 20 + codeLike;
+}
+
+function findQuantityColumns(header) {
+  return header
     .map((name, index) => ({ name: normalizeText(name), index }))
     .filter(item => quantityKeywords().some(keyword => item.name === keyword || item.name.includes(keyword)))
     .map(item => item.index);
-  if (hinted >= 0 && !found.includes(hinted)) found.push(hinted);
-  return found;
+}
+
+function findPackageColumns(header) {
+  return header
+    .map((name, index) => ({ name: normalizeText(name), index }))
+    .filter(item => packageKeywords().some(keyword => item.name === keyword || item.name.includes(keyword)))
+    .map(item => item.index);
+}
+
+function findPriceColumns(header) {
+  return header
+    .map((name, index) => ({ name: normalizeText(name), index }))
+    .filter(item => priceKeywords().some(keyword => item.name === keyword || item.name.includes(keyword)))
+    .map(item => item.index);
+}
+
+function resolvePriceColumn(rows, header) {
+  const direct = findColumn(header, "", priceKeywords());
+  if (direct >= 0) return direct;
+  const protectedKeys = [...codeKeywords(), ...quantityKeywords(), ...packageKeywords(), "атауы", "наименование", "name", "товар"];
+  const candidates = header.map((name, index) => {
+    const clean = normalizeText(name);
+    const values = rows.slice(1, 80).map(row => cellValue(row[index])).filter(Boolean);
+    const numeric = values.filter(value => parseNumber(value) != null).length;
+    const protectedColumn = protectedKeys.some(keyword => clean === keyword || clean.includes(keyword));
+    return { index, score: numeric - (protectedColumn ? 1000 : 0) };
+  });
+  candidates.sort((a, b) => b.score - a.score);
+  return candidates[0]?.index ?? Math.max(header.length - 1, 0);
+}
+
+function findMatchingPriceSource(targetHeader, priceHeader, fallbackIndex) {
+  const targetKey = headerKey(targetHeader);
+  const exact = priceHeader.findIndex(header => headerKey(header) === targetKey);
+  if (exact >= 0 && priceKeywords().some(keyword => normalizeText(priceHeader[exact]).includes(keyword))) return exact;
+  return fallbackIndex;
 }
 
 function codeKeywords() {
@@ -281,7 +359,15 @@ function codeKeywords() {
 }
 
 function quantityKeywords() {
-  return ["саны", "сан", "количество", "кол-во", "qty", "quantity", "остаток", "stock", "count", "көлем"];
+  return ["саны", "сан", "количество", "кол-во", "qty", "quantity", "остаток", "stock", "count", "көлем", "дана"];
+}
+
+function packageKeywords() {
+  return ["коробка", "короб", "қорап", "корап", "упаковка", "пачка", "pack", "package", "box", "carton", "ящик"];
+}
+
+function priceKeywords() {
+  return ["баға", "бағасы", "цена", "price", "стоимость", "cost", "прайс", "опт", "розница", "retail", "amount"];
 }
 
 function normalizeCode(value) {
@@ -298,6 +384,43 @@ function headerKey(value) {
 
 function cellValue(value) {
   return value == null ? "" : String(value).trim();
+}
+
+function cellText(cell) {
+  if (!cell) return "";
+  if (cell.v != null) return cellValue(cell.v);
+  if (cell.w != null) return cellValue(cell.w);
+  if (cell.f != null) return cellValue(cell.f);
+  return "";
+}
+
+function hasFormula(sheet, rowIndex, columnIndex) {
+  const cell = sheet[XLSX.utils.encode_cell({ r: rowIndex, c: columnIndex })];
+  return Boolean(cell && cell.f);
+}
+
+function setSheetCell(sheet, rowIndex, columnIndex, value) {
+  const address = XLSX.utils.encode_cell({ r: rowIndex, c: columnIndex });
+  const existing = sheet[address] || {};
+  const numeric = parseNumber(value);
+  sheet[address] = {
+    ...existing,
+    t: numeric == null ? "s" : "n",
+    v: numeric == null ? value : numeric
+  };
+  delete sheet[address].f;
+  delete sheet[address].w;
+}
+
+function parseNumber(value) {
+  const clean = String(value ?? "").replace(/\s+/g, "").replace(",", ".");
+  if (!/^-?\d+(\.\d+)?$/.test(clean)) return null;
+  const number = Number(clean);
+  return Number.isFinite(number) ? number : null;
+}
+
+function uniqueIndexes(indexes) {
+  return [...new Set(indexes.filter(index => Number.isInteger(index) && index >= 0))];
 }
 
 function saveNote(event) {

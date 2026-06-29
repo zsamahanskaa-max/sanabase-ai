@@ -1,6 +1,7 @@
 const state = loadState();
 const cloudConfig = loadCloudConfig();
 let cloudTimer = null;
+let lastAssistantAnswer = "";
 const titles = {
   chat: ["AI Chat", "Құжаттарыңызға сүйеніп жауап береді."],
   library: ["Knowledge Base", "PDF, Word, Excel және мәтін материалдары."],
@@ -25,6 +26,7 @@ document.querySelectorAll(".nav-item").forEach(button => {
 
 on("fileInput", "change", importFiles);
 on("chatForm", "submit", chat);
+on("assistantTaskBtn", "click", taskFromLastAssistantAnswer);
 on("translateBtn", "click", translate);
 on("quizBtn", "click", quiz);
 on("crmBtn", "click", crm);
@@ -46,6 +48,9 @@ on("clearDocs", "click", () => {
   state.docs = [];
   persist();
   render();
+});
+document.querySelectorAll("[data-quick-prompt]").forEach(button => {
+  button.addEventListener("click", () => runQuickPrompt(button.dataset.quickPrompt));
 });
 
 render();
@@ -87,11 +92,57 @@ async function chat(event) {
   addMessage("user", prompt);
   const pending = addMessage("ai", "Жауап дайындалып жатыр...");
   try {
-    const result = await ai("chat", prompt);
+    const assistantMode = $("assistantMode")?.value || "auto";
+    const result = await ai("chat", prompt, "Kazakh", assistantMode);
     pending.textContent = result.text;
+    lastAssistantAnswer = result.text;
+    maybeCreateTaskFromPrompt(prompt, result.text);
   } catch (error) {
     pending.textContent = `Қате: ${error.message}`;
   }
+}
+
+async function runQuickPrompt(prompt) {
+  const input = $("chatPrompt");
+  input.value = prompt;
+  await chat({ preventDefault() {} });
+}
+
+function taskFromLastAssistantAnswer() {
+  if (!lastAssistantAnswer.trim()) {
+    addMessage("ai", "Алдымен ассистенттен жауап алыңыз, содан кейін соңғы жауаптан task жасауға болады.");
+    return;
+  }
+  const title = firstMeaningfulLine(lastAssistantAnswer) || "AI follow-up";
+  state.tasks.unshift(normalizeTask({
+    id: crypto.randomUUID(),
+    title: title.slice(0, 90),
+    body: lastAssistantAnswer.slice(0, 1400),
+    status: "todo",
+    priority: inferPriority(lastAssistantAnswer),
+    link: "AI Chat",
+    createdAt: new Date().toISOString()
+  }));
+  persist();
+  render();
+  addMessage("ai", "Соңғы жауап Tasks тақтасына қосылды.");
+}
+
+function maybeCreateTaskFromPrompt(prompt, answer) {
+  const source = prompt.toLowerCase();
+  if (!/(task|тапсырма|еске сал|todo|follow.?up)/i.test(source)) return;
+  if (!/(жаса|қос|құр|create|add)/i.test(source)) return;
+  state.tasks.unshift(normalizeTask({
+    id: crypto.randomUUID(),
+    title: firstMeaningfulLine(prompt).slice(0, 90) || "AI task",
+    body: answer.slice(0, 1200),
+    status: "todo",
+    priority: inferPriority(`${prompt}\n${answer}`),
+    link: "AI Chat",
+    createdAt: new Date().toISOString()
+  }));
+  persist();
+  render();
 }
 
 async function translate() {
@@ -793,17 +844,19 @@ function shortError(error) {
   return String(error?.message || error).slice(0, 280);
 }
 
-async function ai(mode, prompt, language = "Kazakh") {
+async function ai(mode, prompt, language = "Kazakh", assistantMode = "auto") {
   try {
     return await api("api/ai", {
       mode,
       prompt,
       language,
+      assistantMode,
+      system: assistantInstruction(assistantMode),
       context: buildContext(),
       notes: state.notes.map(n => `${n.title}\n${n.body}`).join("\n\n")
     });
   } catch {
-    return { text: localAnswer(mode, prompt, language) };
+    return { text: localAnswer(mode, prompt, language, assistantMode) };
   }
 }
 
@@ -860,18 +913,18 @@ function unsupported(file, warning) {
   return { name: file.name, type: file.type || "unknown", text: "", warning };
 }
 
-function localAnswer(mode, prompt, language) {
+function localAnswer(mode, prompt, language, assistantMode = "auto") {
   const context = buildContext();
   if (!context.trim()) {
-    return "Алдымен PDF, Word, Excel немесе CSV файл жүктеңіз. Прайс салыстыру үшін Price Match бөлімін қолданыңыз.";
+    return emptyAssistantAnswer(assistantMode);
   }
   if (mode === "quiz") return makeQuiz(context);
   if (mode === "crm") return analyzeCrm(context);
   if (mode === "translate") return simpleTranslate(prompt, language);
-  return answerFromContext(prompt, context);
+  return answerFromContext(prompt, context, assistantMode);
 }
 
-function answerFromContext(prompt, context) {
+function answerFromContext(prompt, context, assistantMode = "auto") {
   const queryWords = keywords(prompt);
   const sentences = context
     .split(/(?<=[.!?])\s+|\n+/)
@@ -885,8 +938,76 @@ function answerFromContext(prompt, context) {
     .sort((a, b) => b.score - a.score)
     .slice(0, 6)
     .map(item => item.sentence);
-  if (!sentences.length) return "Бұл сұраққа нақты сәйкес жол табылмады. Базаңыздан ең маңызды үзінді:\n\n" + context.slice(0, 1200);
-  return "База бойынша қысқа жауап:\n\n" + sentences.join("\n\n");
+  if (assistantMode === "crm") return analyzeCrm(context);
+  if (assistantMode === "tasks") return taskPlanFromContext(prompt, context, sentences);
+  if (assistantMode === "action") return actionPlanAnswer(prompt, sentences.length ? sentences : [context.slice(0, 1200)]);
+  if (!sentences.length) return "Бұл сұраққа нақты сәйкес жол табылмады. Базаңыздан ең маңызды үзінді:\n\n" + context.slice(0, 1200) + nextStepBlock();
+  if (assistantMode === "brief") return sentences.slice(0, 3).join("\n\n");
+  return "База бойынша қысқа жауап:\n\n" + sentences.join("\n\n") + nextStepBlock();
+}
+
+function assistantInstruction(mode) {
+  const base = "Жауапты қазақша бер. Құжат, CRM, tasks және notes контекстіне сүйен. Нақты дерек жоқ болса, соны айт.";
+  const modes = {
+    brief: "Өте қысқа жауап бер: максимум 5 bullet.",
+    action: "Жауапты міндетті түрде: Қорытынды, Нақты әрекеттер, Тәуекел, Келесі қадам форматында бер.",
+    crm: "CRM аналитик сияқты жауап бер: клиент, табыс, pipeline, тәуекел, follow-up.",
+    tasks: "Құжаттан орындалатын тапсырмаларды шығар: title, priority, deadline бар болса көрсет."
+  };
+  return `${base} ${modes[mode] || "Пайдаланушыға ең пайдалы форматты таңда."}`;
+}
+
+function emptyAssistantAnswer(mode) {
+  const base = "Әзірге база бос. PDF/Word/Excel/CSV жүктесеңіз, мен соның ішінен жауап беремін.";
+  if (mode === "tasks") return `${base}\n\nҚосуға болатын нәрсе: құжаттан автоматты task шығару, deadline табу, жауапты адамды белгілеу.`;
+  if (mode === "crm") return `${base}\n\nCRM үшін Excel/CSV жүктеңіз: мен клиенттерді, сатылым сомасын, тәуекелді және follow-up task-тарды шығарамын.`;
+  return `${base}\n\nМен қазір мынаны істей аламын: құжат оқу, прайс салыстыру, CRM талдау, task жасау, quiz/translation, Second Brain іздеу.`;
+}
+
+function actionPlanAnswer(prompt, facts) {
+  return [
+    "Қорытынды:",
+    facts.slice(0, 2).join("\n\n"),
+    "",
+    "Нақты әрекеттер:",
+    "1. Ең маңызды жолдарды тексеріңіз.",
+    "2. Қажет болса Tasks батырмасымен follow-up жасаңыз.",
+    "3. Егер бұл прайс болса, Price Match арқылы код бойынша толықтырыңыз.",
+    "",
+    "Тәуекел:",
+    "Дерек толық болмаса немесе код/баға бағандары әртүрлі аталса, нәтижені қолмен тексеру керек.",
+    "",
+    "Келесі қадам:",
+    "Маған нақты құжат атауын, клиентті немесе тауар кодын жазсаңыз, жауапты тарылтамын."
+  ].join("\n");
+}
+
+function taskPlanFromContext(prompt, context, matches) {
+  const lines = (matches.length ? matches : context.split(/\n+/))
+    .map(line => line.trim())
+    .filter(line => line.length > 20)
+    .slice(0, 8);
+  return [
+    "Құжаттардан шығатын тапсырмалар:",
+    ...lines.slice(0, 5).map((line, index) => `${index + 1}. ${line.slice(0, 140)}\n   Priority: ${/(urgent|қате|ошибка|долг|төлем|risk|тәуекел)/i.test(line) ? "High" : "Medium"}\n   Status: Істеу`),
+    "",
+    "Кеңес: осы жауапты бірден Tasks тақтасына қосу үшін `Соңғы жауаптан task` батырмасын басыңыз."
+  ].join("\n");
+}
+
+function nextStepBlock() {
+  return "\n\nКелесі қадам:\n- Нақты task керек болса, `Соңғы жауаптан task` басыңыз.\n- CRM керек болса, режимді `CRM талдау` қылыңыз.\n- Қысқа жауап керек болса, `Қысқа жауап` режимін таңдаңыз.";
+}
+
+function firstMeaningfulLine(value) {
+  return String(value || "")
+    .split(/\n+/)
+    .map(line => line.replace(/^[-*\d.\s]+/, "").trim())
+    .find(line => line.length > 3) || "";
+}
+
+function inferPriority(value) {
+  return /(urgent|срочно|шұғыл|қате|ошибка|risk|тәуекел|төлем|долг|debt)/i.test(value) ? "high" : "medium";
 }
 
 function makeQuiz(context) {

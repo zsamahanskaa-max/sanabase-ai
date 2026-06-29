@@ -1,4 +1,4 @@
-﻿const state = loadState();
+const state = loadState();
 const DEFAULT_CLOUD_CONFIG = {
   url: "https://koszjmsanlxdakqvdkgc.supabase.co",
   key: "sb_publishable_y7IIJav4n99Z1dbfROh3SA_TtlAn5tO",
@@ -8,15 +8,15 @@ const cloudConfig = loadCloudConfig();
 let cloudTimer = null;
 let lastAssistantAnswer = "";
 const titles = {
-  chat: ["AI Chat", "ТљТ±Р¶Р°С‚С‚Р°СЂС‹ТЈС‹Р·Т“Р° СЃТЇР№РµРЅС–Рї Р¶Р°СѓР°Рї Р±РµСЂРµРґС–."],
-  library: ["Knowledge Base", "PDF, Word, Excel Р¶У™РЅРµ РјУ™С‚С–РЅ РјР°С‚РµСЂРёР°Р»РґР°СЂС‹."],
-  match: ["Price Match", "Р¤РѕСЂРјСѓР»Р°СЃС‹ Р±Р°СЂ Т›РѕСЂР°Рї/СЃР°РЅС‹ Р±Р°Т“Р°РЅРґР°СЂС‹РЅ У©Р·РіРµСЂС‚РїРµР№, Р±Р°Т“Р°СЃС‹РЅ almat company price Р°СЂТ›С‹Р»С‹ Т›РѕСЏРґС‹."],
-  brain: ["Second Brain", "ТљТ±Р¶Р°С‚С‚Р°СЂРґС‹ СЃР°Т›С‚Р°Рї, С‚РµРіРїРµРЅ Р±Р°Р№Р»Р°РЅС‹СЃС‚С‹СЂС‹Рї, СЃРѕР» Р±Р°Р·Р°РґР°РЅ CRM Р¶Р°СЃР°Сѓ."],
-  translate: ["Translation", "РњУ™С‚С–РЅРґС– Т›Р°Р»Р°Т“Р°РЅ С‚С–Р»РіРµ Р°СѓРґР°СЂС‹ТЈС‹Р·."],
-  quiz: ["Quiz Generator", "Р‘Р°Р·Р°ТЈС‹Р·РґР°РЅ С‚РµСЃС‚ Р¶У™РЅРµ Р¶Р°СѓР°Рї РєС–Р»С‚С–РЅ Р¶Р°СЃР°ТЈС‹Р·."],
-  crm: ["CRM Analysis", "Excel/CSV CRM Р±Р°Р·Р°СЃС‹РЅ С‚Р°Р»РґР°ТЈС‹Р·."],
-  tasks: ["Tasks", "Trello СЃРёСЏТ›С‚С‹ С‚Р°РїСЃС‹СЂРјР°Р»Р°СЂ С‚Р°Т›С‚Р°СЃС‹."],
-  notes: ["Notes", "РћР№Р»Р°СЂ РјРµРЅ РєРѕРЅСЃРїРµРєС‚С–Р»РµСЂРґС– СЃР°Т›С‚Р°ТЈС‹Р·."]
+  chat: ["AI Chat", "Құжаттарыңызға сүйеніп жауап береді."],
+  library: ["Knowledge Base", "PDF, Word, Excel және мәтін материалдары."],
+  match: ["Price Match", "Формуласы бар қорап/саны бағандарын өзгертпей, бағасын almat company price арқылы қояды."],
+  brain: ["Second Brain", "Құжаттарды сақтап, тегпен байланыстырып, сол базадан CRM жасау."],
+  translate: ["Translation", "Мәтінді қалаған тілге аударыңыз."],
+  quiz: ["Quiz Generator", "Базаңыздан тест және жауап кілтін жасаңыз."],
+  crm: ["CRM Analysis", "Excel/CSV CRM базасын талдаңыз."],
+  tasks: ["Tasks", "Trello сияқты тапсырмалар тақтасы."],
+  notes: ["Notes", "Ойлар мен конспектілерді сақтаңыз."]
 };
 
 const $ = (id) => document.getElementById(id);
@@ -65,7 +65,7 @@ document.querySelectorAll("[data-quick-prompt]").forEach(button => {
 
 render();
 renderCloudSettings();
-addMessage("ai", "РЎУ™Р»РµРј! Price Match Р±У©Р»С–РјС– 1-Т›Т±Р¶Р°С‚С‚С‹ТЈ С„РѕСЂРјСѓР»Р°СЃС‹ Р±Р°СЂ Т›РѕСЂР°Рї/СЃР°РЅС‹ Р±Р°Т“Р°РЅРґР°СЂС‹РЅ СЃР°Т›С‚Р°Рї, Р±Р°Т“Р°РЅС‹ almat company price Р°СЂТ›С‹Р»С‹ Т›РѕСЏРґС‹.");
+addMessage("ai", "Сәлем! Price Match бөлімі 1-құжаттың формуласы бар қорап/саны бағандарын сақтап, бағаны almat company price арқылы қояды.");
 
 function setView(view) {
   document.querySelectorAll(".nav-item").forEach(b => b.classList.toggle("active", b.dataset.view === view));
@@ -76,7 +76,7 @@ function setView(view) {
 
 async function importFiles(event) {
   for (const file of event.target.files) {
-    addMessage("ai", `${file.name} РёРјРїРѕСЂС‚С‚Р°Р»С‹Рї Р¶Р°С‚С‹СЂ...`);
+    addMessage("ai", `${file.name} импортталып жатыр...`);
     const result = await extractFile(file);
     state.docs.unshift({
       id: crypto.randomUUID(),
@@ -100,7 +100,7 @@ async function chat(event) {
   if (!prompt) return;
   $("chatPrompt").value = "";
   addMessage("user", prompt);
-  const pending = addMessage("ai", "Р–Р°СѓР°Рї РґР°Р№С‹РЅРґР°Р»С‹Рї Р¶Р°С‚С‹СЂ...");
+  const pending = addMessage("ai", "Жауап дайындалып жатыр...");
   try {
     const assistantMode = $("assistantMode")?.value || "auto";
     const result = await ai("chat", prompt, "Kazakh", assistantMode);
@@ -108,7 +108,7 @@ async function chat(event) {
     lastAssistantAnswer = result.text;
     maybeCreateTaskFromPrompt(prompt, result.text);
   } catch (error) {
-    pending.textContent = `ТљР°С‚Рµ: ${error.message}`;
+    pending.textContent = `Қате: ${error.message}`;
   }
 }
 
@@ -120,7 +120,7 @@ async function runQuickPrompt(prompt) {
 
 function taskFromLastAssistantAnswer() {
   if (!lastAssistantAnswer.trim()) {
-    addMessage("ai", "РђР»РґС‹РјРµРЅ Р°СЃСЃРёСЃС‚РµРЅС‚С‚РµРЅ Р¶Р°СѓР°Рї Р°Р»С‹ТЈС‹Р·, СЃРѕРґР°РЅ РєРµР№С–РЅ СЃРѕТЈТ“С‹ Р¶Р°СѓР°РїС‚Р°РЅ task Р¶Р°СЃР°СѓТ“Р° Р±РѕР»Р°РґС‹.");
+    addMessage("ai", "Алдымен ассистенттен жауап алыңыз, содан кейін соңғы жауаптан task жасауға болады.");
     return;
   }
   const title = firstMeaningfulLine(lastAssistantAnswer) || "AI follow-up";
@@ -135,13 +135,13 @@ function taskFromLastAssistantAnswer() {
   }));
   persist();
   render();
-  addMessage("ai", "РЎРѕТЈТ“С‹ Р¶Р°СѓР°Рї Tasks С‚Р°Т›С‚Р°СЃС‹РЅР° Т›РѕСЃС‹Р»РґС‹.");
+  addMessage("ai", "Соңғы жауап Tasks тақтасына қосылды.");
 }
 
 function maybeCreateTaskFromPrompt(prompt, answer) {
   const source = prompt.toLowerCase();
-  if (!/(task|С‚Р°РїСЃС‹СЂРјР°|РµСЃРєРµ СЃР°Р»|todo|follow.?up)/i.test(source)) return;
-  if (!/(Р¶Р°СЃР°|Т›РѕСЃ|Т›Т±СЂ|create|add)/i.test(source)) return;
+  if (!/(task|тапсырма|еске сал|todo|follow.?up)/i.test(source)) return;
+  if (!/(жаса|қос|құр|create|add)/i.test(source)) return;
   state.tasks.unshift(normalizeTask({
     id: crypto.randomUUID(),
     title: firstMeaningfulLine(prompt).slice(0, 90) || "AI task",
@@ -158,33 +158,33 @@ function maybeCreateTaskFromPrompt(prompt, answer) {
 async function translate() {
   const text = $("translateInput").value.trim();
   if (!text) return;
-  $("translateOut").textContent = "РђСѓРґР°СЂС‹Р»С‹Рї Р¶Р°С‚С‹СЂ...";
+  $("translateOut").textContent = "Аударылып жатыр...";
   try {
     const result = await ai("translate", text, $("targetLang").value);
     $("translateOut").textContent = result.text;
   } catch (error) {
-    $("translateOut").textContent = `ТљР°С‚Рµ: ${error.message}`;
+    $("translateOut").textContent = `Қате: ${error.message}`;
   }
 }
 
 async function quiz() {
-  $("quizOut").textContent = "Quiz Р¶Р°СЃР°Р»С‹Рї Р¶Р°С‚С‹СЂ...";
+  $("quizOut").textContent = "Quiz жасалып жатыр...";
   try {
-    const result = await ai("quiz", $("quizPrompt").value || "Р‘Р°СЂР»С‹Т› Р±С–Р»С–Рј Р±Р°Р·Р°СЃС‹РЅР°РЅ quiz Р¶Р°СЃР°.");
+    const result = await ai("quiz", $("quizPrompt").value || "Барлық білім базасынан quiz жаса.");
     $("quizOut").textContent = result.text;
   } catch (error) {
-    $("quizOut").textContent = `ТљР°С‚Рµ: ${error.message}`;
+    $("quizOut").textContent = `Қате: ${error.message}`;
   }
 }
 
 async function crm() {
-  $("crmOut").textContent = "CRM С‚Р°Р»РґР°Сѓ Р¶Р°СЃР°Р»С‹Рї Р¶Р°С‚С‹СЂ...";
+  $("crmOut").textContent = "CRM талдау жасалып жатыр...";
   try {
-    const prompt = $("crmPrompt").value || "CRM РґРµСЂРµРіС–РЅ С‚РѕР»С‹Т› С‚Р°Р»РґР°: pipeline, С‚Р°Р±С‹СЃ, РєР»РёРµРЅС‚ СЃРµРіРјРµРЅС‚С‚РµСЂС–, С‚У™СѓРµРєРµР»РґРµСЂ, РєРµР»РµСЃС– У™СЂРµРєРµС‚С‚РµСЂ.";
+    const prompt = $("crmPrompt").value || "CRM дерегін толық талда: pipeline, табыс, клиент сегменттері, тәуекелдер, келесі әрекеттер.";
     const result = await ai("crm", prompt);
     $("crmOut").textContent = result.text;
   } catch (error) {
-    $("crmOut").textContent = `ТљР°С‚Рµ: ${error.message}`;
+    $("crmOut").textContent = `Қате: ${error.message}`;
   }
 }
 
@@ -193,15 +193,15 @@ async function matchPrices() {
   const priceFile = $("almatPriceFile").files[0];
   const out = $("matchOut");
   if (!baseFile || !priceFile) {
-    out.textContent = "Р•РєС– С„Р°Р№Р»РґС‹ РґР° С‚Р°ТЈРґР°ТЈС‹Р·: 1-Т›Т±Р¶Р°С‚ Р¶У™РЅРµ almat company price.";
+    out.textContent = "Екі файлды да таңдаңыз: 1-құжат және almat company price.";
     return;
   }
   if (!window.XLSX) {
-    out.textContent = "Excel РєС–С‚Р°РїС…Р°РЅР°СЃС‹ Р¶ТЇРєС‚РµР»РјРµРґС–. РРЅС‚РµСЂРЅРµС‚С‚С– С‚РµРєСЃРµСЂС–Рї, Р±РµС‚С‚С– Т›Р°Р№С‚Р° Р°С€С‹ТЈС‹Р·.";
+    out.textContent = "Excel кітапханасы жүктелмеді. Интернетті тексеріп, бетті қайта ашыңыз.";
     return;
   }
 
-  out.textContent = "Р¤Р°Р№Р»РґР°СЂ РѕТ›С‹Р»С‹Рї Р¶Р°С‚С‹СЂ...";
+  out.textContent = "Файлдар оқылып жатыр...";
   try {
     const base = await readTableFile(baseFile);
     const price = await readTableFile(priceFile);
@@ -211,20 +211,20 @@ async function matchPrices() {
     });
     downloadWorkbook(result, datedFilename("completed_price"));
     out.textContent = [
-      "Р”Р°Р№С‹РЅ С„Р°Р№Р» Р¶ТЇРєС‚РµР»РґС–.",
-      `1-Т›Т±Р¶Р°С‚ Р¶РѕР»РґР°СЂС‹: ${result.baseRows}`,
-      `almat company price Р¶РѕР»РґР°СЂС‹: ${result.priceRows}`,
-      `РљРѕРґ Р±РѕР№С‹РЅС€Р° С‚Р°Р±С‹Р»Т“Р°РЅС‹: ${result.matched}`,
-      `РўР°Р±С‹Р»РјР°Т“Р°РЅ РєРѕРґС‚Р°СЂ: ${result.notFound.length}`,
-      `Р‘Р°Т“Р° Т›РѕР№С‹Р»Т“Р°РЅ Т±СЏС€С‹Т›С‚Р°СЂ: ${result.filled}`,
-      `Change log Р¶РѕР»РґР°СЂС‹: ${result.changeLog.length}`,
-      `ТљРѕСЃС‹Р»Т“Р°РЅ Р±Р°Т“Р° Р±Р°Т“Р°РЅС‹: ${result.addedColumns}`,
-      `Р¤РѕСЂРјСѓР»Р°СЃС‹ Р±Р°СЂ Т±СЏС€С‹Т›С‚Р°СЂ У©Р·РіРµСЂРјРµРґС–: ${result.formulaProtected}`,
-      `ТљРѕСЂТ“Р°Р»Т“Р°РЅ СЃР°РЅС‹/Т›РѕСЂР°Рї Р±Р°Т“Р°РЅРґР°СЂС‹: ${result.protectedColumns.join(", ") || "С‚Р°Р±С‹Р»РјР°РґС‹"}`,
-      `РљРѕРґ Р±Р°Т“Р°РЅРґР°СЂС‹: 1-Т›Т±Р¶Р°С‚ = ${result.baseCodeHeader}, almat = ${result.priceCodeHeader}`
+      "Дайын файл жүктелді.",
+      `1-құжат жолдары: ${result.baseRows}`,
+      `almat company price жолдары: ${result.priceRows}`,
+      `Код бойынша табылғаны: ${result.matched}`,
+      `Табылмаған кодтар: ${result.notFound.length}`,
+      `Баға қойылған ұяшықтар: ${result.filled}`,
+      `Change log жолдары: ${result.changeLog.length}`,
+      `Қосылған баға бағаны: ${result.addedColumns}`,
+      `Формуласы бар ұяшықтар өзгермеді: ${result.formulaProtected}`,
+      `Қорғалған саны/қорап бағандары: ${result.protectedColumns.join(", ") || "табылмады"}`,
+      `Код бағандары: 1-құжат = ${result.baseCodeHeader}, almat = ${result.priceCodeHeader}`
     ].join("\n");
   } catch (error) {
-    out.textContent = `ТљР°С‚Рµ: ${error.message}`;
+    out.textContent = `Қате: ${error.message}`;
   }
 }
 
@@ -330,7 +330,7 @@ async function readTableFile(file) {
     const rows = (await file.text()).split(/\r?\n/).map(line => line.split(delimiter));
     return { name: file.name, rows: trimRows(rows) };
   }
-  throw new Error("РўРµРє Excel, CSV РЅРµРјРµСЃРµ TSV С„Р°Р№Р» СЃР°Р»С‹ТЈС‹Р·.");
+  throw new Error("Тек Excel, CSV немесе TSV файл салыңыз.");
 }
 
 function worksheetToRows(sheet) {
@@ -448,7 +448,7 @@ function findPriceColumns(header) {
 function resolvePriceColumn(rows, header) {
   const direct = findColumn(header, "", priceKeywords());
   if (direct >= 0) return direct;
-  const protectedKeys = [...codeKeywords(), ...quantityKeywords(), ...packageKeywords(), "Р°С‚Р°СѓС‹", "РЅР°РёРјРµРЅРѕРІР°РЅРёРµ", "name", "С‚РѕРІР°СЂ"];
+  const protectedKeys = [...codeKeywords(), ...quantityKeywords(), ...packageKeywords(), "атауы", "наименование", "name", "товар"];
   const candidates = header.map((name, index) => {
     const clean = normalizeText(name);
     const values = rows.slice(1, 80).map(row => cellValue(row[index])).filter(Boolean);
@@ -468,25 +468,25 @@ function findMatchingPriceSource(targetHeader, priceHeader, fallbackIndex) {
 }
 
 function guessItemName(row, header, codeIndex) {
-  const nameIndex = header.findIndex(name => ["Р°С‚Р°СѓС‹", "РЅР°РёРјРµРЅРѕРІР°РЅРёРµ", "name", "С‚РѕРІР°СЂ", "product"].some(key => normalizeText(name).includes(key)));
+  const nameIndex = header.findIndex(name => ["атауы", "наименование", "name", "товар", "product"].some(key => normalizeText(name).includes(key)));
   if (nameIndex >= 0) return cellValue(row[nameIndex]);
   return cellValue(row[codeIndex + 1]) || cellValue(row[0]);
 }
 
 function codeKeywords() {
-  return ["РєРѕРґ", "code", "sku", "Р°СЂС‚РёРєСѓР»", "article", "item", "id", "barcode", "С€С‚СЂРёС…", "РЅРѕРјРµРЅРєР»Р°С‚СѓСЂР°"];
+  return ["код", "code", "sku", "артикул", "article", "item", "id", "barcode", "штрих", "номенклатура"];
 }
 
 function quantityKeywords() {
-  return ["СЃР°РЅС‹", "СЃР°РЅ", "РєРѕР»РёС‡РµСЃС‚РІРѕ", "РєРѕР»-РІРѕ", "qty", "quantity", "РѕСЃС‚Р°С‚РѕРє", "stock", "count", "РєУ©Р»РµРј", "РґР°РЅР°"];
+  return ["саны", "сан", "количество", "кол-во", "qty", "quantity", "остаток", "stock", "count", "көлем", "дана"];
 }
 
 function packageKeywords() {
-  return ["РєРѕСЂРѕР±РєР°", "РєРѕСЂРѕР±", "Т›РѕСЂР°Рї", "РєРѕСЂР°Рї", "СѓРїР°РєРѕРІРєР°", "РїР°С‡РєР°", "pack", "package", "box", "carton", "СЏС‰РёРє"];
+  return ["коробка", "короб", "қорап", "корап", "упаковка", "пачка", "pack", "package", "box", "carton", "ящик"];
 }
 
 function priceKeywords() {
-  return ["Р±Р°Т“Р°", "Р±Р°Т“Р°СЃС‹", "С†РµРЅР°", "price", "СЃС‚РѕРёРјРѕСЃС‚СЊ", "cost", "РїСЂР°Р№СЃ", "РѕРїС‚", "СЂРѕР·РЅРёС†Р°", "retail", "amount"];
+  return ["баға", "бағасы", "цена", "price", "стоимость", "cost", "прайс", "опт", "розница", "retail", "amount"];
 }
 
 function normalizeCode(value) {
@@ -615,7 +615,7 @@ function taskFromCrm() {
   state.tasks.unshift({
     id: crypto.randomUUID(),
     title,
-    body: "CRM/Т›Т±Р¶Р°С‚ Р±РѕР№С‹РЅС€Р° РєРµР»РµСЃС– У™СЂРµРєРµС‚С‚С– РЅР°Т›С‚С‹Р»Р°Сѓ.",
+    body: "CRM/құжат бойынша келесі әрекетті нақтылау.",
     status: "todo",
     priority: "high",
     due: "",
@@ -632,21 +632,21 @@ function taskFromCrm() {
 function brainCrm() {
   const out = $("brainOut");
   if (!state.docs.length) {
-    out.textContent = "РђР»РґС‹РјРµРЅ PDF, Word, Excel РЅРµРјРµСЃРµ CSV Т›Т±Р¶Р°С‚С‚Р°СЂС‹РЅ Р¶ТЇРєС‚РµТЈС–Р·.";
+    out.textContent = "Алдымен PDF, Word, Excel немесе CSV құжаттарын жүктеңіз.";
     return;
   }
   const context = buildContext();
   const links = state.docs.map(doc => {
     const related = findRelatedDocs(doc).map(item => item.name).slice(0, 4).join(", ");
-    return `- ${doc.name}: ${related || "Р±Р°Р№Р»Р°РЅС‹СЃ С‚Р°Р±С‹Р»РјР°РґС‹"}`;
+    return `- ${doc.name}: ${related || "байланыс табылмады"}`;
   }).join("\n");
   out.textContent = [
     analyzeCrm(context),
     "",
-    "Second Brain Р±Р°Р№Р»Р°РЅС‹СЃС‚Р°СЂС‹:",
+    "Second Brain байланыстары:",
     links,
     "",
-    "Т°СЃС‹РЅС‹СЃ: РєР»РёРµРЅС‚, С‚Р°СѓР°СЂ, РєРѕРґ, СЃС‚Р°С‚СѓСЃ, Р¶Р°СѓР°РїС‚С‹ РјРµРЅРµРґР¶РµСЂ Р¶У™РЅРµ РєРµР»РµСЃС– У™СЂРµРєРµС‚ Р±Р°Т“Р°РЅРґР°СЂС‹ Р±Р°СЂ Excel/CSV Р¶ТЇРєС‚РµСЃРµТЈС–Р·, CRM С‚Р°Р»РґР°Сѓ РґУ™Р»С–СЂРµРє Р±РѕР»Р°РґС‹."
+    "Ұсыныс: клиент, тауар, код, статус, жауапты менеджер және келесі әрекет бағандары бар Excel/CSV жүктесеңіз, CRM талдау дәлірек болады."
   ].join("\n");
 }
 
@@ -701,9 +701,9 @@ async function importBrain(event) {
     });
     persist();
     render();
-    $("brainOut").textContent = `РРјРїРѕСЂС‚ РґР°Р№С‹РЅ: ${incomingDocs.length} Т›Т±Р¶Р°С‚, ${incomingTasks.length} task, ${incomingNotes.length} note РѕТ›С‹Р»РґС‹.`;
+    $("brainOut").textContent = `Импорт дайын: ${incomingDocs.length} құжат, ${incomingTasks.length} task, ${incomingNotes.length} note оқылды.`;
   } catch (error) {
-    $("brainOut").textContent = `Import Т›Р°С‚РµСЃС–: ${error.message}`;
+    $("brainOut").textContent = `Import қатесі: ${error.message}`;
   } finally {
     event.target.value = "";
   }
@@ -718,7 +718,7 @@ function saveBrainMeta(id) {
   doc.links = splitList(linksInput?.value || "");
   persist();
   render();
-  $("brainOut").textContent = `${doc.name} СЃР°Т›С‚Р°Р»РґС‹.`;
+  $("brainOut").textContent = `${doc.name} сақталды.`;
 }
 
 function saveCloudSettings() {
@@ -726,12 +726,12 @@ function saveCloudSettings() {
   cloudConfig.key = $("cloudKey").value.trim();
   cloudConfig.workspace = $("cloudWorkspace").value.trim() || "default";
   if (!cloudConfig.url || !cloudConfig.key) {
-    setCloudStatus("Cloud Т›РѕСЃСѓ ТЇС€С–РЅ Supabase URL Р¶У™РЅРµ anon key РµРЅРіС–Р·С–ТЈС–Р·. Workspace РєРѕРґС‹РЅ У©Р·С–ТЈС–Р· Т›РѕСЏ Р°Р»Р°СЃС‹Р·.", false);
+    setCloudStatus("Cloud қосу үшін Supabase URL және anon key енгізіңіз. Workspace кодын өзіңіз қоя аласыз.", false);
     return;
   }
   localStorage.setItem("sanabase-cloud", JSON.stringify(cloudConfig));
   renderCloudSettings();
-  setCloudStatus("Cloud Т›РѕСЃС‹Р»РґС‹. Р•РЅРґС– Cloud-Т›Р° СЃР°Т›С‚Р°Сѓ Р±Р°СЃС‹ТЈС‹Р· РЅРµРјРµСЃРµ У©Р·РіРµСЂС–СЃС‚РµСЂ Р°РІС‚РѕРјР°С‚С‚С‹ СЃР°Т›С‚Р°Р»Р°РґС‹.", true);
+  setCloudStatus("Cloud қосылды. Енді Cloud-қа сақтау басыңыз немесе өзгерістер автоматты сақталады.", true);
 }
 
 function clearCloudSettings() {
@@ -740,7 +740,7 @@ function clearCloudSettings() {
   cloudConfig.workspace = "";
   localStorage.removeItem("sanabase-cloud");
   renderCloudSettings();
-  setCloudStatus("Cloud У©С€С–СЂС–Р»РґС–. ТљТ±Р¶Р°С‚С‚Р°СЂ local СЂРµР¶РёРјРґРµ Т›Р°Р»РґС‹.", false);
+  setCloudStatus("Cloud өшірілді. Құжаттар local режимде қалды.", false);
 }
 
 function exportCloudConfig() {
@@ -752,7 +752,7 @@ function exportCloudConfig() {
     app: "SanaBase AI"
   };
   if (!current.url || !current.key) {
-    setCloudStatus("РђР»РґС‹РјРµРЅ Supabase URL Р¶У™РЅРµ anon key РµРЅРіС–Р·С–Рї, Cloud Т›РѕСЃСѓ Р±Р°СЃС‹ТЈС‹Р·.", false);
+    setCloudStatus("Алдымен Supabase URL және anon key енгізіп, Cloud қосу басыңыз.", false);
     return;
   }
   const blob = new Blob([JSON.stringify(current, null, 2)], { type: "application/json" });
@@ -761,7 +761,7 @@ function exportCloudConfig() {
   link.download = `sanabase_cloud_${current.workspace}.json`;
   link.click();
   URL.revokeObjectURL(link.href);
-  setCloudStatus("Cloud Р±Р°РїС‚Р°СѓС‹ Р¶ТЇРєС‚РµР»РґС–. РћРЅС‹ С‚РµР»РµС„РѕРЅРґР° Cloud Р±Р°РїС‚Р°СѓС‹РЅ РµРЅРіС–Р·Сѓ Р°СЂТ›С‹Р»С‹ Т›РѕСЃСѓТ“Р° Р±РѕР»Р°РґС‹.", true);
+  setCloudStatus("Cloud баптауы жүктелді. Оны телефонда Cloud баптауын енгізу арқылы қосуға болады.", true);
 }
 
 async function importCloudConfig(event) {
@@ -772,12 +772,12 @@ async function importCloudConfig(event) {
     cloudConfig.url = cleanSupabaseUrl(data.url || "");
     cloudConfig.key = String(data.key || "").trim();
     cloudConfig.workspace = String(data.workspace || "default").trim() || "default";
-    if (!cloudConfig.url || !cloudConfig.key) throw new Error("config С–С€С–РЅРґРµ url РЅРµРјРµСЃРµ key Р¶РѕТ›");
+    if (!cloudConfig.url || !cloudConfig.key) throw new Error("config ішінде url немесе key жоқ");
     localStorage.setItem("sanabase-cloud", JSON.stringify(cloudConfig));
     renderCloudSettings();
-    setCloudStatus("Cloud Р±Р°РїС‚Р°СѓС‹ РµРЅРіС–Р·С–Р»РґС–. Р•РЅРґС– Cloud-С‚Р°РЅ Р°Р»Сѓ РЅРµРјРµСЃРµ Cloud-Т›Р° СЃР°Т›С‚Р°Сѓ Р±Р°СЃС‹ТЈС‹Р·.", true);
+    setCloudStatus("Cloud баптауы енгізілді. Енді Cloud-тан алу немесе Cloud-қа сақтау басыңыз.", true);
   } catch (error) {
-    setCloudStatus(`Cloud Р±Р°РїС‚Р°СѓС‹РЅ РѕТ›Сѓ Т›Р°С‚РµСЃС–: ${shortError(error)}`, false);
+    setCloudStatus(`Cloud баптауын оқу қатесі: ${shortError(error)}`, false);
   } finally {
     event.target.value = "";
   }
@@ -785,11 +785,11 @@ async function importCloudConfig(event) {
 
 async function pushCloud(showStatus = false) {
   if (!cloudReady()) {
-    if (showStatus) setCloudStatus("Cloud Т›РѕСЃС‹Р»РјР°Т“Р°РЅ: РѕСЃС‹ Р±СЂР°СѓР·РµСЂРґРµ Supabase URL/anon key/workspace СЃР°Т›С‚Р°Р»РјР°Т“Р°РЅ. Cloud Т›РѕСЃСѓ РЅРµРјРµСЃРµ Cloud Р±Р°РїС‚Р°СѓС‹РЅ РµРЅРіС–Р·Сѓ Т›РѕР»РґР°РЅС‹ТЈС‹Р·.", false);
+    if (showStatus) setCloudStatus("Cloud қосылмаған: осы браузерде Supabase URL/anon key/workspace сақталмаған. Cloud қосу немесе Cloud баптауын енгізу қолданыңыз.", false);
     return;
   }
   try {
-    if (showStatus) setCloudStatus("Cloud-Т›Р° СЃР°Т›С‚Р°Р»С‹Рї Р¶Р°С‚С‹СЂ...", true);
+    if (showStatus) setCloudStatus("Cloud-қа сақталып жатыр...", true);
     const payload = {
       id: cloudRowId(),
       workspace_id: cloudConfig.workspace,
@@ -808,26 +808,26 @@ async function pushCloud(showStatus = false) {
       body: JSON.stringify(payload)
     });
     if (!response.ok) throw new Error(await response.text());
-    setCloudStatus(`Cloud СЃР°Т›С‚Р°Р»РґС‹: ${new Date().toLocaleString()}`, true);
+    setCloudStatus(`Cloud сақталды: ${new Date().toLocaleString()}`, true);
   } catch (error) {
-    setCloudStatus(`Cloud СЃР°Т›С‚Р°Сѓ Т›Р°С‚РµСЃС–: ${shortError(error)}`, false);
+    setCloudStatus(`Cloud сақтау қатесі: ${shortError(error)}`, false);
   }
 }
 
 async function pullCloud(showStatus = false) {
   if (!cloudReady()) {
-    if (showStatus) setCloudStatus("Cloud Т›РѕСЃС‹Р»РјР°Т“Р°РЅ: РѕСЃС‹ Р±СЂР°СѓР·РµСЂРґРµ Supabase URL/anon key/workspace СЃР°Т›С‚Р°Р»РјР°Т“Р°РЅ. Cloud Т›РѕСЃСѓ РЅРµРјРµСЃРµ Cloud Р±Р°РїС‚Р°СѓС‹РЅ РµРЅРіС–Р·Сѓ Т›РѕР»РґР°РЅС‹ТЈС‹Р·.", false);
+    if (showStatus) setCloudStatus("Cloud қосылмаған: осы браузерде Supabase URL/anon key/workspace сақталмаған. Cloud қосу немесе Cloud баптауын енгізу қолданыңыз.", false);
     return;
   }
   try {
-    if (showStatus) setCloudStatus("Cloud-С‚Р°РЅ РѕТ›С‹Р»С‹Рї Р¶Р°С‚С‹СЂ...", true);
+    if (showStatus) setCloudStatus("Cloud-тан оқылып жатыр...", true);
     const response = await fetch(`${cloudConfig.url}/rest/v1/sanabase_brain?id=eq.${encodeURIComponent(cloudRowId())}&select=payload,updated_at`, {
       headers: cloudHeaders()
     });
     if (!response.ok) throw new Error(await response.text());
     const rows = await response.json();
     if (!rows.length) {
-      setCloudStatus("Cloud-С‚Р° Р±Т±Р» workspace ТЇС€С–РЅ Р±Р°Р·Р° У™Р»С– Р¶РѕТ›. РђР»РґС‹РјРµРЅ Cloud-Т›Р° СЃР°Т›С‚Р°Сѓ Р±Р°СЃС‹ТЈС‹Р·.", false);
+      setCloudStatus("Cloud-та бұл workspace үшін база әлі жоқ. Алдымен Cloud-қа сақтау басыңыз.", false);
       return;
     }
     const payload = rows[0].payload || {};
@@ -836,9 +836,9 @@ async function pullCloud(showStatus = false) {
     state.notes = Array.isArray(payload.notes) ? payload.notes.map(normalizeNote) : [];
     persist({ sync: false });
     render();
-    setCloudStatus(`Cloud-С‚Р°РЅ Р°Р»С‹РЅРґС‹: ${rows[0].updated_at || "ready"}`, true);
+    setCloudStatus(`Cloud-тан алынды: ${rows[0].updated_at || "ready"}`, true);
   } catch (error) {
-    setCloudStatus(`Cloud РѕТ›Сѓ Т›Р°С‚РµСЃС–: ${shortError(error)}`, false);
+    setCloudStatus(`Cloud оқу қатесі: ${shortError(error)}`, false);
   }
 }
 
@@ -854,7 +854,7 @@ function renderCloudSettings() {
   $("cloudKey").value = cloudConfig.key || "";
   $("cloudWorkspace").value = cloudConfig.workspace || "";
   $("cloudBadge").textContent = cloudReady() ? "Cloud" : "Local";
-  setCloudStatus(cloudReady() ? `Cloud Р°РІС‚РѕРјР°С‚С‚С‹ РґР°Р№С‹РЅ: ${cloudConfig.workspace}. УЁР·РіРµСЂС–СЃС‚РµСЂ СЃР°Т›С‚Р°Р»Р°РґС‹.` : "Cloud СѓР°Т›С‹С‚С€Р° РґР°Р№С‹РЅ РµРјРµСЃ. Р‘РµС‚С‚С– Р¶Р°ТЈР°СЂС‚С‹Рї РєУ©СЂС–ТЈС–Р· РЅРµРјРµСЃРµ Cloud-С‚Р°РЅ Р°Р»Сѓ Р±Р°СЃС‹ТЈС‹Р·.", cloudReady());
+  setCloudStatus(cloudReady() ? `Cloud автоматты дайын: ${cloudConfig.workspace}. Өзгерістер сақталады.` : "Cloud уақытша дайын емес. Бетті жаңартып көріңіз немесе Cloud-тан алу басыңыз.", cloudReady());
 }
 
 function loadCloudConfig() {
@@ -943,12 +943,12 @@ async function browserImport(file) {
     return { name: file.name, type: file.type || ext, text: await file.text() };
   }
   if (["xlsx", "xls"].includes(ext)) {
-    if (!window.XLSX) return unsupported(file, "Excel РѕТ›Сѓ РєС–С‚Р°РїС…Р°РЅР°СЃС‹ Р¶ТЇРєС‚РµР»РјРµРґС–.");
+    if (!window.XLSX) return unsupported(file, "Excel оқу кітапханасы жүктелмеді.");
     const table = await readTableFile(file);
     return { name: file.name, type: file.type || ext, text: table.rows.map(row => row.join("\t")).join("\n") };
   }
   if (ext === "docx") {
-    if (!window.mammoth) return unsupported(file, "Word РѕТ›Сѓ РєС–С‚Р°РїС…Р°РЅР°СЃС‹ Р¶ТЇРєС‚РµР»РјРµРґС–.");
+    if (!window.mammoth) return unsupported(file, "Word оқу кітапханасы жүктелмеді.");
     const buffer = await file.arrayBuffer();
     const result = await mammoth.extractRawText({ arrayBuffer: buffer });
     return { name: file.name, type: file.type || ext, text: result.value };
@@ -956,7 +956,7 @@ async function browserImport(file) {
   if (ext === "pdf") {
     return readPdf(file);
   }
-  return unsupported(file, "Р‘Т±Р» С„Р°Р№Р» С‚ТЇСЂС–РЅ Р±СЂР°СѓР·РµСЂРґРµ РѕТ›Сѓ У™Р·С–СЂРіРµ РјТЇРјРєС–РЅ РµРјРµСЃ.");
+  return unsupported(file, "Бұл файл түрін браузерде оқу әзірге мүмкін емес.");
 }
 
 async function readPdf(file) {
@@ -1005,44 +1005,44 @@ function answerFromContext(prompt, context, assistantMode = "auto") {
   if (assistantMode === "crm") return analyzeCrm(context);
   if (assistantMode === "tasks") return taskPlanFromContext(prompt, context, sentences);
   if (assistantMode === "action") return actionPlanAnswer(prompt, sentences.length ? sentences : [context.slice(0, 1200)]);
-  if (!sentences.length) return "Р‘Т±Р» СЃТ±СЂР°Т›Т›Р° РЅР°Т›С‚С‹ СЃУ™Р№РєРµСЃ Р¶РѕР» С‚Р°Р±С‹Р»РјР°РґС‹. Р‘Р°Р·Р°ТЈС‹Р·РґР°РЅ РµТЈ РјР°ТЈС‹Р·РґС‹ ТЇР·С–РЅРґС–:\n\n" + context.slice(0, 1200) + nextStepBlock();
+  if (!sentences.length) return "Бұл сұраққа нақты сәйкес жол табылмады. Базаңыздан ең маңызды үзінді:\n\n" + context.slice(0, 1200) + nextStepBlock();
   if (assistantMode === "brief") return sentences.slice(0, 3).join("\n\n");
-  return "Р‘Р°Р·Р° Р±РѕР№С‹РЅС€Р° Т›С‹СЃТ›Р° Р¶Р°СѓР°Рї:\n\n" + sentences.join("\n\n") + nextStepBlock();
+  return "База бойынша қысқа жауап:\n\n" + sentences.join("\n\n") + nextStepBlock();
 }
 
 function assistantInstruction(mode) {
-  const base = "Р–Р°СѓР°РїС‚С‹ Т›Р°Р·Р°Т›С€Р° Р±РµСЂ. ТљТ±Р¶Р°С‚, CRM, tasks Р¶У™РЅРµ notes РєРѕРЅС‚РµРєСЃС‚С–РЅРµ СЃТЇР№РµРЅ. РќР°Т›С‚С‹ РґРµСЂРµРє Р¶РѕТ› Р±РѕР»СЃР°, СЃРѕРЅС‹ Р°Р№С‚.";
+  const base = "Жауапты қазақша бер. Құжат, CRM, tasks және notes контекстіне сүйен. Нақты дерек жоқ болса, соны айт.";
   const modes = {
-    brief: "УЁС‚Рµ Т›С‹СЃТ›Р° Р¶Р°СѓР°Рї Р±РµСЂ: РјР°РєСЃРёРјСѓРј 5 bullet.",
-    action: "Р–Р°СѓР°РїС‚С‹ РјС–РЅРґРµС‚С‚С– С‚ТЇСЂРґРµ: ТљРѕСЂС‹С‚С‹РЅРґС‹, РќР°Т›С‚С‹ У™СЂРµРєРµС‚С‚РµСЂ, РўУ™СѓРµРєРµР», РљРµР»РµСЃС– Т›Р°РґР°Рј С„РѕСЂРјР°С‚С‹РЅРґР° Р±РµСЂ.",
-    crm: "CRM Р°РЅР°Р»РёС‚РёРє СЃРёСЏТ›С‚С‹ Р¶Р°СѓР°Рї Р±РµСЂ: РєР»РёРµРЅС‚, С‚Р°Р±С‹СЃ, pipeline, С‚У™СѓРµРєРµР», follow-up.",
-    tasks: "ТљТ±Р¶Р°С‚С‚Р°РЅ РѕСЂС‹РЅРґР°Р»Р°С‚С‹РЅ С‚Р°РїСЃС‹СЂРјР°Р»Р°СЂРґС‹ С€С‹Т“Р°СЂ: title, priority, deadline Р±Р°СЂ Р±РѕР»СЃР° РєУ©СЂСЃРµС‚."
+    brief: "Өте қысқа жауап бер: максимум 5 bullet.",
+    action: "Жауапты міндетті түрде: Қорытынды, Нақты әрекеттер, Тәуекел, Келесі қадам форматында бер.",
+    crm: "CRM аналитик сияқты жауап бер: клиент, табыс, pipeline, тәуекел, follow-up.",
+    tasks: "Құжаттан орындалатын тапсырмаларды шығар: title, priority, deadline бар болса көрсет."
   };
-  return `${base} ${modes[mode] || "РџР°Р№РґР°Р»Р°РЅСѓС€С‹Т“Р° РµТЈ РїР°Р№РґР°Р»С‹ С„РѕСЂРјР°С‚С‚С‹ С‚Р°ТЈРґР°."}`;
+  return `${base} ${modes[mode] || "Пайдаланушыға ең пайдалы форматты таңда."}`;
 }
 
 function emptyAssistantAnswer(mode) {
-  const base = "УР·С–СЂРіРµ Р±Р°Р·Р° Р±РѕСЃ. PDF/Word/Excel/CSV Р¶ТЇРєС‚РµСЃРµТЈС–Р·, РјРµРЅ СЃРѕРЅС‹ТЈ С–С€С–РЅРµРЅ Р¶Р°СѓР°Рї Р±РµСЂРµРјС–РЅ.";
-  if (mode === "tasks") return `${base}\n\nТљРѕСЃСѓТ“Р° Р±РѕР»Р°С‚С‹РЅ РЅУ™СЂСЃРµ: Т›Т±Р¶Р°С‚С‚Р°РЅ Р°РІС‚РѕРјР°С‚С‚С‹ task С€С‹Т“Р°СЂСѓ, deadline С‚Р°Р±Сѓ, Р¶Р°СѓР°РїС‚С‹ Р°РґР°РјРґС‹ Р±РµР»РіС–Р»РµСѓ.`;
-  if (mode === "crm") return `${base}\n\nCRM ТЇС€С–РЅ Excel/CSV Р¶ТЇРєС‚РµТЈС–Р·: РјРµРЅ РєР»РёРµРЅС‚С‚РµСЂРґС–, СЃР°С‚С‹Р»С‹Рј СЃРѕРјР°СЃС‹РЅ, С‚У™СѓРµРєРµР»РґС– Р¶У™РЅРµ follow-up task-С‚Р°СЂРґС‹ С€С‹Т“Р°СЂР°РјС‹РЅ.`;
-  return `${base}\n\nРњРµРЅ Т›Р°Р·С–СЂ РјС‹РЅР°РЅС‹ С–СЃС‚РµР№ Р°Р»Р°РјС‹РЅ: Т›Т±Р¶Р°С‚ РѕТ›Сѓ, РїСЂР°Р№СЃ СЃР°Р»С‹СЃС‚С‹СЂСѓ, CRM С‚Р°Р»РґР°Сѓ, task Р¶Р°СЃР°Сѓ, quiz/translation, Second Brain С–Р·РґРµСѓ.`;
+  const base = "Әзірге база бос. PDF/Word/Excel/CSV жүктесеңіз, мен соның ішінен жауап беремін.";
+  if (mode === "tasks") return `${base}\n\nҚосуға болатын нәрсе: құжаттан автоматты task шығару, deadline табу, жауапты адамды белгілеу.`;
+  if (mode === "crm") return `${base}\n\nCRM үшін Excel/CSV жүктеңіз: мен клиенттерді, сатылым сомасын, тәуекелді және follow-up task-тарды шығарамын.`;
+  return `${base}\n\nМен қазір мынаны істей аламын: құжат оқу, прайс салыстыру, CRM талдау, task жасау, quiz/translation, Second Brain іздеу.`;
 }
 
 function actionPlanAnswer(prompt, facts) {
   return [
-    "ТљРѕСЂС‹С‚С‹РЅРґС‹:",
+    "Қорытынды:",
     facts.slice(0, 2).join("\n\n"),
     "",
-    "РќР°Т›С‚С‹ У™СЂРµРєРµС‚С‚РµСЂ:",
-    "1. Р•ТЈ РјР°ТЈС‹Р·РґС‹ Р¶РѕР»РґР°СЂРґС‹ С‚РµРєСЃРµСЂС–ТЈС–Р·.",
-    "2. ТљР°Р¶РµС‚ Р±РѕР»СЃР° Tasks Р±Р°С‚С‹СЂРјР°СЃС‹РјРµРЅ follow-up Р¶Р°СЃР°ТЈС‹Р·.",
-    "3. Р•РіРµСЂ Р±Т±Р» РїСЂР°Р№СЃ Р±РѕР»СЃР°, Price Match Р°СЂТ›С‹Р»С‹ РєРѕРґ Р±РѕР№С‹РЅС€Р° С‚РѕР»С‹Т›С‚С‹СЂС‹ТЈС‹Р·.",
+    "Нақты әрекеттер:",
+    "1. Ең маңызды жолдарды тексеріңіз.",
+    "2. Қажет болса Tasks батырмасымен follow-up жасаңыз.",
+    "3. Егер бұл прайс болса, Price Match арқылы код бойынша толықтырыңыз.",
     "",
-    "РўУ™СѓРµРєРµР»:",
-    "Р”РµСЂРµРє С‚РѕР»С‹Т› Р±РѕР»РјР°СЃР° РЅРµРјРµСЃРµ РєРѕРґ/Р±Р°Т“Р° Р±Р°Т“Р°РЅРґР°СЂС‹ У™СЂС‚ТЇСЂР»С– Р°С‚Р°Р»СЃР°, РЅУ™С‚РёР¶РµРЅС– Т›РѕР»РјРµРЅ С‚РµРєСЃРµСЂСѓ РєРµСЂРµРє.",
+    "Тәуекел:",
+    "Дерек толық болмаса немесе код/баға бағандары әртүрлі аталса, нәтижені қолмен тексеру керек.",
     "",
-    "РљРµР»РµСЃС– Т›Р°РґР°Рј:",
-    "РњР°Т“Р°РЅ РЅР°Т›С‚С‹ Т›Т±Р¶Р°С‚ Р°С‚Р°СѓС‹РЅ, РєР»РёРµРЅС‚С‚С– РЅРµРјРµСЃРµ С‚Р°СѓР°СЂ РєРѕРґС‹РЅ Р¶Р°Р·СЃР°ТЈС‹Р·, Р¶Р°СѓР°РїС‚С‹ С‚Р°СЂС‹Р»С‚Р°РјС‹РЅ."
+    "Келесі қадам:",
+    "Маған нақты құжат атауын, клиентті немесе тауар кодын жазсаңыз, жауапты тарылтамын."
   ].join("\n");
 }
 
@@ -1052,15 +1052,15 @@ function taskPlanFromContext(prompt, context, matches) {
     .filter(line => line.length > 20)
     .slice(0, 8);
   return [
-    "ТљТ±Р¶Р°С‚С‚Р°СЂРґР°РЅ С€С‹Т“Р°С‚С‹РЅ С‚Р°РїСЃС‹СЂРјР°Р»Р°СЂ:",
-    ...lines.slice(0, 5).map((line, index) => `${index + 1}. ${line.slice(0, 140)}\n   Priority: ${/(urgent|Т›Р°С‚Рµ|РѕС€РёР±РєР°|РґРѕР»Рі|С‚У©Р»РµРј|risk|С‚У™СѓРµРєРµР»)/i.test(line) ? "High" : "Medium"}\n   Status: Р†СЃС‚РµСѓ`),
+    "Құжаттардан шығатын тапсырмалар:",
+    ...lines.slice(0, 5).map((line, index) => `${index + 1}. ${line.slice(0, 140)}\n   Priority: ${/(urgent|қате|ошибка|долг|төлем|risk|тәуекел)/i.test(line) ? "High" : "Medium"}\n   Status: Істеу`),
     "",
-    "РљРµТЈРµСЃ: РѕСЃС‹ Р¶Р°СѓР°РїС‚С‹ Р±С–СЂРґРµРЅ Tasks С‚Р°Т›С‚Р°СЃС‹РЅР° Т›РѕСЃСѓ ТЇС€С–РЅ `РЎРѕТЈТ“С‹ Р¶Р°СѓР°РїС‚Р°РЅ task` Р±Р°С‚С‹СЂРјР°СЃС‹РЅ Р±Р°СЃС‹ТЈС‹Р·."
+    "Кеңес: осы жауапты бірден Tasks тақтасына қосу үшін `Соңғы жауаптан task` батырмасын басыңыз."
   ].join("\n");
 }
 
 function nextStepBlock() {
-  return "\n\nРљРµР»РµСЃС– Т›Р°РґР°Рј:\n- РќР°Т›С‚С‹ task РєРµСЂРµРє Р±РѕР»СЃР°, `РЎРѕТЈТ“С‹ Р¶Р°СѓР°РїС‚Р°РЅ task` Р±Р°СЃС‹ТЈС‹Р·.\n- CRM РєРµСЂРµРє Р±РѕР»СЃР°, СЂРµР¶РёРјРґС– `CRM С‚Р°Р»РґР°Сѓ` Т›С‹Р»С‹ТЈС‹Р·.\n- ТљС‹СЃТ›Р° Р¶Р°СѓР°Рї РєРµСЂРµРє Р±РѕР»СЃР°, `ТљС‹СЃТ›Р° Р¶Р°СѓР°Рї` СЂРµР¶РёРјС–РЅ С‚Р°ТЈРґР°ТЈС‹Р·.";
+  return "\n\nКелесі қадам:\n- Нақты task керек болса, `Соңғы жауаптан task` басыңыз.\n- CRM керек болса, режимді `CRM талдау` қылыңыз.\n- Қысқа жауап керек болса, `Қысқа жауап` режимін таңдаңыз.";
 }
 
 function firstMeaningfulLine(value) {
@@ -1071,7 +1071,7 @@ function firstMeaningfulLine(value) {
 }
 
 function inferPriority(value) {
-  return /(urgent|СЃСЂРѕС‡РЅРѕ|С€Т±Т“С‹Р»|Т›Р°С‚Рµ|РѕС€РёР±РєР°|risk|С‚У™СѓРµРєРµР»|С‚У©Р»РµРј|РґРѕР»Рі|debt)/i.test(value) ? "high" : "medium";
+  return /(urgent|срочно|шұғыл|қате|ошибка|risk|тәуекел|төлем|долг|debt)/i.test(value) ? "high" : "medium";
 }
 
 function makeQuiz(context) {
@@ -1079,7 +1079,7 @@ function makeQuiz(context) {
   const selected = pool.length ? pool : [context.slice(0, 400)];
   return selected.slice(0, 5).map((line, index) => {
     const short = line.slice(0, 120);
-    return `${index + 1}. РњС‹РЅР° РѕР№РґС‹ТЈ РЅРµРіС–Р·РіС– РјР°Т“С‹РЅР°СЃС‹ Т›Р°РЅРґР°Р№?\n   "${short}..."\n   A) РќРµРіС–Р·РіС– РґРµСЂРµРє\n   B) ТљР°С‚С‹СЃС‹ Р¶РѕТ› Р°Т›РїР°СЂР°С‚\n   C) ТљР°С‚Рµ С‚Т±Р¶С‹СЂС‹Рј\n   Р–Р°СѓР°Рї: A`;
+    return `${index + 1}. Мына ойдың негізгі мағынасы қандай?\n   "${short}..."\n   A) Негізгі дерек\n   B) Қатысы жоқ ақпарат\n   C) Қате тұжырым\n   Жауап: A`;
   }).join("\n\n");
 }
 
@@ -1088,20 +1088,20 @@ function analyzeCrm(context) {
   const header = rows.find(row => row.includes("\t") || row.includes(",")) || "";
   const money = rows.join("\n").match(/\b\d{3,}(?:[.,]\d+)?\b/g) || [];
   return [
-    "CRM Т›С‹СЃТ›Р°С€Р° Р°СѓРґРёС‚:",
-    `- Р–РѕР» СЃР°РЅС‹: С€Р°РјР°РјРµРЅ ${rows.length}`,
-    `- Р‘Р°Т“Р°РЅРґР°СЂ: ${header.slice(0, 220) || "Р°РЅС‹Т›С‚Р°Р»РјР°РґС‹"}`,
-    `- РЎР°РЅРґС‹Т› РјУ™РЅРґРµСЂ: ${money.length ? money.slice(0, 12).join(", ") : "С‚Р°Р±С‹Р»РјР°РґС‹"}`,
+    "CRM қысқаша аудит:",
+    `- Жол саны: шамамен ${rows.length}`,
+    `- Бағандар: ${header.slice(0, 220) || "анықталмады"}`,
+    `- Сандық мәндер: ${money.length ? money.slice(0, 12).join(", ") : "табылмады"}`,
     "",
-    "Р•РіРµСЂ РµРєС– РїСЂР°Р№СЃС‚С‹ РєРѕРґ Р±РѕР№С‹РЅС€Р° С‚РѕР»С‹Т›С‚С‹СЂСѓ РєРµСЂРµРє Р±РѕР»СЃР°, Price Match Р±У©Р»С–РјС–РЅ Т›РѕР»РґР°РЅС‹ТЈС‹Р·."
+    "Егер екі прайсты код бойынша толықтыру керек болса, Price Match бөлімін қолданыңыз."
   ].join("\n");
 }
 
 function simpleTranslate(text, language) {
   const labels = {
-    Kazakh: "ТљР°Р·Р°Т›С€Р° РјР°Т“С‹РЅР°СЃС‹",
+    Kazakh: "Қазақша мағынасы",
     English: "English meaning",
-    Russian: "Р СѓСЃСЃРєРёР№ СЃРјС‹СЃР»",
+    Russian: "Русский смысл",
     Turkish: "Turkish meaning",
     Chinese: "Chinese meaning"
   };
@@ -1124,11 +1124,11 @@ function inferTags(name, text) {
   const source = `${name} ${text}`.toLowerCase();
   const tags = [];
   [
-    ["price", /price|Р±Р°Т“Р°|РїСЂР°Р№СЃ|С†РµРЅР°|С‚Р°СѓР°СЂ|С‚РѕРІР°СЂ|РєРѕРґ/],
-    ["crm", /crm|РєР»РёРµРЅС‚|Р»РёРґ|СЃР°С‚С‹Р»С‹Рј|РїСЂРѕРґР°Р¶|manager|РјРµРЅРµРґР¶РµСЂ/],
-    ["contract", /contract|РґРѕРіРѕРІРѕСЂ|РєРµР»С–СЃС–Рј|С€Р°СЂС‚/],
-    ["finance", /invoice|СЃС‡РµС‚|С‚У©Р»РµРј|РѕРїР»Р°С‚Р°|payment|amount|СЃСѓРјРјР°/],
-    ["warehouse", /СЃРєР»Р°Рґ|Т›РѕР№РјР°|РѕСЃС‚Р°С‚РѕРє|stock|quantity|СЃР°РЅС‹|Т›РѕСЂР°Рї|РєРѕСЂРѕР±РєР°/]
+    ["price", /price|баға|прайс|цена|тауар|товар|код/],
+    ["crm", /crm|клиент|лид|сатылым|продаж|manager|менеджер/],
+    ["contract", /contract|договор|келісім|шарт/],
+    ["finance", /invoice|счет|төлем|оплата|payment|amount|сумма/],
+    ["warehouse", /склад|қойма|остаток|stock|quantity|саны|қорап|коробка/]
   ].forEach(([tag, pattern]) => {
     if (pattern.test(source)) tags.push(tag);
   });
@@ -1201,11 +1201,11 @@ function autoNoteType(body) {
 
 function noteTypeLabel(type) {
   return {
-    short: "ТљС‹СЃТ›Р°",
-    long: "Т°Р·Р°Т›",
-    idea: "РРґРµСЏ",
-    meeting: "РљРµР·РґРµСЃСѓ"
-  }[type] || "ТљС‹СЃТ›Р°";
+    short: "Қысқа",
+    long: "Ұзақ",
+    idea: "Идея",
+    meeting: "Кездесу"
+  }[type] || "Қысқа";
 }
 
 function noteFolders() {
@@ -1275,7 +1275,7 @@ function render() {
     .forEach(doc => {
       const card = document.createElement("article");
       card.className = "doc";
-      card.innerHTML = `<h3>${escapeHtml(doc.name)}</h3><p>${escapeHtml(doc.warning || doc.text || "Selectable text С‚Р°Р±С‹Р»РјР°РґС‹.")}</p>`;
+      card.innerHTML = `<h3>${escapeHtml(doc.name)}</h3><p>${escapeHtml(doc.warning || doc.text || "Selectable text табылмады.")}</p>`;
       $("docsGrid").appendChild(card);
     });
   renderNotes();
@@ -1291,7 +1291,7 @@ function renderNotes() {
   const folders = noteFolders();
   const current = folderFilter?.value || "all";
   if (folderFilter) {
-    folderFilter.innerHTML = `<option value="all">Р‘Р°СЂР»С‹Т› РїР°РїРєР°</option>` + folders.map(folder => `<option value="${escapeHtml(folder)}">${escapeHtml(folder)}</option>`).join("");
+    folderFilter.innerHTML = `<option value="all">Барлық папка</option>` + folders.map(folder => `<option value="${escapeHtml(folder)}">${escapeHtml(folder)}</option>`).join("");
     folderFilter.value = folders.includes(current) ? current : "all";
   }
   const activeFolder = folderFilter?.value || "all";
@@ -1304,7 +1304,7 @@ function renderNotes() {
   renderNoteFolders(folders, activeFolder);
   list.innerHTML = "";
   if (!filtered.length) {
-    list.innerHTML = `<article class="note empty-note"><h3>Р–Р°Р·Р±Р° Р¶РѕТ›</h3><p>РџР°РїРєР° С‚Р°ТЈРґР°Рї, Т›С‹СЃТ›Р° РЅРµРјРµСЃРµ Т±Р·Р°Т› Р°Т›РїР°СЂР°С‚ СЃР°Т›С‚Р°ТЈС‹Р·.</p></article>`;
+    list.innerHTML = `<article class="note empty-note"><h3>Жазба жоқ</h3><p>Папка таңдап, қысқа немесе ұзақ ақпарат сақтаңыз.</p></article>`;
     return;
   }
   filtered.forEach(note => {
@@ -1314,11 +1314,11 @@ function renderNotes() {
       <div class="note-head">
         <div>
           <h3>${escapeHtml(note.title)}</h3>
-          <span>${escapeHtml(note.folder || "General")} В· ${escapeHtml(noteTypeLabel(note.type))}</span>
+          <span>${escapeHtml(note.folder || "General")} · ${escapeHtml(noteTypeLabel(note.type))}</span>
         </div>
         <div class="note-actions">
-          <button type="button" data-note-brain="${escapeHtml(note.id)}">${note.brain ? "Brain-РґР°" : "Brain-Т“Р°"}</button>
-          <button type="button" data-note-delete="${escapeHtml(note.id)}">УЁС€С–СЂСѓ</button>
+          <button type="button" data-note-brain="${escapeHtml(note.id)}">${note.brain ? "Brain-да" : "Brain-ға"}</button>
+          <button type="button" data-note-delete="${escapeHtml(note.id)}">Өшіру</button>
         </div>
       </div>
       <p>${escapeHtml(note.body)}</p>
@@ -1338,7 +1338,7 @@ function renderNoteFolders(folders, activeFolder) {
   const row = $("noteFolders");
   if (!row) return;
   const allCount = state.notes.length;
-  row.innerHTML = [`<button type="button" data-note-folder="all" class="${activeFolder === "all" ? "active" : ""}">Р‘Р°СЂР»С‹Т“С‹ <span>${allCount}</span></button>`]
+  row.innerHTML = [`<button type="button" data-note-folder="all" class="${activeFolder === "all" ? "active" : ""}">Барлығы <span>${allCount}</span></button>`]
     .concat(folders.map(folder => {
       const count = state.notes.filter(note => note.folder === folder).length;
       return `<button type="button" data-note-folder="${escapeHtml(folder)}" class="${activeFolder === folder ? "active" : ""}">${escapeHtml(folder)} <span>${count}</span></button>`;
@@ -1373,9 +1373,9 @@ function renderTasks() {
   if (!board) return;
   const query = $("taskSearch").value?.toLowerCase() || "";
   const columns = [
-    ["todo", "Р†СЃС‚РµСѓ"],
-    ["doing", "Р–ТЇСЂС–Рї Р¶Р°С‚С‹СЂ"],
-    ["done", "Р”Р°Р№С‹РЅ"]
+    ["todo", "Істеу"],
+    ["doing", "Жүріп жатыр"],
+    ["done", "Дайын"]
   ];
   board.innerHTML = "";
   columns.forEach(([status, label]) => {
@@ -1388,7 +1388,7 @@ function renderTasks() {
         <span>${items.length}</span>
       </div>
       <div class="kanban-list">
-        ${items.map(task => taskCard(task)).join("") || `<article class="task-card empty-task">РўР°РїСЃС‹СЂРјР° Р¶РѕТ›</article>`}
+        ${items.map(task => taskCard(task)).join("") || `<article class="task-card empty-task">Тапсырма жоқ</article>`}
       </div>
     `;
     board.appendChild(column);
@@ -1403,9 +1403,9 @@ function renderTasks() {
 
 function taskCard(task) {
   const moves = [
-    ["todo", "Р†СЃС‚РµСѓ"],
-    ["doing", "Р–ТЇСЂСѓ"],
-    ["done", "Р”Р°Р№С‹РЅ"]
+    ["todo", "Істеу"],
+    ["doing", "Жүру"],
+    ["done", "Дайын"]
   ].filter(([status]) => status !== task.status);
   return `
     <article class="task-card priority-${escapeHtml(task.priority)}">
@@ -1413,15 +1413,15 @@ function taskCard(task) {
         <strong>${escapeHtml(task.title)}</strong>
         <span>${escapeHtml(priorityLabel(task.priority))}</span>
       </div>
-      <p>${escapeHtml(task.body || "РЎРёРїР°С‚С‚Р°РјР° Р¶РѕТ›")}</p>
+      <p>${escapeHtml(task.body || "Сипаттама жоқ")}</p>
       <div class="task-meta">
         ${task.due ? `<span>Deadline: ${escapeHtml(task.due)}</span>` : ""}
-        ${task.owner ? `<span>Р–Р°СѓР°РїС‚С‹: ${escapeHtml(task.owner)}</span>` : ""}
-        ${task.link ? `<span>Р‘Р°Р№Р»Р°РЅС‹СЃ: ${escapeHtml(task.link)}</span>` : ""}
+        ${task.owner ? `<span>Жауапты: ${escapeHtml(task.owner)}</span>` : ""}
+        ${task.link ? `<span>Байланыс: ${escapeHtml(task.link)}</span>` : ""}
       </div>
       <div class="task-actions">
         ${moves.map(([status, label]) => `<button type="button" data-task-move="${escapeHtml(task.id)}" data-status="${status}">${label}</button>`).join("")}
-        <button type="button" data-task-delete="${escapeHtml(task.id)}">УЁС€С–СЂСѓ</button>
+        <button type="button" data-task-delete="${escapeHtml(task.id)}">Өшіру</button>
       </div>
     </article>
   `;
@@ -1441,7 +1441,7 @@ function renderBrain() {
     .filter(doc => `${doc.name} ${(doc.tags || []).join(" ")} ${(doc.links || []).join(" ")} ${doc.text} ${doc.folder || ""}`.toLowerCase().includes(query));
   list.innerHTML = "";
   if (!docs.length) {
-    list.innerHTML = `<article class="brain-card"><h3>Brain Р±РѕСЃ</h3><p>Upload Р°СЂТ›С‹Р»С‹ Т›Т±Р¶Р°С‚ Р¶ТЇРєС‚РµТЈС–Р· РЅРµРјРµСЃРµ Notes С–С€С–РЅРґРµ РјР°ТЈС‹Р·РґС‹ Р¶Р°Р·Р±Р°РЅС‹ Brain-Т“Р° Р±Р°С‚С‹СЂРјР°СЃС‹РјРµРЅ Р±РµРєС–С‚С–ТЈС–Р·.</p></article>`;
+    list.innerHTML = `<article class="brain-card"><h3>Brain бос</h3><p>Upload арқылы құжат жүктеңіз немесе Notes ішінде маңызды жазбаны Brain-ға батырмасымен бекітіңіз.</p></article>`;
     return;
   }
   docs.forEach(doc => {
@@ -1452,27 +1452,27 @@ function renderBrain() {
       <div class="brain-head">
         <div>
           <h3>${escapeHtml(doc.name)}</h3>
-          <p>${escapeHtml(doc.warning || doc.text || "РњУ™С‚С–РЅ С‚Р°Р±С‹Р»РјР°РґС‹.")}</p>
+          <p>${escapeHtml(doc.warning || doc.text || "Мәтін табылмады.")}</p>
         </div>
         <span class="brain-type">${escapeHtml(doc.brainKind === "note" ? `note / ${doc.folder || "General"}` : doc.type || "file")}</span>
       </div>
       <div class="tag-row">${(doc.tags || []).map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join("") || `<span class="tag muted-tag">no tags</span>`}</div>
-      ${doc.brainKind === "note" ? `<div class="related"><strong>Notes РїР°РїРєР°СЃС‹:</strong><span>${escapeHtml(doc.folder || "General")}</span></div>` : ""}
+      ${doc.brainKind === "note" ? `<div class="related"><strong>Notes папкасы:</strong><span>${escapeHtml(doc.folder || "General")}</span></div>` : ""}
       ${doc.brainKind === "doc" ? `<div class="brain-fields">
         <label>
-          <span>РўРµРіС‚РµСЂ</span>
-          <input data-tags-for="${escapeHtml(doc.id)}" value="${escapeHtml((doc.tags || []).join(", "))}" placeholder="price, crm, РєР»РёРµРЅС‚">
+          <span>Тегтер</span>
+          <input data-tags-for="${escapeHtml(doc.id)}" value="${escapeHtml((doc.tags || []).join(", "))}" placeholder="price, crm, клиент">
         </label>
         <label>
-          <span>Р‘Р°Р№Р»Р°РЅС‹СЃТ›Р°РЅ Т›Т±Р¶Р°С‚С‚Р°СЂ</span>
-          <input data-links-for="${escapeHtml(doc.id)}" value="${escapeHtml((doc.links || []).join(", "))}" placeholder="Т›Т±Р¶Р°С‚ Р°С‚С‹ РЅРµРјРµСЃРµ ID">
+          <span>Байланысқан құжаттар</span>
+          <input data-links-for="${escapeHtml(doc.id)}" value="${escapeHtml((doc.links || []).join(", "))}" placeholder="құжат аты немесе ID">
         </label>
       </div>` : ""}
       <div class="related">
-        <strong>РђРІС‚Рѕ Р±Р°Р№Р»Р°РЅС‹СЃ:</strong>
-        ${related.length ? related.map(item => `<span>${escapeHtml(item.name)}</span>`).join("") : "<span>С‚Р°Р±С‹Р»РјР°РґС‹</span>"}
+        <strong>Авто байланыс:</strong>
+        ${related.length ? related.map(item => `<span>${escapeHtml(item.name)}</span>`).join("") : "<span>табылмады</span>"}
       </div>
-      ${doc.brainKind === "doc" ? `<button type="button" data-save-brain="${escapeHtml(doc.id)}">РЎР°Т›С‚Р°Сѓ</button>` : `<button type="button" data-note-unbrain="${escapeHtml(doc.noteId)}">Brain-РЅР°РЅ Р°Р»Сѓ</button>`}
+      ${doc.brainKind === "doc" ? `<button type="button" data-save-brain="${escapeHtml(doc.id)}">Сақтау</button>` : `<button type="button" data-note-unbrain="${escapeHtml(doc.noteId)}">Brain-нан алу</button>`}
     `;
     list.appendChild(card);
   });

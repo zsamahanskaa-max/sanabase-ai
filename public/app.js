@@ -48,6 +48,7 @@ on("brainSearch", "input", render);
 on("brainCrmBtn", "click", brainCrm);
 on("brainExportBtn", "click", exportBrain);
 on("brainImportFile", "change", importBrain);
+on("brainImageFiles", "change", importBrainImages);
 on("cloudSaveBtn", "click", saveCloudSettings);
 on("cloudPushBtn", "click", () => pushCloud(true));
 on("cloudPullBtn", "click", () => pullCloud(true));
@@ -632,7 +633,7 @@ function taskFromCrm() {
 
 function brainCrm() {
   const out = $("brainOut");
-  if (!state.docs.length) {
+  if (!state.docs.length && !state.images.length) {
     out.textContent = "Алдымен PDF, Word, Excel немесе CSV құжаттарын жүктеңіз.";
     return;
   }
@@ -656,6 +657,7 @@ function exportBrain() {
     exportedAt: new Date().toISOString(),
     docs: state.docs,
     tasks: state.tasks,
+    images: state.images,
     notes: state.notes
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
@@ -675,9 +677,11 @@ async function importBrain(event) {
     const data = JSON.parse(await file.text());
     const incomingDocs = Array.isArray(data.docs) ? data.docs : [];
     const incomingTasks = Array.isArray(data.tasks) ? data.tasks : [];
+    const incomingImages = Array.isArray(data.images) ? data.images : [];
     const incomingNotes = Array.isArray(data.notes) ? data.notes : [];
     const existingDocKeys = new Set(state.docs.map(doc => doc.id || doc.name));
     const existingTaskKeys = new Set(state.tasks.map(task => task.id || task.title));
+    const existingImageKeys = new Set(state.images.map(image => image.id || image.name));
     const existingNoteKeys = new Set(state.notes.map(note => note.id || `${note.title}:${note.createdAt}`));
     incomingDocs.forEach(doc => {
       const key = doc.id || doc.name;
@@ -691,6 +695,13 @@ async function importBrain(event) {
       if (!existingTaskKeys.has(key)) {
         state.tasks.unshift(normalizeTask(task));
         existingTaskKeys.add(key);
+      }
+    });
+    incomingImages.forEach(image => {
+      const key = image.id || image.name;
+      if (!existingImageKeys.has(key)) {
+        state.images.unshift(normalizeImage(image));
+        existingImageKeys.add(key);
       }
     });
     incomingNotes.forEach(note => {
@@ -708,6 +719,61 @@ async function importBrain(event) {
   } finally {
     event.target.value = "";
   }
+}
+
+async function importBrainImages(event) {
+  const files = [...event.target.files].filter(file => file.type.startsWith("image/"));
+  if (!files.length) return;
+  const folder = $("brainImageFolder")?.value.trim() || "Images";
+  const tags = splitList($("brainImageTags")?.value || "");
+  $("brainOut").textContent = "Суреттер Brain ішіне сақталып жатыр...";
+  try {
+    for (const file of files) {
+      state.images.unshift(await imageFileToBrainItem(file, folder, tags));
+    }
+    persist();
+    render();
+    $("brainOut").textContent = `${files.length} сурет Brain / ${folder} папкасына сақталды.`;
+  } catch (error) {
+    $("brainOut").textContent = `Сурет сақтау қатесі: ${shortError(error)}`;
+  } finally {
+    event.target.value = "";
+  }
+}
+
+async function imageFileToBrainItem(file, folder, tags) {
+  const src = await resizeImage(file, 1400, 0.82);
+  return normalizeImage({
+    id: crypto.randomUUID(),
+    name: file.name,
+    type: file.type || "image",
+    src,
+    folder,
+    tags: [...new Set([folder, "image", ...tags, ...keywords(file.name).slice(0, 4)])],
+    createdAt: new Date().toISOString()
+  });
+}
+
+function resizeImage(file, maxSize, quality) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = reject;
+      img.onload = () => {
+        const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(img.width * scale));
+        canvas.height = Math.max(1, Math.round(img.height * scale));
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
 }
 
 function saveBrainMeta(id) {
@@ -797,9 +863,10 @@ async function pushCloud(showStatus = false) {
       payload: {
         docs: state.docs,
         tasks: state.tasks,
+        images: state.images,
         notes: state.notes,
         savedAt: new Date().toISOString(),
-        version: 2
+        version: 3
       },
       updated_at: new Date().toISOString()
     };
@@ -834,6 +901,7 @@ async function pullCloud(showStatus = false) {
     const payload = rows[0].payload || {};
     state.docs = Array.isArray(payload.docs) ? payload.docs.map(normalizeDoc) : [];
     state.tasks = Array.isArray(payload.tasks) ? payload.tasks.map(normalizeTask) : [];
+    state.images = Array.isArray(payload.images) ? payload.images.map(normalizeImage) : [];
     state.notes = Array.isArray(payload.notes) ? payload.notes.map(normalizeNote) : [];
     persist({ sync: false });
     render();
@@ -1165,6 +1233,22 @@ function normalizeTask(task) {
   };
 }
 
+function normalizeImage(image) {
+  const folder = image.folder || "Images";
+  return {
+    id: image.id || crypto.randomUUID(),
+    name: image.name || "Image",
+    type: image.type || "image",
+    src: image.src || "",
+    folder,
+    text: image.text || `Image: ${image.name || "Image"} (${folder})`,
+    warning: image.warning || "",
+    tags: Array.isArray(image.tags) && image.tags.length ? image.tags : [folder, "image"],
+    links: Array.isArray(image.links) ? image.links : [],
+    createdAt: image.createdAt || new Date().toISOString()
+  };
+}
+
 function normalizeNote(note) {
   const body = note.body || "";
   return {
@@ -1238,7 +1322,10 @@ function buildContext() {
   const tasks = state.tasks
     .slice(0, 30)
     .map(task => `Task: ${task.title}\nStatus: ${task.status}\nPriority: ${task.priority}\nDue: ${task.due || "-"}\nOwner: ${task.owner || "-"}\n${task.body}`);
-  return docs.concat(tasks, notes).join("\n\n---\n\n");
+  const images = state.images
+    .slice(0, 30)
+    .map(image => `Image: ${image.name}\nFolder: ${image.folder || "Images"}\nTags: ${(image.tags || []).join(", ")}`);
+  return docs.concat(images, tasks, notes).join("\n\n---\n\n");
 }
 
 async function api(url, payload) {
@@ -1262,11 +1349,14 @@ function addMessage(kind, text) {
 }
 
 function render() {
+  if (!Array.isArray(state.images)) state.images = [];
   if ($("docCount")) $("docCount").textContent = `${state.docs.length} docs`;
   state.notes = state.notes.map(normalizeNote);
+  if ($("imageCount")) $("imageCount").textContent = `${state.images.length} images`;
   if ($("noteCount")) $("noteCount").textContent = `${state.notes.length} notes`;
   if ($("taskCount")) $("taskCount").textContent = `${state.tasks.length} tasks`;
   state.docs = state.docs.map(normalizeDoc);
+  state.images = state.images.map(normalizeImage);
   state.tasks = state.tasks.map(normalizeTask);
   const query = $("searchDocs")?.value?.toLowerCase() || "";
   if (!$("docsGrid")) return;
@@ -1469,11 +1559,12 @@ function renderBrain() {
   const query = $("brainSearch").value?.toLowerCase() || "";
   const docs = state.docs
     .map(doc => ({ ...doc, brainKind: "doc" }))
+    .concat(state.images.map(image => ({ ...image, brainKind: "image" })))
     .concat(state.notes.filter(note => note.brain).map(noteToBrainItem))
     .filter(doc => `${doc.name} ${(doc.tags || []).join(" ")} ${(doc.links || []).join(" ")} ${doc.text} ${doc.folder || ""}`.toLowerCase().includes(query));
   list.innerHTML = "";
   if (!docs.length) {
-    list.innerHTML = `<article class="brain-card"><h3>Brain бос</h3><p>Upload арқылы құжат жүктеңіз немесе Notes ішінде маңызды жазбаны Brain-ға батырмасымен бекітіңіз.</p></article>`;
+    list.innerHTML = `<article class="brain-card"><h3>Brain бос</h3><p>Upload арқылы құжат/сурет жүктеңіз немесе Notes ішінде маңызды жазбаны Brain-ға бекітіңіз.</p></article>`;
     return;
   }
   docs.forEach(doc => {
@@ -1484,12 +1575,14 @@ function renderBrain() {
       <div class="brain-head">
         <div>
           <h3>${escapeHtml(doc.name)}</h3>
+          ${doc.brainKind === "image" && doc.src ? `<img class="brain-image" src="${escapeHtml(doc.src)}" alt="${escapeHtml(doc.name)}">` : ""}
           <p>${escapeHtml(doc.warning || doc.text || "Мәтін табылмады.")}</p>
         </div>
-        <span class="brain-type">${escapeHtml(doc.brainKind === "note" ? `note / ${doc.folder || "General"}` : doc.type || "file")}</span>
+        <span class="brain-type">${escapeHtml(doc.brainKind === "note" ? `note / ${doc.folder || "General"}` : doc.brainKind === "image" ? `image / ${doc.folder || "Images"}` : doc.type || "file")}</span>
       </div>
       <div class="tag-row">${(doc.tags || []).map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join("") || `<span class="tag muted-tag">no tags</span>`}</div>
       ${doc.brainKind === "note" ? `<div class="related"><strong>Notes папкасы:</strong><span>${escapeHtml(doc.folder || "General")}</span></div>` : ""}
+      ${doc.brainKind === "image" ? `<div class="related"><strong>Сурет папкасы:</strong><span>${escapeHtml(doc.folder || "Images")}</span></div>` : ""}
       ${doc.brainKind === "doc" ? `<div class="brain-fields">
         <label>
           <span>Тегтер</span>
@@ -1504,7 +1597,9 @@ function renderBrain() {
         <strong>Авто байланыс:</strong>
         ${related.length ? related.map(item => `<span>${escapeHtml(item.name)}</span>`).join("") : "<span>табылмады</span>"}
       </div>
-      ${doc.brainKind === "doc" ? `<button type="button" data-save-brain="${escapeHtml(doc.id)}">Сақтау</button>` : `<button type="button" data-note-unbrain="${escapeHtml(doc.noteId)}">Brain-нан алу</button>`}
+      ${doc.brainKind === "doc" ? `<button type="button" data-save-brain="${escapeHtml(doc.id)}">Сақтау</button>` : ""}
+      ${doc.brainKind === "note" ? `<button type="button" data-note-unbrain="${escapeHtml(doc.noteId)}">Brain-нан алу</button>` : ""}
+      ${doc.brainKind === "image" ? `<button type="button" data-image-delete="${escapeHtml(doc.id)}">Суретті өшіру</button>` : ""}
     `;
     list.appendChild(card);
   });
@@ -1514,6 +1609,18 @@ function renderBrain() {
   list.querySelectorAll("[data-note-unbrain]").forEach(button => {
     button.addEventListener("click", () => toggleNoteBrain(button.dataset.noteUnbrain));
   });
+  list.querySelectorAll("[data-image-delete]").forEach(button => {
+    button.addEventListener("click", () => deleteBrainImage(button.dataset.imageDelete));
+  });
+}
+
+function deleteBrainImage(id) {
+  const image = state.images.find(item => item.id === id);
+  if (!image) return;
+  if (!confirm(`${image.name} суретін өшіреміз бе?`)) return;
+  state.images = state.images.filter(item => item.id !== id);
+  persist();
+  render();
 }
 
 function fileToBase64(file) {
@@ -1531,10 +1638,11 @@ function loadState() {
     return {
       docs: Array.isArray(saved.docs) ? saved.docs.map(normalizeDoc) : [],
       tasks: Array.isArray(saved.tasks) ? saved.tasks.map(normalizeTask) : [],
+      images: Array.isArray(saved.images) ? saved.images.map(normalizeImage) : [],
       notes: Array.isArray(saved.notes) ? saved.notes.map(normalizeNote) : []
     };
   } catch {
-    return { docs: [], tasks: [], notes: [] };
+    return { docs: [], tasks: [], images: [], notes: [] };
   }
 }
 

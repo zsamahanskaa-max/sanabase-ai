@@ -11,6 +11,7 @@ const titles = {
   chat: ["AI Chat", "Құжаттарыңызға сүйеніп жауап береді."],
   library: ["Knowledge Base", "PDF, Word, Excel және мәтін материалдары."],
   match: ["Price Match", "Формуласы бар қорап/саны бағандарын өзгертпей, бағасын almat company price арқылы қояды."],
+  calendaros: ["Zhadyra Calendar OS", "Клиент, заказ, поставщик, төлем, құжат, ESF, есеп және тарих бір календарь ішінде."],
   brain: ["Second Brain", "Құжаттарды сақтап, тегпен байланыстырып, сол базадан CRM жасау."],
   translate: ["Translation", "Мәтінді қалаған тілге аударыңыз."],
   quiz: ["Quiz Generator", "Базаңыздан тест және жауап кілтін жасаңыз."],
@@ -49,6 +50,9 @@ on("brainCrmBtn", "click", brainCrm);
 on("brainExportBtn", "click", exportBrain);
 on("brainImportFile", "change", importBrain);
 on("brainImageFiles", "change", importBrainImages);
+on("calForm", "submit", saveCalendarRecord);
+on("calSearch", "input", render);
+on("calFilter", "change", render);
 on("cloudSaveBtn", "click", saveCloudSettings);
 on("cloudPushBtn", "click", () => pushCloud(true));
 on("cloudPullBtn", "click", () => pullCloud(true));
@@ -63,6 +67,15 @@ on("clearDocs", "click", () => {
 });
 document.querySelectorAll("[data-quick-prompt]").forEach(button => {
   button.addEventListener("click", () => runQuickPrompt(button.dataset.quickPrompt));
+});
+document.querySelectorAll("[data-cal-quick]").forEach(button => {
+  button.addEventListener("click", () => calendarQuick(button.dataset.calQuick));
+});
+document.querySelectorAll("[data-cal-view]").forEach(button => {
+  button.addEventListener("click", () => setCalendarView(button.dataset.calView));
+});
+document.querySelectorAll("[data-cal-export]").forEach(button => {
+  button.addEventListener("click", () => exportCalendarData(button.dataset.calExport));
 });
 
 render();
@@ -631,6 +644,657 @@ function taskFromCrm() {
   setView("tasks");
 }
 
+function calendarData() {
+  if (!state.calendarOS) state.calendarOS = defaultCalendarOS();
+  const defaults = defaultCalendarOS();
+  Object.keys(defaults).forEach(key => {
+    if (!Array.isArray(defaults[key])) return;
+    if (!Array.isArray(state.calendarOS[key])) state.calendarOS[key] = [];
+  });
+  if (!state.calendarOS.settings) state.calendarOS.settings = defaults.settings;
+  return state.calendarOS;
+}
+
+function normalizeCalendarOS(data) {
+  const next = defaultCalendarOS();
+  Object.keys(next).forEach(key => {
+    if (Array.isArray(next[key])) next[key] = Array.isArray(data?.[key]) ? data[key] : [];
+  });
+  next.settings = { ...next.settings, ...(data?.settings || {}) };
+  return next;
+}
+
+function mergeCalendarBackup(data) {
+  const cal = calendarData();
+  const incoming = normalizeCalendarOS(data);
+  Object.keys(defaultCalendarOS()).forEach(key => {
+    if (!Array.isArray(cal[key]) || !Array.isArray(incoming[key])) return;
+    const existing = new Set(cal[key].map(item => item.id));
+    incoming[key].forEach(item => {
+      if (!existing.has(item.id)) {
+        cal[key].unshift(item);
+        existing.add(item.id);
+      }
+    });
+  });
+  cal.settings = { ...cal.settings, ...incoming.settings };
+}
+
+function defaultCalendarOS() {
+  return {
+    calendar_events: [],
+    orders: [],
+    tasks: [],
+    clients: [],
+    suppliers: [],
+    documents: [],
+    payments: [],
+    habits: [],
+    reports: [],
+    history_logs: [],
+    settings: { activeView: "week", currency: "KZT" }
+  };
+}
+
+function calendarQuick(kind) {
+  const today = isoDate();
+  const presets = {
+    event: ["event", "Кездесу / event", "Business", "open"],
+    task: ["task", "Жаңа тапсырма", "Business", "open"],
+    client_order: ["client_order", "Client order received", "Orders", "client_order_received"],
+    need_supplier: ["supplier_order", "Need to order from supplier", "Suppliers", "need_to_order"],
+    sent_supplier: ["supplier_order", "Order sent to supplier", "Suppliers", "sent_to_supplier"],
+    received: ["supplier_order", "Order received", "Orders", "received"],
+    payment: ["payment", "Payment", "Finance", "payment_waiting"],
+    document: ["document", "Document / ESF", "Documents", "open"],
+    report: ["report", "Daily report", "Reports", "open"],
+    habit: ["habit", "Habit", "Habits", "open"]
+  }[kind] || ["event", "Event", "Business", "open"];
+  $("calEntity").value = presets[0];
+  $("calTitle").value = presets[1];
+  $("calCategory").value = presets[2];
+  $("calStatus").value = presets[3];
+  $("calDate").value = today;
+  $("calEndDate").value = kind === "sent_supplier" ? addDays(today, 3) : "";
+  $("calTitle").focus();
+}
+
+function setCalendarView(view) {
+  const cal = calendarData();
+  cal.settings.activeView = view;
+  persist();
+  renderCalendarOS();
+}
+
+function saveCalendarRecord(event) {
+  event.preventDefault();
+  const cal = calendarData();
+  const input = calendarFormValue();
+  if (!input.title) return;
+  if (input.entity === "client") createClient(input);
+  else if (input.entity === "supplier") createSupplier(input);
+  else if (input.entity === "client_order" || input.entity === "supplier_order") createOrder(input);
+  else if (input.entity === "task") createCalendarTask(input);
+  else if (input.entity === "payment") createPayment(input);
+  else if (input.entity === "document") createDocument(input);
+  else if (input.entity === "habit") createHabit(input);
+  else if (input.entity === "report") createReport(input);
+  else addCalendarEvent({ title: input.title, type: "event", category: input.category, startDate: input.date, endDate: input.endDate, priority: input.priority, status: input.status, description: input.comment, amount: input.amount });
+  logHistory(input.entity, input.title, "create", null, input, "Calendar form");
+  event.target.reset();
+  $("calDate").value = isoDate();
+  persist();
+  render();
+}
+
+function calendarFormValue() {
+  return {
+    entity: $("calEntity").value,
+    title: $("calTitle").value.trim(),
+    date: $("calDate").value || isoDate(),
+    endDate: $("calEndDate").value || $("calDate").value || isoDate(),
+    category: $("calCategory").value || "Business",
+    priority: $("calPriority").value || "medium",
+    clientName: $("calClient").value.trim(),
+    supplierName: $("calSupplier").value.trim(),
+    amount: Number($("calAmount").value || 0),
+    status: $("calStatus").value || "open",
+    comment: $("calComment").value.trim()
+  };
+}
+
+function createClient(input) {
+  const cal = calendarData();
+  const client = {
+    id: crypto.randomUUID(),
+    name: input.title,
+    type: "client",
+    contactName: input.clientName,
+    phone: "",
+    whatsapp: "",
+    email: "",
+    address: "",
+    notes: input.comment,
+    totalSales: 0,
+    totalDebt: 0,
+    lastContactDate: input.date,
+    nextActionDate: input.endDate,
+    createdAt: nowIso(),
+    updatedAt: nowIso(),
+    archivedAt: ""
+  };
+  cal.clients.unshift(client);
+  addCalendarEvent({ title: `Client follow-up: ${client.name}`, type: "reminder", category: "Clients", startDate: input.endDate, relatedClientId: client.id, priority: input.priority });
+  return client;
+}
+
+function createSupplier(input) {
+  const cal = calendarData();
+  const supplier = {
+    id: crypto.randomUUID(),
+    name: input.title,
+    contactName: input.supplierName,
+    phone: "",
+    whatsapp: "",
+    email: "",
+    productCategories: input.category,
+    notes: input.comment,
+    totalOrders: 0,
+    totalPaid: 0,
+    totalDebt: 0,
+    lastOrderDate: input.date,
+    nextActionDate: input.endDate,
+    createdAt: nowIso(),
+    updatedAt: nowIso(),
+    archivedAt: ""
+  };
+  cal.suppliers.unshift(supplier);
+  addCalendarEvent({ title: `Supplier follow-up: ${supplier.name}`, type: "reminder", category: "Suppliers", startDate: input.endDate, relatedSupplierId: supplier.id, priority: input.priority });
+  return supplier;
+}
+
+function createOrder(input) {
+  const cal = calendarData();
+  const client = input.clientName ? upsertClient(input.clientName) : null;
+  const supplier = input.supplierName ? upsertSupplier(input.supplierName) : null;
+  const order = {
+    id: crypto.randomUUID(),
+    orderNumber: `ORD-${Date.now().toString().slice(-6)}`,
+    title: input.title,
+    clientId: client?.id || "",
+    supplierId: supplier?.id || "",
+    orderType: input.entity,
+    status: input.status === "open" ? "client_order_received" : input.status,
+    priority: input.priority,
+    clientOrderDate: input.entity === "client_order" ? input.date : "",
+    needToOrderDate: input.status === "need_to_order" ? input.date : "",
+    sentToSupplierDate: input.status === "sent_to_supplier" ? input.date : "",
+    expectedDeliveryDate: input.endDate,
+    receivedDate: input.status === "received" ? input.date : "",
+    deliveredToClientDate: "",
+    closedDate: "",
+    totalAmount: input.amount,
+    paidAmount: 0,
+    debtAmount: input.amount,
+    productsJson: input.comment,
+    missingProductsJson: "",
+    comment: input.comment,
+    problemComment: "",
+    relatedCalendarEventId: "",
+    relatedPaymentId: "",
+    relatedDocumentId: "",
+    createdAt: nowIso(),
+    updatedAt: nowIso(),
+    archivedAt: ""
+  };
+  cal.orders.unshift(order);
+  applyOrderWorkflow(order, input);
+  return order;
+}
+
+function applyOrderWorkflow(order, input) {
+  if (order.status === "client_order_received") {
+    addCalendarEvent({ title: `Client order received: ${order.title}`, type: "client_order", category: "Orders", startDate: input.date, relatedOrderId: order.id, relatedClientId: order.clientId, priority: order.priority });
+    ["Calculate price", "Check supplier availability", "Need to order from supplier"].forEach((title, index) => {
+      createCalendarTask({ ...input, title: `${title}: ${order.title}`, date: addDays(input.date, index), category: "Orders", status: "open", orderId: order.id });
+    });
+  }
+  if (order.status === "sent_to_supplier" || order.status === "waiting_delivery") {
+    order.status = "sent_to_supplier";
+    addCalendarEvent({ title: `Order sent to supplier: ${order.title}`, type: "order_sent", category: "Suppliers", startDate: input.date, relatedOrderId: order.id, relatedSupplierId: order.supplierId, priority: order.priority });
+    addCalendarEvent({ title: `Order expected today: ${order.title}`, type: "order_expected", category: "Orders", startDate: input.endDate, relatedOrderId: order.id, relatedSupplierId: order.supplierId, priority: "high" });
+    createCalendarTask({ ...input, title: `Supplier follow-up: ${order.title}`, date: input.endDate, category: "Suppliers", status: "open", orderId: order.id });
+  }
+  if (order.status === "received") {
+    addCalendarEvent({ title: `Order received: ${order.title}`, type: "order_received", category: "Orders", startDate: input.date, relatedOrderId: order.id, priority: order.priority });
+    ["Check received goods", "Mark missing products", "Create nakladnaya", "Create realization in 1C", "Deliver to client", "Track ESF deadline", "Track payment"].forEach((title, index) => {
+      createCalendarTask({ ...input, title: `${title}: ${order.title}`, date: addDays(input.date, index), category: index < 2 ? "Orders" : index < 5 ? "Documents" : "Finance", status: "open", orderId: order.id });
+    });
+  }
+}
+
+function createCalendarTask(input) {
+  const cal = calendarData();
+  const task = {
+    id: crypto.randomUUID(),
+    title: input.title,
+    description: input.comment || "",
+    category: input.category || "Business",
+    priority: input.priority || "medium",
+    status: input.status || "open",
+    dueDate: input.date,
+    calendarEventId: "",
+    clientId: input.clientId || "",
+    supplierId: input.supplierId || "",
+    orderId: input.orderId || "",
+    documentId: "",
+    paymentId: "",
+    amount: input.amount || 0,
+    resultNote: "",
+    comment: input.comment || "",
+    createdAt: nowIso(),
+    updatedAt: nowIso(),
+    completedAt: "",
+    archivedAt: ""
+  };
+  cal.tasks.unshift(task);
+  addCalendarEvent({ title: task.title, type: "task", category: task.category, startDate: task.dueDate, relatedOrderId: task.orderId, priority: task.priority, status: task.status });
+  return task;
+}
+
+function createPayment(input) {
+  const cal = calendarData();
+  const payment = {
+    id: crypto.randomUUID(),
+    title: input.title,
+    amount: input.amount,
+    direction: input.amount >= 0 ? "income" : "expense",
+    status: input.status === "paid" ? "paid" : "planned",
+    dueDate: input.date,
+    paidDate: input.status === "paid" ? input.date : "",
+    clientId: input.clientName ? upsertClient(input.clientName).id : "",
+    supplierId: input.supplierName ? upsertSupplier(input.supplierName).id : "",
+    orderId: "",
+    documentId: "",
+    category: input.category,
+    comment: input.comment,
+    createdAt: nowIso(),
+    updatedAt: nowIso(),
+    archivedAt: ""
+  };
+  cal.payments.unshift(payment);
+  addCalendarEvent({ title: `Payment: ${payment.title}`, type: payment.status === "paid" ? "payment" : "debt", category: "Finance", startDate: payment.dueDate, relatedPaymentId: payment.id, amount: payment.amount, priority: input.priority });
+  return payment;
+}
+
+function createDocument(input) {
+  const cal = calendarData();
+  const documentType = detectDocumentType(input.title + " " + input.comment);
+  const esfDeadline = documentType === "realization" || documentType === "esf" ? addDays(input.date, 15) : "";
+  const doc = {
+    id: crypto.randomUUID(),
+    documentType,
+    documentNumber: input.title,
+    documentDate: input.date,
+    clientId: input.clientName ? upsertClient(input.clientName).id : "",
+    supplierId: input.supplierName ? upsertSupplier(input.supplierName).id : "",
+    orderId: "",
+    amount: input.amount,
+    status: input.status || "open",
+    deadline: input.endDate,
+    fileUrl: "",
+    esfStatus: documentType === "esf" ? "pending" : "",
+    esfDeadline,
+    comment: input.comment,
+    createdAt: nowIso(),
+    updatedAt: nowIso(),
+    archivedAt: ""
+  };
+  cal.documents.unshift(doc);
+  addCalendarEvent({ title: `Document: ${doc.documentNumber}`, type: "document", category: "Documents", startDate: input.date, relatedDocumentId: doc.id, amount: doc.amount, priority: input.priority });
+  if (esfDeadline) {
+    addCalendarEvent({ title: `ESF deadline: ${doc.documentNumber}`, type: "esf_deadline", category: "ESF", startDate: esfDeadline, relatedDocumentId: doc.id, priority: "high" });
+    addCalendarEvent({ title: `ESF reminder 2 days: ${doc.documentNumber}`, type: "reminder", category: "ESF", startDate: addDays(esfDeadline, -2), relatedDocumentId: doc.id, priority: "high" });
+    addCalendarEvent({ title: `ESF reminder 1 day: ${doc.documentNumber}`, type: "reminder", category: "ESF", startDate: addDays(esfDeadline, -1), relatedDocumentId: doc.id, priority: "high" });
+  }
+  return doc;
+}
+
+function createHabit(input) {
+  const cal = calendarData();
+  const habit = {
+    id: crypto.randomUUID(),
+    title: input.title,
+    category: input.category,
+    target: input.comment,
+    repeatRule: "daily",
+    status: input.status || "open",
+    progress: 0,
+    streak: 0,
+    date: input.date,
+    comment: input.comment,
+    createdAt: nowIso(),
+    updatedAt: nowIso()
+  };
+  cal.habits.unshift(habit);
+  addCalendarEvent({ title: `Habit: ${habit.title}`, type: "habit", category: "Habits", startDate: habit.date, priority: input.priority });
+  return habit;
+}
+
+function createReport(input) {
+  const cal = calendarData();
+  const report = {
+    id: crypto.randomUUID(),
+    reportType: input.title.toLowerCase().includes("month") ? "monthly" : input.title.toLowerCase().includes("week") ? "weekly" : "daily",
+    title: input.title,
+    periodStart: input.date,
+    periodEnd: input.endDate || input.date,
+    summaryJson: JSON.stringify(buildReportSummary()),
+    totalOrders: activeCalItems(cal.orders).length,
+    closedOrders: activeCalItems(cal.orders).filter(o => o.status === "closed").length,
+    openOrders: activeCalItems(cal.orders).filter(o => o.status !== "closed").length,
+    delayedOrders: activeCalItems(cal.orders).filter(o => o.status === "overdue_delivery").length,
+    totalIncome: sumPayments("income"),
+    totalExpense: sumPayments("expense"),
+    totalDebt: sumDebts(),
+    documentsCount: activeCalItems(cal.documents).length,
+    esfPendingCount: activeCalItems(cal.documents).filter(d => d.esfDeadline && d.esfStatus !== "sent").length,
+    comment: input.comment,
+    createdAt: nowIso()
+  };
+  cal.reports.unshift(report);
+  addCalendarEvent({ title: report.title, type: "report_day", category: "Reports", startDate: input.date, priority: input.priority });
+  return report;
+}
+
+function addCalendarEvent(event) {
+  const cal = calendarData();
+  const row = {
+    id: crypto.randomUUID(),
+    title: event.title,
+    description: event.description || "",
+    category: event.category || "Business",
+    type: event.type || "event",
+    startDate: event.startDate || isoDate(),
+    endDate: event.endDate || event.startDate || isoDate(),
+    allDay: true,
+    priority: event.priority || "medium",
+    status: event.status || "open",
+    relatedClientId: event.relatedClientId || "",
+    relatedSupplierId: event.relatedSupplierId || "",
+    relatedOrderId: event.relatedOrderId || "",
+    relatedDocumentId: event.relatedDocumentId || "",
+    relatedPaymentId: event.relatedPaymentId || "",
+    amount: event.amount || 0,
+    currency: "KZT",
+    repeatRule: event.repeatRule || "",
+    reminderMinutes: event.reminderMinutes || 1440,
+    isPrivate: Boolean(event.isPrivate),
+    createdAt: nowIso(),
+    updatedAt: nowIso(),
+    completedAt: "",
+    archivedAt: ""
+  };
+  cal.calendar_events.unshift(row);
+  return row;
+}
+
+function upsertClient(name) {
+  const cal = calendarData();
+  let client = cal.clients.find(item => !item.archivedAt && item.name.toLowerCase() === name.toLowerCase());
+  if (!client) client = createClient({ title: name, clientName: name, date: isoDate(), endDate: isoDate(), comment: "", priority: "medium" });
+  return client;
+}
+
+function upsertSupplier(name) {
+  const cal = calendarData();
+  let supplier = cal.suppliers.find(item => !item.archivedAt && item.name.toLowerCase() === name.toLowerCase());
+  if (!supplier) supplier = createSupplier({ title: name, supplierName: name, date: isoDate(), endDate: isoDate(), category: "Suppliers", comment: "", priority: "medium" });
+  return supplier;
+}
+
+function renderCalendarOS() {
+  if (!$("calDashboard")) return;
+  const cal = calendarData();
+  if (updateCalendarAutomation()) {
+    localStorage.setItem("sanabase-state", JSON.stringify(state));
+    scheduleCloudPush();
+  }
+  const filter = $("calFilter")?.value || "all";
+  const query = $("calSearch")?.value?.toLowerCase() || "";
+  const events = filterCalendarEvents(cal.calendar_events, filter, query);
+  renderCalendarDashboard(cal);
+  renderCalendarBoard(events, cal);
+  renderCalendarHistory(cal);
+  document.querySelectorAll("[data-cal-view]").forEach(button => button.classList.toggle("active", button.dataset.calView === cal.settings.activeView));
+}
+
+function renderCalendarDashboard(cal) {
+  const today = isoDate();
+  const activeOrders = activeCalItems(cal.orders);
+  const activeTasks = activeCalItems(cal.tasks);
+  const activeDocs = activeCalItems(cal.documents);
+  const cards = [
+    ["Today top tasks", activeTasks.filter(t => t.dueDate <= today && t.status !== "done").length],
+    ["Today calendar", activeCalItems(cal.calendar_events).filter(e => e.startDate === today).length],
+    ["New client orders", activeOrders.filter(o => o.status === "client_order_received").length],
+    ["Need supplier order", activeOrders.filter(o => o.status === "need_to_order").length],
+    ["Expected deliveries", activeOrders.filter(o => o.expectedDeliveryDate === today).length],
+    ["Received orders", activeOrders.filter(o => o.status === "received").length],
+    ["Delayed orders", activeOrders.filter(o => o.status === "overdue_delivery").length],
+    ["Upcoming payments", activeCalItems(cal.payments).filter(p => p.status !== "paid" && p.dueDate >= today).length],
+    ["Client debts", money(activeCalItems(cal.payments).filter(p => p.direction === "income" && p.status !== "paid").reduce((s, p) => s + Number(p.amount || 0), 0))],
+    ["Supplier debts", money(activeCalItems(cal.payments).filter(p => p.direction === "expense" && p.status !== "paid").reduce((s, p) => s + Math.abs(Number(p.amount || 0)), 0))],
+    ["ESF deadlines", activeDocs.filter(d => d.esfDeadline && d.esfStatus !== "sent").length],
+    ["Habit progress", `${activeCalItems(cal.habits).filter(h => h.status === "done").length}/${activeCalItems(cal.habits).length}`]
+  ];
+  $("calDashboard").innerHTML = cards.map(([label, value]) => `<article class="cal-kpi"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></article>`).join("");
+}
+
+function renderCalendarBoard(events, cal) {
+  const view = cal.settings.activeView || "week";
+  const groups = groupCalendarEvents(events, view);
+  $("calBoard").innerHTML = Object.entries(groups).map(([label, rows]) => `
+    <section class="cal-column">
+      <h3>${escapeHtml(label)}</h3>
+      ${rows.map(event => calendarEventCard(event)).join("") || `<article class="cal-empty">No items</article>`}
+    </section>
+  `).join("");
+  $("calBoard").querySelectorAll("[data-cal-archive]").forEach(button => {
+    button.addEventListener("click", () => archiveCalendarEntity("calendar_events", button.dataset.calArchive));
+  });
+}
+
+function calendarEventCard(event) {
+  const overdue = isPast(event.startDate) && !["done", "closed", "paid", "sent"].includes(event.status);
+  return `
+    <article class="cal-item ${overdue ? "overdue" : ""}">
+      <div class="cal-item-top">
+        <strong>${escapeHtml(event.title)}</strong>
+        <span>${escapeHtml(event.type)}</span>
+      </div>
+      <p>${escapeHtml(event.category)} · ${escapeHtml(event.startDate)} · ${escapeHtml(event.priority)}</p>
+      ${event.amount ? `<p>${money(event.amount)}</p>` : ""}
+      <button type="button" data-cal-archive="${escapeHtml(event.id)}">Archive</button>
+    </article>
+  `;
+}
+
+function renderCalendarHistory(cal) {
+  $("calHistory").innerHTML = `
+    <h3>History logs</h3>
+    ${cal.history_logs.slice(0, 20).map(log => `<article><strong>${escapeHtml(log.action)}</strong> ${escapeHtml(log.entityType)} · ${escapeHtml(log.comment || "")}<span>${escapeHtml(log.createdAt)}</span></article>`).join("") || "<p>History бос</p>"}
+  `;
+}
+
+function filterCalendarEvents(events, filter, query) {
+  return activeCalItems(events).filter(event => {
+    const haystack = `${event.title} ${event.description} ${event.category} ${event.type} ${event.status} ${event.amount} ${event.startDate}`.toLowerCase();
+    if (query && !haystack.includes(query)) return false;
+    if (filter === "today") return event.startDate === isoDate();
+    if (filter === "tomorrow") return event.startDate === addDays(isoDate(), 1);
+    if (filter === "week") return inNextDays(event.startDate, 7);
+    if (filter === "month") return event.startDate?.slice(0, 7) === isoDate().slice(0, 7);
+    if (filter === "overdue") return isPast(event.startDate) && !["done", "closed", "paid", "sent"].includes(event.status);
+    if (filter === "open") return !["done", "closed", "paid", "sent"].includes(event.status);
+    if (filter === "closed") return ["done", "closed", "paid", "sent"].includes(event.status);
+    if (filter !== "all") return event.category === filter;
+    return true;
+  }).sort((a, b) => (a.startDate || "").localeCompare(b.startDate || ""));
+}
+
+function groupCalendarEvents(events, view) {
+  if (view === "timeline") return { Timeline: events };
+  const today = isoDate();
+  if (view === "day") return { [today]: events.filter(e => e.startDate === today) };
+  if (view === "month") {
+    return events.reduce((groups, event) => {
+      const key = event.startDate?.slice(0, 7) || "No date";
+      groups[key] = groups[key] || [];
+      groups[key].push(event);
+      return groups;
+    }, {});
+  }
+  const groups = {};
+  for (let i = 0; i < 7; i += 1) groups[addDays(today, i)] = [];
+  events.forEach(event => {
+    const key = groups[event.startDate] ? event.startDate : (inNextDays(event.startDate, 7) ? event.startDate : "Later");
+    groups[key] = groups[key] || [];
+    groups[key].push(event);
+  });
+  return groups;
+}
+
+function updateCalendarAutomation() {
+  const cal = calendarData();
+  const today = isoDate();
+  let changed = false;
+  cal.orders.forEach(order => {
+    if (!order.archivedAt && order.expectedDeliveryDate && order.expectedDeliveryDate < today && !order.receivedDate && order.status !== "overdue_delivery") {
+      const old = { status: order.status };
+      order.status = "overdue_delivery";
+      order.updatedAt = nowIso();
+      addCalendarEvent({ title: `Contact supplier about delayed order: ${order.title}`, type: "reminder", category: "Suppliers", startDate: today, relatedOrderId: order.id, relatedSupplierId: order.supplierId, priority: "high", status: "open" });
+      logHistory("orders", order.id, "auto_overdue_delivery", old, { status: order.status }, "Expected delivery passed");
+      changed = true;
+    }
+  });
+  return changed;
+}
+
+function archiveCalendarEntity(table, id) {
+  const cal = calendarData();
+  const row = cal[table]?.find(item => item.id === id);
+  if (!row) return;
+  row.archivedAt = nowIso();
+  row.updatedAt = nowIso();
+  logHistory(table, id, "archive", null, row, "Archived instead of delete");
+  persist();
+  render();
+}
+
+function logHistory(entityType, entityId, action, oldValue, newValue, comment = "") {
+  const cal = calendarData();
+  cal.history_logs.unshift({
+    id: crypto.randomUUID(),
+    entityType,
+    entityId: String(entityId || ""),
+    action,
+    oldValue: oldValue ? JSON.stringify(oldValue) : "",
+    newValue: newValue ? JSON.stringify(newValue) : "",
+    comment,
+    createdAt: nowIso()
+  });
+}
+
+function exportCalendarData(kind) {
+  const cal = calendarData();
+  if (kind === "backup") {
+    downloadJson(`zhadyra_calendar_os_${isoDate()}.json`, cal);
+    return;
+  }
+  const map = { orders: cal.orders, tasks: cal.tasks, payments: cal.payments, documents: cal.documents };
+  const rows = activeCalItems(map[kind] || []);
+  if (window.XLSX && rows.length) {
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), kind);
+    XLSX.writeFile(wb, `zhadyra_${kind}_${isoDate()}.xlsx`);
+  } else {
+    downloadJson(`zhadyra_${kind}_${isoDate()}.json`, rows);
+  }
+}
+
+function downloadJson(filename, data) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
+function buildReportSummary() {
+  const cal = calendarData();
+  return {
+    ordersToday: cal.orders.filter(o => o.clientOrderDate === isoDate()).length,
+    ordersExpectedToday: cal.orders.filter(o => o.expectedDeliveryDate === isoDate()).length,
+    delayedOrders: cal.orders.filter(o => o.status === "overdue_delivery").length,
+    documentsCreated: cal.documents.filter(d => d.documentDate === isoDate()).length,
+    esfDeadlines: cal.documents.filter(d => d.esfDeadline && d.esfStatus !== "sent").length,
+    paymentsReceived: cal.payments.filter(p => p.paidDate === isoDate()).length,
+    completedTasks: cal.tasks.filter(t => t.completedAt?.slice(0, 10) === isoDate()).length,
+    uncompletedTasks: cal.tasks.filter(t => !t.completedAt && !t.archivedAt).length
+  };
+}
+
+function sumPayments(direction) {
+  return activeCalItems(calendarData().payments).filter(p => p.direction === direction && p.status === "paid").reduce((sum, p) => sum + Math.abs(Number(p.amount || 0)), 0);
+}
+
+function sumDebts() {
+  return activeCalItems(calendarData().payments).filter(p => p.status !== "paid").reduce((sum, p) => sum + Math.abs(Number(p.amount || 0)), 0);
+}
+
+function activeCalItems(rows) {
+  return (rows || []).filter(row => !row.archivedAt);
+}
+
+function detectDocumentType(value) {
+  const text = value.toLowerCase();
+  if (text.includes("realization") || text.includes("реал")) return "realization";
+  if (text.includes("esf") || text.includes("эсф")) return "esf";
+  if (text.includes("invoice") || text.includes("счет")) return "invoice";
+  if (text.includes("naklad") || text.includes("наклад")) return "nakladnaya";
+  if (text.includes("contract") || text.includes("договор")) return "contract";
+  return "document";
+}
+
+function isoDate(date = new Date()) {
+  return new Date(date).toISOString().slice(0, 10);
+}
+
+function nowIso() {
+  return new Date().toISOString();
+}
+
+function addDays(date, days) {
+  const value = new Date(`${date}T00:00:00`);
+  value.setDate(value.getDate() + days);
+  return isoDate(value);
+}
+
+function isPast(date) {
+  return date && date < isoDate();
+}
+
+function inNextDays(date, days) {
+  return date >= isoDate() && date <= addDays(isoDate(), days);
+}
+
+function money(value) {
+  return `${Number(value || 0).toLocaleString("ru-RU")} KZT`;
+}
+
 function brainCrm() {
   const out = $("brainOut");
   if (!state.docs.length && !state.images.length) {
@@ -658,6 +1322,7 @@ function exportBrain() {
     docs: state.docs,
     tasks: state.tasks,
     images: state.images,
+    calendarOS: state.calendarOS,
     notes: state.notes
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
@@ -679,6 +1344,7 @@ async function importBrain(event) {
     const incomingTasks = Array.isArray(data.tasks) ? data.tasks : [];
     const incomingImages = Array.isArray(data.images) ? data.images : [];
     const incomingNotes = Array.isArray(data.notes) ? data.notes : [];
+    if (data.calendarOS) mergeCalendarBackup(data.calendarOS);
     const existingDocKeys = new Set(state.docs.map(doc => doc.id || doc.name));
     const existingTaskKeys = new Set(state.tasks.map(task => task.id || task.title));
     const existingImageKeys = new Set(state.images.map(image => image.id || image.name));
@@ -864,9 +1530,10 @@ async function pushCloud(showStatus = false) {
         docs: state.docs,
         tasks: state.tasks,
         images: state.images,
+        calendarOS: state.calendarOS,
         notes: state.notes,
         savedAt: new Date().toISOString(),
-        version: 3
+        version: 4
       },
       updated_at: new Date().toISOString()
     };
@@ -902,6 +1569,7 @@ async function pullCloud(showStatus = false) {
     state.docs = Array.isArray(payload.docs) ? payload.docs.map(normalizeDoc) : [];
     state.tasks = Array.isArray(payload.tasks) ? payload.tasks.map(normalizeTask) : [];
     state.images = Array.isArray(payload.images) ? payload.images.map(normalizeImage) : [];
+    state.calendarOS = normalizeCalendarOS(payload.calendarOS || defaultCalendarOS());
     state.notes = Array.isArray(payload.notes) ? payload.notes.map(normalizeNote) : [];
     persist({ sync: false });
     render();
@@ -1350,6 +2018,7 @@ function addMessage(kind, text) {
 
 function render() {
   if (!Array.isArray(state.images)) state.images = [];
+  if (!state.calendarOS) state.calendarOS = defaultCalendarOS();
   if ($("docCount")) $("docCount").textContent = `${state.docs.length} docs`;
   state.notes = state.notes.map(normalizeNote);
   if ($("imageCount")) $("imageCount").textContent = `${state.images.length} images`;
@@ -1384,6 +2053,7 @@ function render() {
   renderNotes();
   renderTasks();
   renderBrain();
+  renderCalendarOS();
   renderCloudSettings();
 }
 
@@ -1639,10 +2309,11 @@ function loadState() {
       docs: Array.isArray(saved.docs) ? saved.docs.map(normalizeDoc) : [],
       tasks: Array.isArray(saved.tasks) ? saved.tasks.map(normalizeTask) : [],
       images: Array.isArray(saved.images) ? saved.images.map(normalizeImage) : [],
+      calendarOS: normalizeCalendarOS(saved.calendarOS || {}),
       notes: Array.isArray(saved.notes) ? saved.notes.map(normalizeNote) : []
     };
   } catch {
-    return { docs: [], tasks: [], images: [], notes: [] };
+    return { docs: [], tasks: [], images: [], calendarOS: defaultCalendarOS(), notes: [] };
   }
 }
 

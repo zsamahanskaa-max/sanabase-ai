@@ -444,6 +444,213 @@ pre {
   border-left-color: var(--line);
 }
 
+.cal-shell {
+  display: grid;
+  gap: 16px;
+}
+
+.cal-hero {
+  border-radius: 8px;
+  background: #162321;
+  color: white;
+  padding: 18px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+}
+
+.cal-hero h2 {
+  margin: 0;
+  font-size: 24px;
+}
+
+.cal-hero p {
+  color: #c9d8d3;
+}
+
+.cal-view-switch,
+.cal-quick-actions,
+.cal-export-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cal-view-switch button,
+.cal-export-row button,
+.cal-quick-actions button {
+  width: auto;
+  background: white;
+  color: var(--sage);
+}
+
+.cal-view-switch button.active {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: #1c2725;
+}
+
+.cal-quick-actions {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  padding: 12px;
+}
+
+.cal-layout {
+  display: grid;
+  grid-template-columns: 340px minmax(0, 1fr);
+  gap: 16px;
+}
+
+.cal-form {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  padding: 16px;
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.cal-form h3 {
+  margin: 0;
+}
+
+.cal-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.cal-form textarea {
+  min-height: 120px;
+}
+
+.cal-main {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.cal-dashboard {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+}
+
+.cal-kpi {
+  border: 1px solid #304542;
+  border-radius: 8px;
+  background: #1d2e2b;
+  color: white;
+  padding: 14px;
+  display: grid;
+  gap: 8px;
+}
+
+.cal-kpi span {
+  color: #b9cbc5;
+  font-size: 12px;
+}
+
+.cal-kpi strong {
+  font-size: 22px;
+}
+
+.cal-board {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+
+.cal-column {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f7fbf9;
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.cal-column h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.cal-item,
+.cal-empty,
+.cal-history article {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  padding: 12px;
+}
+
+.cal-item {
+  display: grid;
+  gap: 8px;
+  border-left: 4px solid var(--leaf);
+}
+
+.cal-item.overdue {
+  border-left-color: var(--rose);
+  background: #fff7f5;
+}
+
+.cal-item-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.cal-item-top span {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 3px 8px;
+  color: var(--muted);
+  font-size: 12px;
+  background: #fbfaf7;
+}
+
+.cal-item p {
+  color: var(--muted);
+}
+
+.cal-item button {
+  width: auto;
+  justify-self: start;
+  min-height: 34px;
+  padding: 6px 10px;
+  background: white;
+  color: var(--sage);
+}
+
+.cal-history {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.cal-history h3 {
+  margin: 0;
+}
+
+.cal-history article {
+  display: grid;
+  gap: 4px;
+}
+
+.cal-history span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .match-tool {
   display: grid;
   gap: 14px;
@@ -733,7 +940,7 @@ pre {
     max-width: 100%;
     padding: 12px 13px;
   }
-  .composer, .toolbar, .split, .notes-layout, .tasks-layout, .match-grid, .brain-fields, .brain-head, .cloud-grid, .task-form-grid, .note-form-grid, .assistant-controls {
+  .composer, .toolbar, .split, .notes-layout, .tasks-layout, .cal-layout, .cal-hero, .match-grid, .brain-fields, .brain-head, .cloud-grid, .task-form-grid, .note-form-grid, .cal-form-grid, .assistant-controls {
     grid-template-columns: 1fr;
   }
   .toolbar {
@@ -758,6 +965,16 @@ pre {
   .kanban-board {
     grid-template-columns: 1fr;
   }
+  .cal-dashboard,
+  .cal-board {
+    grid-template-columns: 1fr;
+  }
+  .cal-view-switch,
+  .cal-quick-actions,
+  .cal-export-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
   .task-actions {
     grid-template-columns: 1fr;
   }
@@ -776,13 +993,18 @@ pre {
   .topbar, .view { padding-left: 12px; padding-right: 12px; }
   .nav-item { min-width: 82px; font-size: 12px; }
   textarea, input, select { font-size: 16px; }
-  .doc, .tool-card, .note-form, .note, .brain-card, .task-form, .kanban-column {
+  .doc, .tool-card, .note-form, .note, .brain-card, .task-form, .kanban-column, .cal-form, .cal-column, .cal-history {
     padding: 13px;
   }
   .conversation {
     height: calc(100dvh - 330px);
   }
   .quick-prompts {
+    grid-template-columns: 1fr;
+  }
+  .cal-view-switch,
+  .cal-quick-actions,
+  .cal-export-row {
     grid-template-columns: 1fr;
   }
 }

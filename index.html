@@ -75,17 +75,8 @@
             <input id="almatPriceFile" type="file" accept=".xlsx,.xls,.csv,.tsv">
           </label>
         </div>
-        <div class="match-grid">
-          <label>
-            <span>Код бағаны, бос қалса өзі табады</span>
-            <input id="codeColumnHint" placeholder="Мысалы: код, артикул, SKU">
-          </label>
-          <label>
-            <span>Сан бағаны қорғалады</span>
-            <input id="qtyColumnHint" placeholder="Мысалы: саны, количество, qty">
-          </label>
-        </div>
-        <button id="matchBtn">Код бойынша толықтырып, Excel жүктеу</button>
+        <p class="match-note">Кодты немесе баған атын жазудың керегі жоқ. Жүйе код бағанын өзі табады, ал 1-құжаттағы сан/quantity бағанын өзгертпейді.</p>
+        <button id="matchBtn">Автоматты салыстырып, дайын Excel жүктеу</button>
         <pre id="matchOut"></pre>
       </div>
     </section>
@@ -135,6 +126,6 @@
     </section>
   </main>
 
-  <script src="public/app.js?v=20260629-2"></script>
+  <script src="public/app.js?v=20260629-3"></script>
 </body>
 </html>

@@ -122,7 +122,7 @@ async function matchPrices() {
   try {
     const base = await readTableFile(baseFile);
     const price = await readTableFile(priceFile);
-    const result = mergeByCode(base, price, $("codeColumnHint").value, $("qtyColumnHint").value);
+    const result = mergeByCode(base, price, "", "");
     downloadWorkbook(result.rows, "sanabase_completed_price.xlsx");
     out.textContent = [
       "Дайын файл жүктелді: sanabase_completed_price.xlsx",
@@ -142,10 +142,8 @@ async function matchPrices() {
 function mergeByCode(base, price, codeHint, qtyHint) {
   const baseHeader = normalizeHeader(base.rows[0]);
   const priceHeader = normalizeHeader(price.rows[0]);
-  const baseCodeIndex = findColumn(baseHeader, codeHint, codeKeywords());
-  const priceCodeIndex = findColumn(priceHeader, codeHint, codeKeywords());
-  if (baseCodeIndex < 0) throw new Error("1-құжаттан код бағанын таба алмадым. Код бағанының атын жазыңыз.");
-  if (priceCodeIndex < 0) throw new Error("almat company price ішінен код бағанын таба алмадым. Код бағанының атын жазыңыз.");
+  const baseCodeIndex = resolveCodeColumn(base.rows, baseHeader, codeHint);
+  const priceCodeIndex = resolveCodeColumn(price.rows, priceHeader, codeHint);
 
   const qtyIndexes = findQuantityColumns(baseHeader, qtyHint);
   const outputHeader = [...baseHeader];
@@ -250,6 +248,22 @@ function findColumn(header, hint, keywords) {
     const value = normalizeText(name);
     return keywords.some(keyword => value === keyword || value.includes(keyword));
   });
+}
+
+function resolveCodeColumn(rows, header, hint) {
+  const direct = findColumn(header, hint, codeKeywords());
+  if (direct >= 0) return direct;
+
+  const sample = rows.slice(1, 80);
+  const scores = header.map((_, index) => {
+    const values = sample.map(row => normalizeCode(row[index])).filter(Boolean);
+    const unique = new Set(values).size;
+    const codeLike = values.filter(value => /[A-ZА-Я0-9]/i.test(value) && value.length >= 2 && value.length <= 40).length;
+    const numericOnly = values.filter(value => /^\d+$/.test(value)).length;
+    return { index, score: unique * 3 + codeLike * 2 + numericOnly };
+  });
+  scores.sort((a, b) => b.score - a.score);
+  return scores[0]?.index ?? 0;
 }
 
 function findQuantityColumns(header, hint) {

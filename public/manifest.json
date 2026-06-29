@@ -1,7 +1,8 @@
 {
   "name": "SanaBase AI",
   "short_name": "SanaBase",
-  "start_url": "/",
+  "start_url": "/sanabase-ai/index.html",
+  "scope": "/sanabase-ai/",
   "display": "standalone",
   "background_color": "#f7f5ef",
   "theme_color": "#28433f",

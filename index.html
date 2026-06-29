@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#28433f">
   <title>SanaBase AI</title>
-  <link rel="manifest" href="public/manifest.json?v=20260630-5">
-  <link rel="stylesheet" href="public/styles.css?v=20260630-5">
+  <link rel="manifest" href="public/manifest.json?v=20260630-6">
+  <link rel="stylesheet" href="public/styles.css?v=20260630-6">
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs" type="module"></script>
@@ -21,34 +21,34 @@
       </div>
     </div>
     <nav class="nav" aria-label="Main">
-      <button class="nav-item active" data-view="chat">Chat</button>
-      <button class="nav-item" data-view="library">Knowledge</button>
-      <button class="nav-item" data-view="calendaros">Calendar OS</button>
-      <button class="nav-item" data-view="match">Price Match</button>
-      <button class="nav-item" data-view="brain">Brain</button>
-      <button class="nav-item" data-view="translate">Translate</button>
-      <button class="nav-item" data-view="quiz">Quiz</button>
+      <button class="nav-item active" data-view="chat">Чат</button>
+      <button class="nav-item" data-view="library">Білім базасы</button>
+      <button class="nav-item" data-view="calendaros">Күнтізбе жүйесі</button>
+      <button class="nav-item" data-view="match">Прайс салыстыру</button>
+      <button class="nav-item" data-view="brain">Екінші ми</button>
+      <button class="nav-item" data-view="translate">Аударма</button>
+      <button class="nav-item" data-view="quiz">Тест</button>
       <button class="nav-item" data-view="crm">CRM</button>
-      <button class="nav-item" data-view="tasks">Tasks</button>
-      <button class="nav-item" data-view="notes">Notes</button>
+      <button class="nav-item" data-view="tasks">Тапсырмалар</button>
+      <button class="nav-item" data-view="notes">Жазбалар</button>
     </nav>
     <div class="status">
-      <span id="docCount">0 docs</span>
-      <span id="imageCount">0 images</span>
-      <span id="taskCount">0 tasks</span>
-      <span id="noteCount">0 notes</span>
+      <span id="docCount">0 құжат</span>
+      <span id="imageCount">0 сурет</span>
+      <span id="taskCount">0 тапсырма</span>
+      <span id="noteCount">0 жазба</span>
     </div>
   </aside>
 
   <main class="shell">
     <header class="topbar">
       <div>
-        <h1 id="viewTitle">AI Chat</h1>
+        <h1 id="viewTitle">AI чат</h1>
         <p id="viewSub">Құжаттарыңызға сүйеніп жауап береді.</p>
       </div>
       <label class="upload">
         <input id="fileInput" type="file" multiple accept=".pdf,.docx,.xlsx,.xls,.txt,.md,.csv,.tsv">
-        Upload
+        Жүктеу
       </label>
     </header>
 
@@ -56,9 +56,9 @@
       <div class="assistant-panel">
         <div class="assistant-controls">
           <select id="assistantMode" aria-label="Assistant mode">
-            <option value="auto">Auto</option>
+            <option value="auto">Авто</option>
             <option value="brief">Қысқа жауап</option>
-            <option value="action">Action plan</option>
+            <option value="action">Әрекет жоспары</option>
             <option value="crm">CRM талдау</option>
             <option value="tasks">Тапсырма шығару</option>
           </select>
@@ -67,14 +67,14 @@
         <div class="quick-prompts" aria-label="Quick prompts">
           <button type="button" data-quick-prompt="Осы база бойынша бүгін не істеуім керек?">Бүгінгі жоспар</button>
           <button type="button" data-quick-prompt="CRM мен құжаттарды қарап, ең маңызды клиенттерді және тәуекелдерді шығар.">CRM аудит</button>
-          <button type="button" data-quick-prompt="Құжаттардан орындалатын тапсырмаларды шығарып, priority қой.">Task шығару</button>
+          <button type="button" data-quick-prompt="Құжаттардан орындалатын тапсырмаларды шығарып, маңыздылық қой.">Тапсырма шығару</button>
           <button type="button" data-quick-prompt="Екі прайс/тауар құжатын салыстыру үшін нақты не дайындауым керек?">Price көмек</button>
         </div>
       </div>
       <div class="conversation" id="messages"></div>
       <form class="composer" id="chatForm">
         <textarea id="chatPrompt" placeholder="Сұрағыңызды жазыңыз..." rows="2"></textarea>
-        <button type="submit">Send</button>
+        <button type="submit">Жіберу</button>
       </form>
     </section>
 
@@ -82,44 +82,44 @@
       <div class="cal-shell">
         <div class="cal-hero">
           <div>
-            <h2>Zhadyra Calendar OS</h2>
-            <p>Client -> Order -> Supplier -> Goods -> Documents -> Payment -> ESF -> Report -> History</p>
+            <h2>Жадыра күнтізбе жүйесі</h2>
+            <p>Клиент -> Заказ -> Поставщик -> Тауар келді -> Құжат -> Төлем -> ЭСФ -> Есеп -> Тарих</p>
           </div>
           <div class="cal-view-switch" id="calViewSwitch">
-            <button type="button" data-cal-view="day">Day</button>
-            <button type="button" data-cal-view="week">Week</button>
-            <button type="button" data-cal-view="month">Month</button>
-            <button type="button" data-cal-view="timeline">Timeline</button>
+            <button type="button" data-cal-view="day">Күн</button>
+            <button type="button" data-cal-view="week">Апта</button>
+            <button type="button" data-cal-view="month">Ай</button>
+            <button type="button" data-cal-view="timeline">Таймлайн</button>
           </div>
         </div>
 
         <div class="cal-quick-actions" id="calQuickActions">
-          <button type="button" data-cal-quick="event">Add Event</button>
-          <button type="button" data-cal-quick="task">Add Task</button>
-          <button type="button" data-cal-quick="client_order">Client Order Received</button>
-          <button type="button" data-cal-quick="need_supplier">Need to Order</button>
-          <button type="button" data-cal-quick="sent_supplier">Order Sent</button>
-          <button type="button" data-cal-quick="received">Order Received</button>
-          <button type="button" data-cal-quick="payment">Add Payment</button>
-          <button type="button" data-cal-quick="document">Add Document</button>
-          <button type="button" data-cal-quick="report">Add Report Day</button>
-          <button type="button" data-cal-quick="habit">Add Habit</button>
+          <button type="button" data-cal-quick="event">Оқиға қосу</button>
+          <button type="button" data-cal-quick="task">Тапсырма қосу</button>
+          <button type="button" data-cal-quick="client_order">Клиент заказы келді</button>
+          <button type="button" data-cal-quick="need_supplier">Поставщикке заказ беру</button>
+          <button type="button" data-cal-quick="sent_supplier">Заказ жіберілді</button>
+          <button type="button" data-cal-quick="received">Заказ келді</button>
+          <button type="button" data-cal-quick="payment">Төлем қосу</button>
+          <button type="button" data-cal-quick="document">Құжат қосу</button>
+          <button type="button" data-cal-quick="report">Есеп күнін қосу</button>
+          <button type="button" data-cal-quick="habit">Әдет қосу</button>
         </div>
 
         <div class="cal-layout">
           <form id="calForm" class="cal-form">
             <h3>Жаңа жазба</h3>
             <select id="calEntity">
-              <option value="event">Calendar event</option>
-              <option value="task">Task</option>
-              <option value="client_order">Client order</option>
-              <option value="supplier_order">Supplier order</option>
-              <option value="client">Client</option>
-              <option value="supplier">Supplier</option>
-              <option value="payment">Payment</option>
-              <option value="document">Document / ESF</option>
-              <option value="habit">Habit</option>
-              <option value="report">Report</option>
+              <option value="event">Күнтізбе оқиғасы</option>
+              <option value="task">Тапсырма</option>
+              <option value="client_order">Клиент заказы</option>
+              <option value="supplier_order">Поставщик заказы</option>
+              <option value="client">Клиент</option>
+              <option value="supplier">Поставщик</option>
+              <option value="payment">Төлем</option>
+              <option value="document">Құжат / ЭСФ</option>
+              <option value="habit">Әдет</option>
+              <option value="report">Есеп</option>
             </select>
             <input id="calTitle" placeholder="Атауы">
             <div class="cal-form-grid">
@@ -128,31 +128,31 @@
             </div>
             <div class="cal-form-grid">
               <select id="calCategory">
-                <option>Business</option>
-                <option>Orders</option>
-                <option>Clients</option>
-                <option>Suppliers</option>
-                <option>Finance</option>
-                <option>Payments</option>
-                <option>Debts</option>
-                <option>Documents</option>
+                <option>Бизнес</option>
+                <option>Заказдар</option>
+                <option>Клиенттер</option>
+                <option>Поставщиктер</option>
+                <option>Қаржы</option>
+                <option>Төлемдер</option>
+                <option>Қарыздар</option>
+                <option>Құжаттар</option>
                 <option>1C</option>
                 <option>ESF</option>
-                <option>Reports</option>
-                <option>Family</option>
-                <option>Health</option>
-                <option>Children</option>
-                <option>Study</option>
-                <option>Habits</option>
-                <option>Personal</option>
-                <option>House</option>
-                <option>Car</option>
-                <option>AI Projects</option>
+                <option>Есептер</option>
+                <option>Отбасы</option>
+                <option>Денсаулық</option>
+                <option>Балалар</option>
+                <option>Оқу</option>
+                <option>Әдеттер</option>
+                <option>Жеке</option>
+                <option>Үй</option>
+                <option>Көлік</option>
+                <option>AI жобалар</option>
               </select>
               <select id="calPriority">
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="low">Low</option>
+                <option value="medium">Орташа</option>
+                <option value="high">Жоғары</option>
+                <option value="low">Төмен</option>
               </select>
             </div>
             <div class="cal-form-grid">
@@ -162,17 +162,17 @@
             <div class="cal-form-grid">
               <input id="calAmount" type="number" min="0" step="0.01" placeholder="Сумма">
               <select id="calStatus">
-                <option value="open">open</option>
-                <option value="draft">draft</option>
+                <option value="open">ашық</option>
+                <option value="draft">жоба</option>
                 <option value="client_order_received">client_order_received</option>
                 <option value="need_to_order">need_to_order</option>
                 <option value="sent_to_supplier">sent_to_supplier</option>
                 <option value="waiting_delivery">waiting_delivery</option>
                 <option value="received">received</option>
                 <option value="closed">closed</option>
-                <option value="paid">paid</option>
+                <option value="paid">төленді</option>
                 <option value="payment_waiting">payment_waiting</option>
-                <option value="problem">problem</option>
+                <option value="problem">мәселе</option>
               </select>
             </div>
             <textarea id="calComment" placeholder="Комментарий, тауарлар, құжат номері, ESF, 1C..."></textarea>
@@ -181,31 +181,31 @@
 
           <div class="cal-main">
             <div class="toolbar">
-              <input id="calSearch" type="search" placeholder="Calendar OS ішінен іздеу">
+              <input id="calSearch" type="search" placeholder="Күнтізбе жүйесінен іздеу">
               <select id="calFilter">
-                <option value="all">All</option>
-                <option value="today">Today</option>
-                <option value="tomorrow">Tomorrow</option>
-                <option value="week">This week</option>
-                <option value="month">This month</option>
-                <option value="overdue">Overdue</option>
-                <option value="open">Open</option>
-                <option value="closed">Closed</option>
-                <option value="Business">Business</option>
-                <option value="Orders">Orders</option>
-                <option value="Finance">Finance</option>
-                <option value="Documents">Documents</option>
+                <option value="all">Барлығы</option>
+                <option value="today">Бүгін</option>
+                <option value="tomorrow">Ертең</option>
+                <option value="week">Осы апта</option>
+                <option value="month">Осы ай</option>
+                <option value="overdue">Кешіккен</option>
+                <option value="open">Ашық</option>
+                <option value="closed">Жабық</option>
+                <option value="Бизнес">Бизнес</option>
+                <option value="Заказдар">Заказдар</option>
+                <option value="Қаржы">Қаржы</option>
+                <option value="Құжаттар">Құжаттар</option>
                 <option value="ESF">ESF</option>
-                <option value="Clients">Clients</option>
-                <option value="Suppliers">Suppliers</option>
+                <option value="Клиенттер">Клиенттер</option>
+                <option value="Поставщиктер">Поставщиктер</option>
               </select>
             </div>
             <div class="cal-export-row">
-              <button type="button" data-cal-export="orders">Export orders</button>
-              <button type="button" data-cal-export="tasks">Export tasks</button>
-              <button type="button" data-cal-export="payments">Export payments</button>
-              <button type="button" data-cal-export="documents">Export documents</button>
-              <button type="button" data-cal-export="backup">Backup data</button>
+              <button type="button" data-cal-export="orders">Заказтарды экспорттау</button>
+              <button type="button" data-cal-export="tasks">Тапсырмаларды экспорттау</button>
+              <button type="button" data-cal-export="payments">Төлемдерді экспорттау</button>
+              <button type="button" data-cal-export="documents">Құжаттарды экспорттау</button>
+              <button type="button" data-cal-export="backup">Деректі сақтау</button>
             </div>
             <div class="cal-dashboard" id="calDashboard"></div>
             <div class="cal-board" id="calBoard"></div>
@@ -218,7 +218,7 @@
     <section class="view" id="library">
       <div class="toolbar">
         <input id="searchDocs" type="search" placeholder="Құжаттан іздеу">
-        <button id="clearDocs">Clear</button>
+        <button id="clearDocs">Тазалау</button>
       </div>
       <div class="grid" id="docsGrid"></div>
     </section>
@@ -226,23 +226,23 @@
     <section class="view" id="brain">
       <div class="tool-card brain-tool">
         <div class="toolbar">
-          <input id="brainSearch" type="search" placeholder="Second Brain ішінен іздеу">
+          <input id="brainSearch" type="search" placeholder="Екінші ми ішінен іздеу">
           <button id="brainCrmBtn">CRM жасау</button>
         </div>
         <div class="match-grid">
-          <button id="brainExportBtn" type="button">Brain backup жүктеу</button>
+          <button id="brainExportBtn" type="button">Екінші ми сақтық көшірмесін жүктеу</button>
           <label class="upload secondary-upload">
             <input id="brainImportFile" type="file" accept=".json">
-            Backup енгізу
+            Сақтық көшірме енгізу
           </label>
         </div>
         <div class="brain-image-panel">
           <div class="brain-head">
             <div>
               <h3>Суреттер папкасы</h3>
-              <p>Суреттерді Brain ішінде папкамен сақтап, кейін іздеп табасыз.</p>
+              <p>Суреттерді Екінші ми ішінде папкамен сақтап, кейін іздеп табасыз.</p>
             </div>
-            <span class="brain-type">Images</span>
+            <span class="brain-type">Суреттер</span>
           </div>
           <div class="brain-fields">
             <label>
@@ -262,10 +262,10 @@
         <div class="cloud-panel">
           <div class="brain-head">
             <div>
-              <h3>Cloud сақтау</h3>
-              <p>Cloud автоматты дайын. Енді URL/key енгізудің қажеті жоқ.</p>
+              <h3>Бұлтқа сақтау</h3>
+              <p>Бұлт автоматты дайын. Енді URL/key енгізудің қажеті жоқ.</p>
             </div>
-            <span class="brain-type" id="cloudBadge">Local</span>
+            <span class="brain-type" id="cloudBadge">Жергілікті</span>
           </div>
           <div class="cloud-grid">
             <label>
@@ -282,19 +282,19 @@
             </label>
           </div>
           <div class="cloud-actions">
-            <button id="cloudSaveBtn" type="button">Cloud қосу</button>
-            <button id="cloudPushBtn" type="button">Cloud-қа сақтау</button>
-            <button id="cloudPullBtn" type="button">Cloud-тан алу</button>
-            <button id="cloudConfigExportBtn" type="button">Cloud баптауын жүктеу</button>
+            <button id="cloudSaveBtn" type="button">Бұлт қосу</button>
+            <button id="cloudPushBtn" type="button">Бұлтқа сақтау</button>
+            <button id="cloudPullBtn" type="button">Бұлттан алу</button>
+            <button id="cloudConfigExportBtn" type="button">Бұлт баптауын жүктеу</button>
             <label class="upload cloud-config-upload">
               <input id="cloudConfigImportFile" type="file" accept=".json">
-              Cloud баптауын енгізу
+              Бұлт баптауын енгізу
             </label>
-            <button id="cloudClearBtn" type="button">Cloud өшіру</button>
+            <button id="cloudClearBtn" type="button">Бұлтты өшіру</button>
           </div>
           <div class="cloud-help">
-            <strong>Cloud енді дайын</strong>
-            <span>Құжат, Notes, Tasks және Brain бір workspace ішінде сақталады. Тек керек кезде Cloud-қа сақтау немесе Cloud-тан алу басыңыз.</span>
+            <strong>Бұлт енді дайын</strong>
+            <span>Құжат, Жазбалар, Тапсырмалар және Екінші ми бір жұмыс кеңістігінде сақталады. Тек керек кезде Бұлтқа сақтау немесе Бұлттан алу басыңыз.</span>
           </div>
           <details class="cloud-sql">
             <summary>Supabase SQL</summary>
@@ -314,9 +314,9 @@ to anon
 using (true)
 with check (true);</textarea>
           </details>
-          <p id="cloudStatus">Cloud автоматты дайындалып жатыр...</p>
+          <p id="cloudStatus">Бұлт автоматты дайындалып жатыр...</p>
         </div>
-        <pre id="brainOut">Құжаттарды Upload арқылы жүктеңіз. Бұл бөлім құжаттарды сақтайды, тегпен байланыстырады және сол базадан CRM қорытынды жасайды.</pre>
+        <pre id="brainOut">Құжаттарды Жүктеу арқылы жүктеңіз. Бұл бөлім құжаттарды сақтайды, тегпен байланыстырады және сол базадан CRM қорытынды жасайды.</pre>
         <div class="brain-list" id="brainList"></div>
       </div>
     </section>
@@ -368,7 +368,7 @@ with check (true);</textarea>
             <option>Turkish</option>
             <option>Chinese</option>
           </select>
-          <button id="translateBtn">Translate</button>
+          <button id="translateBtn">Аудару</button>
           <pre id="translateOut"></pre>
         </div>
       </div>
@@ -377,7 +377,7 @@ with check (true);</textarea>
     <section class="view" id="quiz">
       <div class="tool-card">
         <textarea id="quizPrompt" placeholder="Қай тақырыптан quiz керек? Бос қалдырсаңыз барлық база қолданылады."></textarea>
-        <button id="quizBtn">Generate Quiz</button>
+        <button id="quizBtn">Тест жасау</button>
         <pre id="quizOut"></pre>
       </div>
     </section>
@@ -385,7 +385,7 @@ with check (true);</textarea>
     <section class="view" id="crm">
       <div class="tool-card">
         <textarea id="crmPrompt" placeholder="CRM бойынша не талдаймыз? Мысалы: сатылым, лид статусы, менеджер нәтижесі, клиенттер сегменті. Бос қалдырсаңыз толық CRM аудит жасайды."></textarea>
-        <button id="crmBtn">Analyze CRM</button>
+        <button id="crmBtn">CRM талдау</button>
         <pre id="crmOut"></pre>
       </div>
     </section>
@@ -402,9 +402,9 @@ with check (true);</textarea>
               <option value="done">Дайын</option>
             </select>
             <select id="taskPriority">
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-              <option value="low">Low</option>
+              <option value="medium">Орташа</option>
+              <option value="high">Жоғары</option>
+              <option value="low">Төмен</option>
             </select>
           </div>
           <div class="task-form-grid">
@@ -413,12 +413,12 @@ with check (true);</textarea>
           </div>
           <input id="taskLink" placeholder="Құжат/клиент/CRM байланысы">
           <button type="submit">Тапсырма қосу</button>
-          <button id="taskQuickCrmBtn" type="button">CRM follow-up қосу</button>
+          <button id="taskQuickCrmBtn" type="button">CRM келесі әрекетін қосу</button>
         </form>
         <div class="tasks-main">
           <div class="toolbar">
             <input id="taskSearch" type="search" placeholder="Тапсырмадан іздеу">
-            <button type="button" id="taskRefreshBtn" onclick="render()">Refresh</button>
+            <button type="button" id="taskRefreshBtn" onclick="render()">Жаңарту</button>
           </div>
           <div class="kanban-board" id="taskBoard"></div>
         </div>
@@ -430,7 +430,7 @@ with check (true);</textarea>
         <form id="noteForm" class="note-form">
           <input id="noteTitle" placeholder="Note title">
           <div class="note-form-grid">
-            <input id="noteFolder" placeholder="Папка: CRM, Price, Ideas">
+            <input id="noteFolder" placeholder="Папка: CRM, Прайс, Идеялар">
             <select id="noteType">
               <option value="short">Қысқа ақпарат</option>
               <option value="long">Ұзақ ақпарат</option>
@@ -440,12 +440,12 @@ with check (true);</textarea>
           </div>
           <input id="noteTags" placeholder="Тегтер: клиент, баға, жоспар">
           <textarea id="noteBody" placeholder="Ой, жоспар, лекция конспекті немесе ұзақ ақпарат..."></textarea>
-          <button type="submit">Save Note</button>
+          <button type="submit">Жазбаны сақтау</button>
           <button id="noteQuickFolderBtn" type="button">Таңдалған папкаға жазу</button>
         </form>
         <div class="notes-main">
           <div class="toolbar">
-            <input id="noteSearch" type="search" placeholder="Notes ішінен іздеу">
+            <input id="noteSearch" type="search" placeholder="Жазбалар ішінен іздеу">
             <select id="noteFolderFilter">
               <option value="all">Барлық папка</option>
             </select>
@@ -457,6 +457,6 @@ with check (true);</textarea>
     </section>
   </main>
 
-  <script src="public/app.js?v=20260630-5"></script>
+  <script src="public/app.js?v=20260630-6"></script>
 </body>
 </html>

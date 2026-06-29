@@ -8,16 +8,16 @@ const cloudConfig = loadCloudConfig();
 let cloudTimer = null;
 let lastAssistantAnswer = "";
 const titles = {
-  chat: ["AI Chat", "Құжаттарыңызға сүйеніп жауап береді."],
-  library: ["Knowledge Base", "PDF, Word, Excel және мәтін материалдары."],
-  match: ["Price Match", "Формуласы бар қорап/саны бағандарын өзгертпей, бағасын almat company price арқылы қояды."],
-  calendaros: ["Zhadyra Calendar OS", "Клиент, заказ, поставщик, төлем, құжат, ESF, есеп және тарих бір календарь ішінде."],
-  brain: ["Second Brain", "Құжаттарды сақтап, тегпен байланыстырып, сол базадан CRM жасау."],
-  translate: ["Translation", "Мәтінді қалаған тілге аударыңыз."],
-  quiz: ["Quiz Generator", "Базаңыздан тест және жауап кілтін жасаңыз."],
-  crm: ["CRM Analysis", "Excel/CSV CRM базасын талдаңыз."],
-  tasks: ["Tasks", "Trello сияқты тапсырмалар тақтасы."],
-  notes: ["Notes", "Ойлар мен конспектілерді сақтаңыз."]
+  chat: ["AI чат", "Құжаттарыңызға сүйеніп жауап береді."],
+  library: ["Білім базасы", "PDF, Word, Excel және мәтін материалдары."],
+  match: ["Прайс салыстыру", "Формуласы бар қорап/саны бағандарын өзгертпей, бағасын almat company price арқылы қояды."],
+  calendaros: ["Жадыра күнтізбе жүйесі", "Клиент, заказ, поставщик, төлем, құжат, ESF, есеп және тарих бір календарь ішінде."],
+  brain: ["Екінші ми", "Құжаттарды сақтап, тегпен байланыстырып, сол базадан CRM жасау."],
+  translate: ["Аударма", "Мәтінді қалаған тілге аударыңыз."],
+  quiz: ["Тест жасау", "Базаңыздан тест және жауап кілтін жасаңыз."],
+  crm: ["CRM талдау", "Excel/CSV CRM базасын талдаңыз."],
+  tasks: ["Тапсырмалар", "Trello сияқты тапсырмалар тақтасы."],
+  notes: ["Жазбалар", "Ойлар мен конспектілерді сақтаңыз."]
 };
 
 const $ = (id) => document.getElementById(id);
@@ -80,7 +80,7 @@ document.querySelectorAll("[data-cal-export]").forEach(button => {
 
 render();
 renderCloudSettings();
-addMessage("ai", "Сәлем! Price Match бөлімі 1-құжаттың формуласы бар қорап/саны бағандарын сақтап, бағаны almat company price арқылы қояды.");
+addMessage("ai", "Сәлем! Прайс салыстыру бөлімі 1-құжаттың формуласы бар қорап/саны бағандарын сақтап, бағаны almat company price арқылы қояды.");
 
 function setView(view) {
   document.querySelectorAll(".nav-item").forEach(b => b.classList.toggle("active", b.dataset.view === view));
@@ -138,19 +138,19 @@ function taskFromLastAssistantAnswer() {
     addMessage("ai", "Алдымен ассистенттен жауап алыңыз, содан кейін соңғы жауаптан task жасауға болады.");
     return;
   }
-  const title = firstMeaningfulLine(lastAssistantAnswer) || "AI follow-up";
+  const title = firstMeaningfulLine(lastAssistantAnswer) || "AI келесі әрекеті";
   state.tasks.unshift(normalizeTask({
     id: crypto.randomUUID(),
     title: title.slice(0, 90),
     body: lastAssistantAnswer.slice(0, 1400),
     status: "todo",
     priority: inferPriority(lastAssistantAnswer),
-    link: "AI Chat",
+    link: "AI чат",
     createdAt: new Date().toISOString()
   }));
   persist();
   render();
-  addMessage("ai", "Соңғы жауап Tasks тақтасына қосылды.");
+  addMessage("ai", "Соңғы жауап Тапсырмалар тақтасына қосылды.");
 }
 
 function maybeCreateTaskFromPrompt(prompt, answer) {
@@ -163,7 +163,7 @@ function maybeCreateTaskFromPrompt(prompt, answer) {
     body: answer.slice(0, 1200),
     status: "todo",
     priority: inferPriority(`${prompt}\n${answer}`),
-    link: "AI Chat",
+    link: "AI чат",
     createdAt: new Date().toISOString()
   }));
   persist();
@@ -183,7 +183,7 @@ async function translate() {
 }
 
 async function quiz() {
-  $("quizOut").textContent = "Quiz жасалып жатыр...";
+  $("quizOut").textContent = "Тест жасалып жатыр...";
   try {
     const result = await ai("quiz", $("quizPrompt").value || "Барлық білім базасынан quiz жаса.");
     $("quizOut").textContent = result.text;
@@ -570,7 +570,7 @@ function saveNote(event) {
     id: crypto.randomUUID(),
     title,
     body,
-    folder: $("noteFolder")?.value.trim() || "General",
+    folder: $("noteFolder")?.value.trim() || "Жалпы",
     type: $("noteType")?.value || autoNoteType(body),
     tags: splitList($("noteTags")?.value || ""),
     createdAt: new Date().toISOString(),
@@ -626,7 +626,7 @@ function deleteTask(id) {
 }
 
 function taskFromCrm() {
-  const title = "CRM follow-up";
+  const title = "CRM келесі әрекеті";
   state.tasks.unshift({
     id: crypto.randomUUID(),
     title,
@@ -699,17 +699,17 @@ function defaultCalendarOS() {
 function calendarQuick(kind) {
   const today = isoDate();
   const presets = {
-    event: ["event", "Кездесу / event", "Business", "open"],
-    task: ["task", "Жаңа тапсырма", "Business", "open"],
-    client_order: ["client_order", "Client order received", "Orders", "client_order_received"],
-    need_supplier: ["supplier_order", "Need to order from supplier", "Suppliers", "need_to_order"],
-    sent_supplier: ["supplier_order", "Order sent to supplier", "Suppliers", "sent_to_supplier"],
-    received: ["supplier_order", "Order received", "Orders", "received"],
-    payment: ["payment", "Payment", "Finance", "payment_waiting"],
-    document: ["document", "Document / ESF", "Documents", "open"],
-    report: ["report", "Daily report", "Reports", "open"],
-    habit: ["habit", "Habit", "Habits", "open"]
-  }[kind] || ["event", "Event", "Business", "open"];
+    event: ["event", "Кездесу / оқиға", "Бизнес", "open"],
+    task: ["task", "Жаңа тапсырма", "Бизнес", "open"],
+    client_order: ["client_order", "Клиент заказы келді", "Заказдар", "client_order_received"],
+    need_supplier: ["supplier_order", "Поставщикке заказ беру керек", "Поставщиктер", "need_to_order"],
+    sent_supplier: ["supplier_order", "Заказ поставщикке жіберілді", "Поставщиктер", "sent_to_supplier"],
+    received: ["supplier_order", "Заказ келді", "Заказдар", "received"],
+    payment: ["payment", "Төлем", "Қаржы", "payment_waiting"],
+    document: ["document", "Құжат / ESF", "Құжаттар", "open"],
+    report: ["report", "Күндік есеп", "Есептер", "open"],
+    habit: ["habit", "Әдет", "Әдеттер", "open"]
+  }[kind] || ["event", "Оқиға", "Бизнес", "open"];
   $("calEntity").value = presets[0];
   $("calTitle").value = presets[1];
   $("calCategory").value = presets[2];
@@ -740,7 +740,7 @@ function saveCalendarRecord(event) {
   else if (input.entity === "habit") createHabit(input);
   else if (input.entity === "report") createReport(input);
   else addCalendarEvent({ title: input.title, type: "event", category: input.category, startDate: input.date, endDate: input.endDate, priority: input.priority, status: input.status, description: input.comment, amount: input.amount });
-  logHistory(input.entity, input.title, "create", null, input, "Calendar form");
+  logHistory(input.entity, input.title, "қосу", null, input, "Күнтізбе формасы");
   event.target.reset();
   $("calDate").value = isoDate();
   persist();
@@ -784,7 +784,7 @@ function createClient(input) {
     archivedAt: ""
   };
   cal.clients.unshift(client);
-  addCalendarEvent({ title: `Client follow-up: ${client.name}`, type: "reminder", category: "Clients", startDate: input.endDate, relatedClientId: client.id, priority: input.priority });
+  addCalendarEvent({ title: `Клиент бойынша келесі әрекет: ${client.name}`, type: "reminder", category: "Клиенттер", startDate: input.endDate, relatedClientId: client.id, priority: input.priority });
   return client;
 }
 
@@ -809,7 +809,7 @@ function createSupplier(input) {
     archivedAt: ""
   };
   cal.suppliers.unshift(supplier);
-  addCalendarEvent({ title: `Supplier follow-up: ${supplier.name}`, type: "reminder", category: "Suppliers", startDate: input.endDate, relatedSupplierId: supplier.id, priority: input.priority });
+  addCalendarEvent({ title: `Поставщик бойынша келесі әрекет: ${supplier.name}`, type: "reminder", category: "Поставщиктер", startDate: input.endDate, relatedSupplierId: supplier.id, priority: input.priority });
   return supplier;
 }
 
@@ -854,21 +854,21 @@ function createOrder(input) {
 
 function applyOrderWorkflow(order, input) {
   if (order.status === "client_order_received") {
-    addCalendarEvent({ title: `Client order received: ${order.title}`, type: "client_order", category: "Orders", startDate: input.date, relatedOrderId: order.id, relatedClientId: order.clientId, priority: order.priority });
-    ["Calculate price", "Check supplier availability", "Need to order from supplier"].forEach((title, index) => {
-      createCalendarTask({ ...input, title: `${title}: ${order.title}`, date: addDays(input.date, index), category: "Orders", status: "open", orderId: order.id });
+    addCalendarEvent({ title: `Клиент заказы келді: ${order.title}`, type: "client_order", category: "Заказдар", startDate: input.date, relatedOrderId: order.id, relatedClientId: order.clientId, priority: order.priority });
+    ["Бағаны есептеу", "Поставщикте бар-жоғын тексеру", "Поставщикке заказ беру керек"].forEach((title, index) => {
+      createCalendarTask({ ...input, title: `${title}: ${order.title}`, date: addDays(input.date, index), category: "Заказдар", status: "open", orderId: order.id });
     });
   }
   if (order.status === "sent_to_supplier" || order.status === "waiting_delivery") {
     order.status = "sent_to_supplier";
-    addCalendarEvent({ title: `Order sent to supplier: ${order.title}`, type: "order_sent", category: "Suppliers", startDate: input.date, relatedOrderId: order.id, relatedSupplierId: order.supplierId, priority: order.priority });
-    addCalendarEvent({ title: `Order expected today: ${order.title}`, type: "order_expected", category: "Orders", startDate: input.endDate, relatedOrderId: order.id, relatedSupplierId: order.supplierId, priority: "high" });
-    createCalendarTask({ ...input, title: `Supplier follow-up: ${order.title}`, date: input.endDate, category: "Suppliers", status: "open", orderId: order.id });
+    addCalendarEvent({ title: `Заказ поставщикке жіберілді: ${order.title}`, type: "order_sent", category: "Поставщиктер", startDate: input.date, relatedOrderId: order.id, relatedSupplierId: order.supplierId, priority: order.priority });
+    addCalendarEvent({ title: `Заказ бүгін келуі керек: ${order.title}`, type: "order_expected", category: "Заказдар", startDate: input.endDate, relatedOrderId: order.id, relatedSupplierId: order.supplierId, priority: "high" });
+    createCalendarTask({ ...input, title: `Поставщик бойынша келесі әрекет: ${order.title}`, date: input.endDate, category: "Поставщиктер", status: "open", orderId: order.id });
   }
   if (order.status === "received") {
-    addCalendarEvent({ title: `Order received: ${order.title}`, type: "order_received", category: "Orders", startDate: input.date, relatedOrderId: order.id, priority: order.priority });
-    ["Check received goods", "Mark missing products", "Create nakladnaya", "Create realization in 1C", "Deliver to client", "Track ESF deadline", "Track payment"].forEach((title, index) => {
-      createCalendarTask({ ...input, title: `${title}: ${order.title}`, date: addDays(input.date, index), category: index < 2 ? "Orders" : index < 5 ? "Documents" : "Finance", status: "open", orderId: order.id });
+    addCalendarEvent({ title: `Заказ келді: ${order.title}`, type: "order_received", category: "Заказдар", startDate: input.date, relatedOrderId: order.id, priority: order.priority });
+    ["Келген тауарды тексеру", "Жетпеген тауарды белгілеу", "Накладная жасау", "1C ішінде реализация жасау", "Клиентке жеткізу", "ESF мерзімін бақылау", "Төлемді бақылау"].forEach((title, index) => {
+      createCalendarTask({ ...input, title: `${title}: ${order.title}`, date: addDays(input.date, index), category: index < 2 ? "Заказдар" : index < 5 ? "Құжаттар" : "Қаржы", status: "open", orderId: order.id });
     });
   }
 }
@@ -923,7 +923,7 @@ function createPayment(input) {
     archivedAt: ""
   };
   cal.payments.unshift(payment);
-  addCalendarEvent({ title: `Payment: ${payment.title}`, type: payment.status === "paid" ? "payment" : "debt", category: "Finance", startDate: payment.dueDate, relatedPaymentId: payment.id, amount: payment.amount, priority: input.priority });
+  addCalendarEvent({ title: `Төлем: ${payment.title}`, type: payment.status === "paid" ? "payment" : "debt", category: "Қаржы", startDate: payment.dueDate, relatedPaymentId: payment.id, amount: payment.amount, priority: input.priority });
   return payment;
 }
 
@@ -951,11 +951,11 @@ function createDocument(input) {
     archivedAt: ""
   };
   cal.documents.unshift(doc);
-  addCalendarEvent({ title: `Document: ${doc.documentNumber}`, type: "document", category: "Documents", startDate: input.date, relatedDocumentId: doc.id, amount: doc.amount, priority: input.priority });
+  addCalendarEvent({ title: `Құжат: ${doc.documentNumber}`, type: "document", category: "Құжаттар", startDate: input.date, relatedDocumentId: doc.id, amount: doc.amount, priority: input.priority });
   if (esfDeadline) {
-    addCalendarEvent({ title: `ESF deadline: ${doc.documentNumber}`, type: "esf_deadline", category: "ESF", startDate: esfDeadline, relatedDocumentId: doc.id, priority: "high" });
-    addCalendarEvent({ title: `ESF reminder 2 days: ${doc.documentNumber}`, type: "reminder", category: "ESF", startDate: addDays(esfDeadline, -2), relatedDocumentId: doc.id, priority: "high" });
-    addCalendarEvent({ title: `ESF reminder 1 day: ${doc.documentNumber}`, type: "reminder", category: "ESF", startDate: addDays(esfDeadline, -1), relatedDocumentId: doc.id, priority: "high" });
+    addCalendarEvent({ title: `ESF мерзімі: ${doc.documentNumber}`, type: "esf_deadline", category: "ESF", startDate: esfDeadline, relatedDocumentId: doc.id, priority: "high" });
+    addCalendarEvent({ title: `ESF ескерту 2 күн бұрын: ${doc.documentNumber}`, type: "reminder", category: "ESF", startDate: addDays(esfDeadline, -2), relatedDocumentId: doc.id, priority: "high" });
+    addCalendarEvent({ title: `ESF ескерту 1 күн бұрын: ${doc.documentNumber}`, type: "reminder", category: "ESF", startDate: addDays(esfDeadline, -1), relatedDocumentId: doc.id, priority: "high" });
   }
   return doc;
 }
@@ -977,7 +977,7 @@ function createHabit(input) {
     updatedAt: nowIso()
   };
   cal.habits.unshift(habit);
-  addCalendarEvent({ title: `Habit: ${habit.title}`, type: "habit", category: "Habits", startDate: habit.date, priority: input.priority });
+  addCalendarEvent({ title: `Әдет: ${habit.title}`, type: "habit", category: "Әдеттер", startDate: habit.date, priority: input.priority });
   return habit;
 }
 
@@ -1049,7 +1049,7 @@ function upsertClient(name) {
 function upsertSupplier(name) {
   const cal = calendarData();
   let supplier = cal.suppliers.find(item => !item.archivedAt && item.name.toLowerCase() === name.toLowerCase());
-  if (!supplier) supplier = createSupplier({ title: name, supplierName: name, date: isoDate(), endDate: isoDate(), category: "Suppliers", comment: "", priority: "medium" });
+  if (!supplier) supplier = createSupplier({ title: name, supplierName: name, date: isoDate(), endDate: isoDate(), category: "Поставщиктер", comment: "", priority: "medium" });
   return supplier;
 }
 
@@ -1075,18 +1075,18 @@ function renderCalendarDashboard(cal) {
   const activeTasks = activeCalItems(cal.tasks);
   const activeDocs = activeCalItems(cal.documents);
   const cards = [
-    ["Today top tasks", activeTasks.filter(t => t.dueDate <= today && t.status !== "done").length],
-    ["Today calendar", activeCalItems(cal.calendar_events).filter(e => e.startDate === today).length],
-    ["New client orders", activeOrders.filter(o => o.status === "client_order_received").length],
-    ["Need supplier order", activeOrders.filter(o => o.status === "need_to_order").length],
-    ["Expected deliveries", activeOrders.filter(o => o.expectedDeliveryDate === today).length],
-    ["Received orders", activeOrders.filter(o => o.status === "received").length],
-    ["Delayed orders", activeOrders.filter(o => o.status === "overdue_delivery").length],
-    ["Upcoming payments", activeCalItems(cal.payments).filter(p => p.status !== "paid" && p.dueDate >= today).length],
-    ["Client debts", money(activeCalItems(cal.payments).filter(p => p.direction === "income" && p.status !== "paid").reduce((s, p) => s + Number(p.amount || 0), 0))],
-    ["Supplier debts", money(activeCalItems(cal.payments).filter(p => p.direction === "expense" && p.status !== "paid").reduce((s, p) => s + Math.abs(Number(p.amount || 0)), 0))],
-    ["ESF deadlines", activeDocs.filter(d => d.esfDeadline && d.esfStatus !== "sent").length],
-    ["Habit progress", `${activeCalItems(cal.habits).filter(h => h.status === "done").length}/${activeCalItems(cal.habits).length}`]
+    ["Бүгінгі басты тапсырмалар", activeTasks.filter(t => t.dueDate <= today && t.status !== "done").length],
+    ["Бүгінгі күнтізбе", activeCalItems(cal.calendar_events).filter(e => e.startDate === today).length],
+    ["Жаңа клиент заказдары", activeOrders.filter(o => o.status === "client_order_received").length],
+    ["Поставщикке заказ керек", activeOrders.filter(o => o.status === "need_to_order").length],
+    ["Күтілетін жеткізілімдер", activeOrders.filter(o => o.expectedDeliveryDate === today).length],
+    ["Келген заказдар", activeOrders.filter(o => o.status === "received").length],
+    ["Кешіккен заказдар", activeOrders.filter(o => o.status === "overdue_delivery").length],
+    ["Алдағы төлемдер", activeCalItems(cal.payments).filter(p => p.status !== "paid" && p.dueDate >= today).length],
+    ["Клиент қарыздары", money(activeCalItems(cal.payments).filter(p => p.direction === "income" && p.status !== "paid").reduce((s, p) => s + Number(p.amount || 0), 0))],
+    ["Поставщик қарыздары", money(activeCalItems(cal.payments).filter(p => p.direction === "expense" && p.status !== "paid").reduce((s, p) => s + Math.abs(Number(p.amount || 0)), 0))],
+    ["ESF мерзімдері", activeDocs.filter(d => d.esfDeadline && d.esfStatus !== "sent").length],
+    ["Әдет прогресі", `${activeCalItems(cal.habits).filter(h => h.status === "done").length}/${activeCalItems(cal.habits).length}`]
   ];
   $("calDashboard").innerHTML = cards.map(([label, value]) => `<article class="cal-kpi"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></article>`).join("");
 }
@@ -1097,7 +1097,7 @@ function renderCalendarBoard(events, cal) {
   $("calBoard").innerHTML = Object.entries(groups).map(([label, rows]) => `
     <section class="cal-column">
       <h3>${escapeHtml(label)}</h3>
-      ${rows.map(event => calendarEventCard(event)).join("") || `<article class="cal-empty">No items</article>`}
+      ${rows.map(event => calendarEventCard(event)).join("") || `<article class="cal-empty">Жазба жоқ</article>`}
     </section>
   `).join("");
   $("calBoard").querySelectorAll("[data-cal-archive]").forEach(button => {
@@ -1113,17 +1113,17 @@ function calendarEventCard(event) {
         <strong>${escapeHtml(event.title)}</strong>
         <span>${escapeHtml(event.type)}</span>
       </div>
-      <p>${escapeHtml(event.category)} · ${escapeHtml(event.startDate)} · ${escapeHtml(event.priority)}</p>
+      <p>${escapeHtml(event.category)} · ${escapeHtml(event.startDate)} · ${escapeHtml(priorityLabel(event.priority))}</p>
       ${event.amount ? `<p>${money(event.amount)}</p>` : ""}
-      <button type="button" data-cal-archive="${escapeHtml(event.id)}">Archive</button>
+      <button type="button" data-cal-archive="${escapeHtml(event.id)}">Архивке жіберу</button>
     </article>
   `;
 }
 
 function renderCalendarHistory(cal) {
   $("calHistory").innerHTML = `
-    <h3>History logs</h3>
-    ${cal.history_logs.slice(0, 20).map(log => `<article><strong>${escapeHtml(log.action)}</strong> ${escapeHtml(log.entityType)} · ${escapeHtml(log.comment || "")}<span>${escapeHtml(log.createdAt)}</span></article>`).join("") || "<p>History бос</p>"}
+    <h3>Тарих журналы</h3>
+    ${cal.history_logs.slice(0, 20).map(log => `<article><strong>${escapeHtml(log.action)}</strong> ${escapeHtml(log.entityType)} · ${escapeHtml(log.comment || "")}<span>${escapeHtml(log.createdAt)}</span></article>`).join("") || "<p>Тарих бос</p>"}
   `;
 }
 
@@ -1144,7 +1144,7 @@ function filterCalendarEvents(events, filter, query) {
 }
 
 function groupCalendarEvents(events, view) {
-  if (view === "timeline") return { Timeline: events };
+  if (view === "timeline") return { Таймлайн: events };
   const today = isoDate();
   if (view === "day") return { [today]: events.filter(e => e.startDate === today) };
   if (view === "month") {
@@ -1158,7 +1158,7 @@ function groupCalendarEvents(events, view) {
   const groups = {};
   for (let i = 0; i < 7; i += 1) groups[addDays(today, i)] = [];
   events.forEach(event => {
-    const key = groups[event.startDate] ? event.startDate : (inNextDays(event.startDate, 7) ? event.startDate : "Later");
+    const key = groups[event.startDate] ? event.startDate : (inNextDays(event.startDate, 7) ? event.startDate : "Кейін");
     groups[key] = groups[key] || [];
     groups[key].push(event);
   });
@@ -1174,8 +1174,8 @@ function updateCalendarAutomation() {
       const old = { status: order.status };
       order.status = "overdue_delivery";
       order.updatedAt = nowIso();
-      addCalendarEvent({ title: `Contact supplier about delayed order: ${order.title}`, type: "reminder", category: "Suppliers", startDate: today, relatedOrderId: order.id, relatedSupplierId: order.supplierId, priority: "high", status: "open" });
-      logHistory("orders", order.id, "auto_overdue_delivery", old, { status: order.status }, "Expected delivery passed");
+      addCalendarEvent({ title: `Кешіккен заказ бойынша поставщикке хабарласу: ${order.title}`, type: "reminder", category: "Поставщиктер", startDate: today, relatedOrderId: order.id, relatedSupplierId: order.supplierId, priority: "high", status: "open" });
+      logHistory("orders", order.id, "auto_overdue_delivery", old, { status: order.status }, "Күтілетін жеткізу күні өтті");
       changed = true;
     }
   });
@@ -1188,7 +1188,7 @@ function archiveCalendarEntity(table, id) {
   if (!row) return;
   row.archivedAt = nowIso();
   row.updatedAt = nowIso();
-  logHistory(table, id, "archive", null, row, "Archived instead of delete");
+  logHistory(table, id, "архив", null, row, "Өшіру орнына архивке жіберілді");
   persist();
   render();
 }
@@ -1309,7 +1309,7 @@ function brainCrm() {
   out.textContent = [
     analyzeCrm(context),
     "",
-    "Second Brain байланыстары:",
+    "Екінші ми байланыстары:",
     links,
     "",
     "Ұсыныс: клиент, тауар, код, статус, жауапты менеджер және келесі әрекет бағандары бар Excel/CSV жүктесеңіз, CRM талдау дәлірек болады."
@@ -1390,16 +1390,16 @@ async function importBrain(event) {
 async function importBrainImages(event) {
   const files = [...event.target.files].filter(file => file.type.startsWith("image/"));
   if (!files.length) return;
-  const folder = $("brainImageFolder")?.value.trim() || "Images";
+  const folder = $("brainImageFolder")?.value.trim() || "Суреттер";
   const tags = splitList($("brainImageTags")?.value || "");
-  $("brainOut").textContent = "Суреттер Brain ішіне сақталып жатыр...";
+  $("brainOut").textContent = "Суреттер Екінші ми ішіне сақталып жатыр...";
   try {
     for (const file of files) {
       state.images.unshift(await imageFileToBrainItem(file, folder, tags));
     }
     persist();
     render();
-    $("brainOut").textContent = `${files.length} сурет Brain / ${folder} папкасына сақталды.`;
+    $("brainOut").textContent = `${files.length} сурет Екінші ми / ${folder} папкасына сақталды.`;
   } catch (error) {
     $("brainOut").textContent = `Сурет сақтау қатесі: ${shortError(error)}`;
   } finally {
@@ -1415,7 +1415,7 @@ async function imageFileToBrainItem(file, folder, tags) {
     type: file.type || "image",
     src,
     folder,
-    tags: [...new Set([folder, "image", ...tags, ...keywords(file.name).slice(0, 4)])],
+    tags: [...new Set([folder, "сурет", ...tags, ...keywords(file.name).slice(0, 4)])],
     createdAt: new Date().toISOString()
   });
 }
@@ -1459,12 +1459,12 @@ function saveCloudSettings() {
   cloudConfig.key = $("cloudKey").value.trim();
   cloudConfig.workspace = $("cloudWorkspace").value.trim() || "default";
   if (!cloudConfig.url || !cloudConfig.key) {
-    setCloudStatus("Cloud қосу үшін Supabase URL және anon key енгізіңіз. Workspace кодын өзіңіз қоя аласыз.", false);
+    setCloudStatus("Бұлт қосу үшін Supabase URL және anon key енгізіңіз. Жұмыс кеңістігі кодын өзіңіз қоя аласыз.", false);
     return;
   }
   localStorage.setItem("sanabase-cloud", JSON.stringify(cloudConfig));
   renderCloudSettings();
-  setCloudStatus("Cloud қосылды. Енді Cloud-қа сақтау басыңыз немесе өзгерістер автоматты сақталады.", true);
+  setCloudStatus("Бұлт қосылды. Енді Бұлтқа сақтау басыңыз немесе өзгерістер автоматты сақталады.", true);
 }
 
 function clearCloudSettings() {
@@ -1473,7 +1473,7 @@ function clearCloudSettings() {
   cloudConfig.workspace = "";
   localStorage.removeItem("sanabase-cloud");
   renderCloudSettings();
-  setCloudStatus("Cloud өшірілді. Құжаттар local режимде қалды.", false);
+  setCloudStatus("Бұлт өшірілді. Құжаттар жергілікті режимде қалды.", false);
 }
 
 function exportCloudConfig() {
@@ -1485,7 +1485,7 @@ function exportCloudConfig() {
     app: "SanaBase AI"
   };
   if (!current.url || !current.key) {
-    setCloudStatus("Алдымен Supabase URL және anon key енгізіп, Cloud қосу басыңыз.", false);
+    setCloudStatus("Алдымен Supabase URL және anon key енгізіп, Бұлт қосу басыңыз.", false);
     return;
   }
   const blob = new Blob([JSON.stringify(current, null, 2)], { type: "application/json" });
@@ -1494,7 +1494,7 @@ function exportCloudConfig() {
   link.download = `sanabase_cloud_${current.workspace}.json`;
   link.click();
   URL.revokeObjectURL(link.href);
-  setCloudStatus("Cloud баптауы жүктелді. Оны телефонда Cloud баптауын енгізу арқылы қосуға болады.", true);
+  setCloudStatus("Бұлт баптауы жүктелді. Оны телефонда Бұлт баптауын енгізу арқылы қосуға болады.", true);
 }
 
 async function importCloudConfig(event) {
@@ -1508,9 +1508,9 @@ async function importCloudConfig(event) {
     if (!cloudConfig.url || !cloudConfig.key) throw new Error("config ішінде url немесе key жоқ");
     localStorage.setItem("sanabase-cloud", JSON.stringify(cloudConfig));
     renderCloudSettings();
-    setCloudStatus("Cloud баптауы енгізілді. Енді Cloud-тан алу немесе Cloud-қа сақтау басыңыз.", true);
+    setCloudStatus("Бұлт баптауы енгізілді. Енді Бұлттан алу немесе Бұлтқа сақтау басыңыз.", true);
   } catch (error) {
-    setCloudStatus(`Cloud баптауын оқу қатесі: ${shortError(error)}`, false);
+    setCloudStatus(`Бұлт баптауын оқу қатесі: ${shortError(error)}`, false);
   } finally {
     event.target.value = "";
   }
@@ -1518,11 +1518,11 @@ async function importCloudConfig(event) {
 
 async function pushCloud(showStatus = false) {
   if (!cloudReady()) {
-    if (showStatus) setCloudStatus("Cloud қосылмаған: осы браузерде Supabase URL/anon key/workspace сақталмаған. Cloud қосу немесе Cloud баптауын енгізу қолданыңыз.", false);
+    if (showStatus) setCloudStatus("Бұлт қосылмаған: осы браузерде Supabase URL/anon key/жұмыс кеңістігі сақталмаған. Бұлт қосу немесе Бұлт баптауын енгізу қолданыңыз.", false);
     return;
   }
   try {
-    if (showStatus) setCloudStatus("Cloud-қа сақталып жатыр...", true);
+    if (showStatus) setCloudStatus("Бұлтқа сақталып жатыр...", true);
     const payload = {
       id: cloudRowId(),
       workspace_id: cloudConfig.workspace,
@@ -1543,26 +1543,26 @@ async function pushCloud(showStatus = false) {
       body: JSON.stringify(payload)
     });
     if (!response.ok) throw new Error(await response.text());
-    setCloudStatus(`Cloud сақталды: ${new Date().toLocaleString()}`, true);
+    setCloudStatus(`Бұлт сақталды: ${new Date().toLocaleString()}`, true);
   } catch (error) {
-    setCloudStatus(`Cloud сақтау қатесі: ${shortError(error)}`, false);
+    setCloudStatus(`Бұлт сақтау қатесі: ${shortError(error)}`, false);
   }
 }
 
 async function pullCloud(showStatus = false) {
   if (!cloudReady()) {
-    if (showStatus) setCloudStatus("Cloud қосылмаған: осы браузерде Supabase URL/anon key/workspace сақталмаған. Cloud қосу немесе Cloud баптауын енгізу қолданыңыз.", false);
+    if (showStatus) setCloudStatus("Бұлт қосылмаған: осы браузерде Supabase URL/anon key/жұмыс кеңістігі сақталмаған. Бұлт қосу немесе Бұлт баптауын енгізу қолданыңыз.", false);
     return;
   }
   try {
-    if (showStatus) setCloudStatus("Cloud-тан оқылып жатыр...", true);
+    if (showStatus) setCloudStatus("Бұлттан оқылып жатыр...", true);
     const response = await fetch(`${cloudConfig.url}/rest/v1/sanabase_brain?id=eq.${encodeURIComponent(cloudRowId())}&select=payload,updated_at`, {
       headers: cloudHeaders()
     });
     if (!response.ok) throw new Error(await response.text());
     const rows = await response.json();
     if (!rows.length) {
-      setCloudStatus("Cloud-та бұл workspace үшін база әлі жоқ. Алдымен Cloud-қа сақтау басыңыз.", false);
+      setCloudStatus("Бұлтта бұл жұмыс кеңістігі үшін база әлі жоқ. Алдымен Бұлтқа сақтау басыңыз.", false);
       return;
     }
     const payload = rows[0].payload || {};
@@ -1573,9 +1573,9 @@ async function pullCloud(showStatus = false) {
     state.notes = Array.isArray(payload.notes) ? payload.notes.map(normalizeNote) : [];
     persist({ sync: false });
     render();
-    setCloudStatus(`Cloud-тан алынды: ${rows[0].updated_at || "ready"}`, true);
+    setCloudStatus(`Бұлттан алынды: ${rows[0].updated_at || "дайын"}`, true);
   } catch (error) {
-    setCloudStatus(`Cloud оқу қатесі: ${shortError(error)}`, false);
+    setCloudStatus(`Бұлт оқу қатесі: ${shortError(error)}`, false);
   }
 }
 
@@ -1590,8 +1590,8 @@ function renderCloudSettings() {
   $("cloudUrl").value = cloudConfig.url || "";
   $("cloudKey").value = cloudConfig.key || "";
   $("cloudWorkspace").value = cloudConfig.workspace || "";
-  $("cloudBadge").textContent = cloudReady() ? "Cloud" : "Local";
-  setCloudStatus(cloudReady() ? `Cloud автоматты дайын: ${cloudConfig.workspace}. Өзгерістер сақталады.` : "Cloud уақытша дайын емес. Бетті жаңартып көріңіз немесе Cloud-тан алу басыңыз.", cloudReady());
+  $("cloudBadge").textContent = cloudReady() ? "Бұлт" : "Жергілікті";
+  setCloudStatus(cloudReady() ? `Бұлт автоматты дайын: ${cloudConfig.workspace}. Өзгерістер сақталады.` : "Бұлт уақытша дайын емес. Бетті жаңартып көріңіз немесе Бұлттан алу басыңыз.", cloudReady());
 }
 
 function loadCloudConfig() {
@@ -1748,21 +1748,21 @@ function answerFromContext(prompt, context, assistantMode = "auto") {
 }
 
 function assistantInstruction(mode) {
-  const base = "Жауапты қазақша бер. Құжат, CRM, tasks және notes контекстіне сүйен. Нақты дерек жоқ болса, соны айт.";
+  const base = "Жауапты қазақша бер. Құжат, CRM, тапсырмалар және жазбалар контекстіне сүйен. Нақты дерек жоқ болса, соны айт.";
   const modes = {
     brief: "Өте қысқа жауап бер: максимум 5 bullet.",
     action: "Жауапты міндетті түрде: Қорытынды, Нақты әрекеттер, Тәуекел, Келесі қадам форматында бер.",
-    crm: "CRM аналитик сияқты жауап бер: клиент, табыс, pipeline, тәуекел, follow-up.",
-    tasks: "Құжаттан орындалатын тапсырмаларды шығар: title, priority, deadline бар болса көрсет."
+    crm: "CRM аналитик сияқты жауап бер: клиент, табыс, pipeline, тәуекел, келесі әрекет.",
+    tasks: "Құжаттан орындалатын тапсырмаларды шығар: атауы, маңыздылығы, мерзімі бар болса көрсет."
   };
   return `${base} ${modes[mode] || "Пайдаланушыға ең пайдалы форматты таңда."}`;
 }
 
 function emptyAssistantAnswer(mode) {
   const base = "Әзірге база бос. PDF/Word/Excel/CSV жүктесеңіз, мен соның ішінен жауап беремін.";
-  if (mode === "tasks") return `${base}\n\nҚосуға болатын нәрсе: құжаттан автоматты task шығару, deadline табу, жауапты адамды белгілеу.`;
-  if (mode === "crm") return `${base}\n\nCRM үшін Excel/CSV жүктеңіз: мен клиенттерді, сатылым сомасын, тәуекелді және follow-up task-тарды шығарамын.`;
-  return `${base}\n\nМен қазір мынаны істей аламын: құжат оқу, прайс салыстыру, CRM талдау, task жасау, quiz/translation, Second Brain іздеу.`;
+  if (mode === "tasks") return `${base}\n\nҚосуға болатын нәрсе: құжаттан автоматты тапсырма шығару, мерзім табу, жауапты адамды белгілеу.`;
+  if (mode === "crm") return `${base}\n\nCRM үшін Excel/CSV жүктеңіз: мен клиенттерді, сатылым сомасын, тәуекелді және келесі әрекет тапсырмаларын шығарамын.`;
+  return `${base}\n\nМен қазір мынаны істей аламын: құжат оқу, прайс салыстыру, CRM талдау, тапсырма жасау, тест/аударма, Екінші ми ішінен іздеу.`;
 }
 
 function actionPlanAnswer(prompt, facts) {
@@ -1772,8 +1772,8 @@ function actionPlanAnswer(prompt, facts) {
     "",
     "Нақты әрекеттер:",
     "1. Ең маңызды жолдарды тексеріңіз.",
-    "2. Қажет болса Tasks батырмасымен follow-up жасаңыз.",
-    "3. Егер бұл прайс болса, Price Match арқылы код бойынша толықтырыңыз.",
+    "2. Қажет болса Тапсырмалар батырмасымен келесі әрекет жасаңыз.",
+    "3. Егер бұл прайс болса, Прайс салыстыру арқылы код бойынша толықтырыңыз.",
     "",
     "Тәуекел:",
     "Дерек толық болмаса немесе код/баға бағандары әртүрлі аталса, нәтижені қолмен тексеру керек.",
@@ -1790,9 +1790,9 @@ function taskPlanFromContext(prompt, context, matches) {
     .slice(0, 8);
   return [
     "Құжаттардан шығатын тапсырмалар:",
-    ...lines.slice(0, 5).map((line, index) => `${index + 1}. ${line.slice(0, 140)}\n   Priority: ${/(urgent|қате|ошибка|долг|төлем|risk|тәуекел)/i.test(line) ? "High" : "Medium"}\n   Status: Істеу`),
+    ...lines.slice(0, 5).map((line, index) => `${index + 1}. ${line.slice(0, 140)}\n   Маңыздылық: ${/(urgent|қате|ошибка|долг|төлем|risk|тәуекел)/i.test(line) ? "Жоғары" : "Орташа"}\n   Статус: Істеу`),
     "",
-    "Кеңес: осы жауапты бірден Tasks тақтасына қосу үшін `Соңғы жауаптан task` батырмасын басыңыз."
+    "Кеңес: осы жауапты бірден Тапсырмалар тақтасына қосу үшін `Соңғы жауаптан тапсырма` батырмасын басыңыз."
   ].join("\n");
 }
 
@@ -1830,7 +1830,7 @@ function analyzeCrm(context) {
     `- Бағандар: ${header.slice(0, 220) || "анықталмады"}`,
     `- Сандық мәндер: ${money.length ? money.slice(0, 12).join(", ") : "табылмады"}`,
     "",
-    "Егер екі прайсты код бойынша толықтыру керек болса, Price Match бөлімін қолданыңыз."
+    "Егер екі прайсты код бойынша толықтыру керек болса, Прайс салыстыру бөлімін қолданыңыз."
   ].join("\n");
 }
 
@@ -1902,16 +1902,16 @@ function normalizeTask(task) {
 }
 
 function normalizeImage(image) {
-  const folder = image.folder || "Images";
+  const folder = image.folder || "Суреттер";
   return {
     id: image.id || crypto.randomUUID(),
-    name: image.name || "Image",
+    name: image.name || "Сурет",
     type: image.type || "image",
     src: image.src || "",
     folder,
-    text: image.text || `Image: ${image.name || "Image"} (${folder})`,
+    text: image.text || `Сурет: ${image.name || "Сурет"} (${folder})`,
     warning: image.warning || "",
-    tags: Array.isArray(image.tags) && image.tags.length ? image.tags : [folder, "image"],
+    tags: Array.isArray(image.tags) && image.tags.length ? image.tags : [folder, "сурет"],
     links: Array.isArray(image.links) ? image.links : [],
     createdAt: image.createdAt || new Date().toISOString()
   };
@@ -1923,7 +1923,7 @@ function normalizeNote(note) {
     id: note.id || crypto.randomUUID(),
     title: note.title || "Untitled note",
     body,
-    folder: note.folder || "General",
+    folder: note.folder || "Жалпы",
     type: ["short", "long", "idea", "meeting"].includes(note.type) ? note.type : autoNoteType(body),
     tags: Array.isArray(note.tags) ? note.tags : splitList(note.tags || ""),
     brain: Boolean(note.brain),
@@ -1939,10 +1939,10 @@ function noteToBrainItem(note) {
     name: note.title,
     type: note.type || "note",
     brainKind: "note",
-    folder: note.folder || "General",
+    folder: note.folder || "Жалпы",
     text: note.body || "",
     warning: "",
-    tags: [...new Set([note.folder || "General", note.type || "note", ...(note.tags || [])])],
+    tags: [...new Set([note.folder || "Жалпы", note.type || "жазба", ...(note.tags || [])])],
     links: [],
     createdAt: note.createdAt
   };
@@ -1962,7 +1962,7 @@ function noteTypeLabel(type) {
 }
 
 function noteFolders() {
-  return [...new Set(state.notes.map(note => note.folder || "General"))].sort((a, b) => a.localeCompare(b));
+  return [...new Set(state.notes.map(note => note.folder || "Жалпы"))].sort((a, b) => a.localeCompare(b));
 }
 
 function findRelatedDocs(doc) {
@@ -1983,16 +1983,16 @@ function buildContext() {
   const docs = state.docs
     .filter(doc => doc.text)
     .slice(0, 10)
-    .map(doc => `Document: ${doc.name}\nTags: ${(doc.tags || []).join(", ")}\nLinks: ${(doc.links || []).join(", ")}\n${doc.text.slice(0, 12000)}`);
+    .map(doc => `Құжат: ${doc.name}\nТегтер: ${(doc.tags || []).join(", ")}\nБайланыстар: ${(doc.links || []).join(", ")}\n${doc.text.slice(0, 12000)}`);
   const notes = state.notes
     .slice(0, 10)
-    .map(note => `Note: ${note.title}\nFolder: ${note.folder || "General"}\nType: ${note.type || "short"}\nTags: ${(note.tags || []).join(", ")}\n${note.body}`);
+    .map(note => `Жазба: ${note.title}\nПапка: ${note.folder || "Жалпы"}\nТүрі: ${note.type || "қысқа"}\nТегтер: ${(note.tags || []).join(", ")}\n${note.body}`);
   const tasks = state.tasks
     .slice(0, 30)
-    .map(task => `Task: ${task.title}\nStatus: ${task.status}\nPriority: ${task.priority}\nDue: ${task.due || "-"}\nOwner: ${task.owner || "-"}\n${task.body}`);
+    .map(task => `Тапсырма: ${task.title}\nСтатус: ${task.status}\nМаңыздылық: ${task.priority}\nМерзім: ${task.due || "-"}\nЖауапты: ${task.owner || "-"}\n${task.body}`);
   const images = state.images
     .slice(0, 30)
-    .map(image => `Image: ${image.name}\nFolder: ${image.folder || "Images"}\nTags: ${(image.tags || []).join(", ")}`);
+    .map(image => `Сурет: ${image.name}\nПапка: ${image.folder || "Суреттер"}\nТегтер: ${(image.tags || []).join(", ")}`);
   return docs.concat(images, tasks, notes).join("\n\n---\n\n");
 }
 
@@ -2019,11 +2019,11 @@ function addMessage(kind, text) {
 function render() {
   if (!Array.isArray(state.images)) state.images = [];
   if (!state.calendarOS) state.calendarOS = defaultCalendarOS();
-  if ($("docCount")) $("docCount").textContent = `${state.docs.length} docs`;
+  if ($("docCount")) $("docCount").textContent = `${state.docs.length} құжат`;
   state.notes = state.notes.map(normalizeNote);
-  if ($("imageCount")) $("imageCount").textContent = `${state.images.length} images`;
-  if ($("noteCount")) $("noteCount").textContent = `${state.notes.length} notes`;
-  if ($("taskCount")) $("taskCount").textContent = `${state.tasks.length} tasks`;
+  if ($("imageCount")) $("imageCount").textContent = `${state.images.length} сурет`;
+  if ($("noteCount")) $("noteCount").textContent = `${state.notes.length} жазба`;
+  if ($("taskCount")) $("taskCount").textContent = `${state.tasks.length} тапсырма`;
   state.docs = state.docs.map(normalizeDoc);
   state.images = state.images.map(normalizeImage);
   state.tasks = state.tasks.map(normalizeTask);
@@ -2106,15 +2106,15 @@ function renderNotes() {
       <div class="note-head">
         <div>
           <h3>${escapeHtml(note.title)}</h3>
-          <span>${escapeHtml(note.folder || "General")} · ${escapeHtml(noteTypeLabel(note.type))}</span>
+          <span>${escapeHtml(note.folder || "Жалпы")} · ${escapeHtml(noteTypeLabel(note.type))}</span>
         </div>
         <div class="note-actions">
-          <button type="button" data-note-brain="${escapeHtml(note.id)}">${note.brain ? "Brain-да" : "Brain-ға"}</button>
+          <button type="button" data-note-brain="${escapeHtml(note.id)}">${note.brain ? "Екінші мида" : "Екінші миға"}</button>
           <button type="button" data-note-delete="${escapeHtml(note.id)}">Өшіру</button>
         </div>
       </div>
       <p>${escapeHtml(note.body)}</p>
-      <div class="tag-row">${(note.tags || []).map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join("") || `<span class="tag muted-tag">no tags</span>`}</div>
+      <div class="tag-row">${(note.tags || []).map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join("") || `<span class="tag muted-tag">тег жоқ</span>`}</div>
     `;
     list.appendChild(card);
   });
@@ -2207,7 +2207,7 @@ function taskCard(task) {
       </div>
       <p>${escapeHtml(task.body || "Сипаттама жоқ")}</p>
       <div class="task-meta">
-        ${task.due ? `<span>Deadline: ${escapeHtml(task.due)}</span>` : ""}
+        ${task.due ? `<span>Мерзім: ${escapeHtml(task.due)}</span>` : ""}
         ${task.owner ? `<span>Жауапты: ${escapeHtml(task.owner)}</span>` : ""}
         ${task.link ? `<span>Байланыс: ${escapeHtml(task.link)}</span>` : ""}
       </div>
@@ -2220,7 +2220,7 @@ function taskCard(task) {
 }
 
 function priorityLabel(priority) {
-  return { low: "Low", medium: "Medium", high: "High" }[priority] || "Medium";
+  return { low: "Төмен", medium: "Орташа", high: "Жоғары" }[priority] || "Орташа";
 }
 
 function renderBrain() {
@@ -2234,7 +2234,7 @@ function renderBrain() {
     .filter(doc => `${doc.name} ${(doc.tags || []).join(" ")} ${(doc.links || []).join(" ")} ${doc.text} ${doc.folder || ""}`.toLowerCase().includes(query));
   list.innerHTML = "";
   if (!docs.length) {
-    list.innerHTML = `<article class="brain-card"><h3>Brain бос</h3><p>Upload арқылы құжат/сурет жүктеңіз немесе Notes ішінде маңызды жазбаны Brain-ға бекітіңіз.</p></article>`;
+    list.innerHTML = `<article class="brain-card"><h3>Екінші ми бос</h3><p>Жүктеу арқылы құжат/сурет жүктеңіз немесе Жазбалар ішінде маңызды жазбаны Екінші миға бекітіңіз.</p></article>`;
     return;
   }
   docs.forEach(doc => {
@@ -2248,11 +2248,11 @@ function renderBrain() {
           ${doc.brainKind === "image" && doc.src ? `<img class="brain-image" src="${escapeHtml(doc.src)}" alt="${escapeHtml(doc.name)}">` : ""}
           <p>${escapeHtml(doc.warning || doc.text || "Мәтін табылмады.")}</p>
         </div>
-        <span class="brain-type">${escapeHtml(doc.brainKind === "note" ? `note / ${doc.folder || "General"}` : doc.brainKind === "image" ? `image / ${doc.folder || "Images"}` : doc.type || "file")}</span>
+        <span class="brain-type">${escapeHtml(doc.brainKind === "note" ? `жазба / ${doc.folder || "Жалпы"}` : doc.brainKind === "image" ? `сурет / ${doc.folder || "Суреттер"}` : doc.type || "файл")}</span>
       </div>
-      <div class="tag-row">${(doc.tags || []).map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join("") || `<span class="tag muted-tag">no tags</span>`}</div>
-      ${doc.brainKind === "note" ? `<div class="related"><strong>Notes папкасы:</strong><span>${escapeHtml(doc.folder || "General")}</span></div>` : ""}
-      ${doc.brainKind === "image" ? `<div class="related"><strong>Сурет папкасы:</strong><span>${escapeHtml(doc.folder || "Images")}</span></div>` : ""}
+      <div class="tag-row">${(doc.tags || []).map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join("") || `<span class="tag muted-tag">тег жоқ</span>`}</div>
+      ${doc.brainKind === "note" ? `<div class="related"><strong>Жазба папкасы:</strong><span>${escapeHtml(doc.folder || "Жалпы")}</span></div>` : ""}
+      ${doc.brainKind === "image" ? `<div class="related"><strong>Сурет папкасы:</strong><span>${escapeHtml(doc.folder || "Суреттер")}</span></div>` : ""}
       ${doc.brainKind === "doc" ? `<div class="brain-fields">
         <label>
           <span>Тегтер</span>
@@ -2268,7 +2268,7 @@ function renderBrain() {
         ${related.length ? related.map(item => `<span>${escapeHtml(item.name)}</span>`).join("") : "<span>табылмады</span>"}
       </div>
       ${doc.brainKind === "doc" ? `<button type="button" data-save-brain="${escapeHtml(doc.id)}">Сақтау</button>` : ""}
-      ${doc.brainKind === "note" ? `<button type="button" data-note-unbrain="${escapeHtml(doc.noteId)}">Brain-нан алу</button>` : ""}
+      ${doc.brainKind === "note" ? `<button type="button" data-note-unbrain="${escapeHtml(doc.noteId)}">Екінші мидан алу</button>` : ""}
       ${doc.brainKind === "image" ? `<button type="button" data-image-delete="${escapeHtml(doc.id)}">Суретті өшіру</button>` : ""}
     `;
     list.appendChild(card);

@@ -76,6 +76,24 @@
           </label>
         </div>
         <p class="match-note">Кодты немесе баған атын жазудың керегі жоқ. Жүйе код бағанын өзі табады, қорап/коробка ішіндегі формулаларды оқиды және сол күйі сақтайды. Тек баға қойылады.</p>
+        <div class="match-grid">
+          <label>
+            <span>Баған толтыру режимі</span>
+            <select id="priceUpdateMode">
+              <option value="fill-empty">Тек бос бағанды толтыру</option>
+              <option value="replace-all">Бағанды толық ауыстыру</option>
+            </select>
+          </label>
+          <label>
+            <span>Бір код бірнеше рет кездессе</span>
+            <select id="duplicateMode">
+              <option value="first">Біріншісін алу</option>
+              <option value="last">Соңғысын алу</option>
+              <option value="min">Ең арзанын алу</option>
+              <option value="max">Ең қымбатын алу</option>
+            </select>
+          </label>
+        </div>
         <button id="matchBtn">Автоматты салыстырып, дайын Excel жүктеу</button>
         <pre id="matchOut"></pre>
       </div>
@@ -126,6 +144,6 @@
     </section>
   </main>
 
-  <script src="public/app.js?v=20260629-4"></script>
+  <script src="public/app.js?v=20260629-5"></script>
 </body>
 </html>

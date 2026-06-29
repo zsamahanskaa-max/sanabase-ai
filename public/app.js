@@ -1163,8 +1163,25 @@ function normalizeNote(note) {
     folder: note.folder || "General",
     type: ["short", "long", "idea", "meeting"].includes(note.type) ? note.type : autoNoteType(body),
     tags: Array.isArray(note.tags) ? note.tags : splitList(note.tags || ""),
+    brain: Boolean(note.brain),
     createdAt: note.createdAt || new Date().toISOString(),
     updatedAt: note.updatedAt || note.createdAt || new Date().toISOString()
+  };
+}
+
+function noteToBrainItem(note) {
+  return {
+    id: `note:${note.id}`,
+    noteId: note.id,
+    name: note.title,
+    type: note.type || "note",
+    brainKind: "note",
+    folder: note.folder || "General",
+    text: note.body || "",
+    warning: "",
+    tags: [...new Set([note.folder || "General", note.type || "note", ...(note.tags || [])])],
+    links: [],
+    createdAt: note.createdAt
   };
 }
 
@@ -1289,7 +1306,10 @@ function renderNotes() {
           <h3>${escapeHtml(note.title)}</h3>
           <span>${escapeHtml(note.folder || "General")} · ${escapeHtml(noteTypeLabel(note.type))}</span>
         </div>
-        <button type="button" data-note-delete="${escapeHtml(note.id)}">Өшіру</button>
+        <div class="note-actions">
+          <button type="button" data-note-brain="${escapeHtml(note.id)}">${note.brain ? "Brain-да" : "Brain-ға"}</button>
+          <button type="button" data-note-delete="${escapeHtml(note.id)}">Өшіру</button>
+        </div>
       </div>
       <p>${escapeHtml(note.body)}</p>
       <div class="tag-row">${(note.tags || []).map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join("") || `<span class="tag muted-tag">no tags</span>`}</div>
@@ -1298,6 +1318,9 @@ function renderNotes() {
   });
   list.querySelectorAll("[data-note-delete]").forEach(button => {
     button.addEventListener("click", () => deleteNote(button.dataset.noteDelete));
+  });
+  list.querySelectorAll("[data-note-brain]").forEach(button => {
+    button.addEventListener("click", () => toggleNoteBrain(button.dataset.noteBrain));
   });
 }
 
@@ -1322,6 +1345,15 @@ function renderNoteFolders(folders, activeFolder) {
 
 function deleteNote(id) {
   state.notes = state.notes.filter(note => note.id !== id);
+  persist();
+  render();
+}
+
+function toggleNoteBrain(id) {
+  const note = state.notes.find(item => item.id === id);
+  if (!note) return;
+  note.brain = !note.brain;
+  note.updatedAt = new Date().toISOString();
   persist();
   render();
 }
@@ -1393,26 +1425,30 @@ function renderBrain() {
   const list = $("brainList");
   if (!list) return;
   const query = $("brainSearch").value?.toLowerCase() || "";
-  const docs = state.docs.filter(doc => `${doc.name} ${(doc.tags || []).join(" ")} ${(doc.links || []).join(" ")} ${doc.text}`.toLowerCase().includes(query));
+  const docs = state.docs
+    .map(doc => ({ ...doc, brainKind: "doc" }))
+    .concat(state.notes.filter(note => note.brain).map(noteToBrainItem))
+    .filter(doc => `${doc.name} ${(doc.tags || []).join(" ")} ${(doc.links || []).join(" ")} ${doc.text} ${doc.folder || ""}`.toLowerCase().includes(query));
   list.innerHTML = "";
   if (!docs.length) {
-    list.innerHTML = `<article class="brain-card"><h3>Құжат жоқ</h3><p>Upload арқылы PDF, Word, Excel немесе CSV жүктеңіз. Сосын бұл жерде тег, байланыс және CRM жасау ашылады.</p></article>`;
+    list.innerHTML = `<article class="brain-card"><h3>Brain бос</h3><p>Upload арқылы құжат жүктеңіз немесе Notes ішінде маңызды жазбаны Brain-ға батырмасымен бекітіңіз.</p></article>`;
     return;
   }
   docs.forEach(doc => {
     const related = findRelatedDocs(doc).slice(0, 5);
     const card = document.createElement("article");
-    card.className = "brain-card";
+    card.className = `brain-card brain-${escapeHtml(doc.brainKind || "doc")}`;
     card.innerHTML = `
       <div class="brain-head">
         <div>
           <h3>${escapeHtml(doc.name)}</h3>
           <p>${escapeHtml(doc.warning || doc.text || "Мәтін табылмады.")}</p>
         </div>
-        <span class="brain-type">${escapeHtml(doc.type || "file")}</span>
+        <span class="brain-type">${escapeHtml(doc.brainKind === "note" ? `note / ${doc.folder || "General"}` : doc.type || "file")}</span>
       </div>
       <div class="tag-row">${(doc.tags || []).map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join("") || `<span class="tag muted-tag">no tags</span>`}</div>
-      <div class="brain-fields">
+      ${doc.brainKind === "note" ? `<div class="related"><strong>Notes папкасы:</strong><span>${escapeHtml(doc.folder || "General")}</span></div>` : ""}
+      ${doc.brainKind === "doc" ? `<div class="brain-fields">
         <label>
           <span>Тегтер</span>
           <input data-tags-for="${escapeHtml(doc.id)}" value="${escapeHtml((doc.tags || []).join(", "))}" placeholder="price, crm, клиент">
@@ -1421,17 +1457,20 @@ function renderBrain() {
           <span>Байланысқан құжаттар</span>
           <input data-links-for="${escapeHtml(doc.id)}" value="${escapeHtml((doc.links || []).join(", "))}" placeholder="құжат аты немесе ID">
         </label>
-      </div>
+      </div>` : ""}
       <div class="related">
         <strong>Авто байланыс:</strong>
         ${related.length ? related.map(item => `<span>${escapeHtml(item.name)}</span>`).join("") : "<span>табылмады</span>"}
       </div>
-      <button type="button" data-save-brain="${escapeHtml(doc.id)}">Сақтау</button>
+      ${doc.brainKind === "doc" ? `<button type="button" data-save-brain="${escapeHtml(doc.id)}">Сақтау</button>` : `<button type="button" data-note-unbrain="${escapeHtml(doc.noteId)}">Brain-нан алу</button>`}
     `;
     list.appendChild(card);
   });
   list.querySelectorAll("[data-save-brain]").forEach(button => {
     button.addEventListener("click", () => saveBrainMeta(button.dataset.saveBrain));
+  });
+  list.querySelectorAll("[data-note-unbrain]").forEach(button => {
+    button.addEventListener("click", () => toggleNoteBrain(button.dataset.noteUnbrain));
   });
 }
 

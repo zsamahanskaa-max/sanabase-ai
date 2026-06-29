@@ -35,6 +35,9 @@ on("taskForm", "submit", saveTask);
 on("taskSearch", "input", render);
 on("taskQuickCrmBtn", "click", taskFromCrm);
 on("noteForm", "submit", saveNote);
+on("noteSearch", "input", render);
+on("noteFolderFilter", "change", render);
+on("noteQuickFolderBtn", "click", useSelectedNoteFolder);
 on("searchDocs", "input", render);
 on("brainSearch", "input", render);
 on("brainCrmBtn", "click", brainCrm);
@@ -541,11 +544,25 @@ function saveNote(event) {
   const title = $("noteTitle").value.trim() || "Untitled note";
   const body = $("noteBody").value.trim();
   if (!body) return;
-  state.notes.unshift({ id: crypto.randomUUID(), title, body, createdAt: new Date().toISOString() });
-  $("noteTitle").value = "";
-  $("noteBody").value = "";
+  state.notes.unshift(normalizeNote({
+    id: crypto.randomUUID(),
+    title,
+    body,
+    folder: $("noteFolder")?.value.trim() || "General",
+    type: $("noteType")?.value || autoNoteType(body),
+    tags: splitList($("noteTags")?.value || ""),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  }));
+  ["noteTitle", "noteBody", "noteTags"].forEach(id => { if ($(id)) $(id).value = ""; });
+  if ($("noteType")) $("noteType").value = "short";
   persist();
   render();
+}
+
+function useSelectedNoteFolder() {
+  const selected = $("noteFolderFilter")?.value || "all";
+  if (selected !== "all" && $("noteFolder")) $("noteFolder").value = selected;
 }
 
 function saveTask(event) {
@@ -671,12 +688,7 @@ async function importBrain(event) {
     incomingNotes.forEach(note => {
       const key = note.id || `${note.title}:${note.createdAt}`;
       if (!existingNoteKeys.has(key)) {
-        state.notes.unshift({
-          id: note.id || crypto.randomUUID(),
-          title: note.title || "Imported note",
-          body: note.body || "",
-          createdAt: note.createdAt || new Date().toISOString()
-        });
+        state.notes.unshift(normalizeNote(note));
         existingNoteKeys.add(key);
       }
     });
@@ -774,7 +786,7 @@ async function pullCloud(showStatus = false) {
     const payload = rows[0].payload || {};
     state.docs = Array.isArray(payload.docs) ? payload.docs.map(normalizeDoc) : [];
     state.tasks = Array.isArray(payload.tasks) ? payload.tasks.map(normalizeTask) : [];
-    state.notes = Array.isArray(payload.notes) ? payload.notes : [];
+    state.notes = Array.isArray(payload.notes) ? payload.notes.map(normalizeNote) : [];
     persist({ sync: false });
     render();
     setCloudStatus(`Cloud-тан алынды: ${rows[0].updated_at || "ready"}`, true);
@@ -1100,6 +1112,37 @@ function normalizeTask(task) {
   };
 }
 
+function normalizeNote(note) {
+  const body = note.body || "";
+  return {
+    id: note.id || crypto.randomUUID(),
+    title: note.title || "Untitled note",
+    body,
+    folder: note.folder || "General",
+    type: ["short", "long", "idea", "meeting"].includes(note.type) ? note.type : autoNoteType(body),
+    tags: Array.isArray(note.tags) ? note.tags : splitList(note.tags || ""),
+    createdAt: note.createdAt || new Date().toISOString(),
+    updatedAt: note.updatedAt || note.createdAt || new Date().toISOString()
+  };
+}
+
+function autoNoteType(body) {
+  return String(body || "").length > 700 ? "long" : "short";
+}
+
+function noteTypeLabel(type) {
+  return {
+    short: "Қысқа",
+    long: "Ұзақ",
+    idea: "Идея",
+    meeting: "Кездесу"
+  }[type] || "Қысқа";
+}
+
+function noteFolders() {
+  return [...new Set(state.notes.map(note => note.folder || "General"))].sort((a, b) => a.localeCompare(b));
+}
+
 function findRelatedDocs(doc) {
   const tags = new Set(doc.tags || []);
   const manual = new Set((doc.links || []).map(item => item.toLowerCase()));
@@ -1121,7 +1164,7 @@ function buildContext() {
     .map(doc => `Document: ${doc.name}\nTags: ${(doc.tags || []).join(", ")}\nLinks: ${(doc.links || []).join(", ")}\n${doc.text.slice(0, 12000)}`);
   const notes = state.notes
     .slice(0, 10)
-    .map(note => `Note: ${note.title}\n${note.body}`);
+    .map(note => `Note: ${note.title}\nFolder: ${note.folder || "General"}\nType: ${note.type || "short"}\nTags: ${(note.tags || []).join(", ")}\n${note.body}`);
   const tasks = state.tasks
     .slice(0, 30)
     .map(task => `Task: ${task.title}\nStatus: ${task.status}\nPriority: ${task.priority}\nDue: ${task.due || "-"}\nOwner: ${task.owner || "-"}\n${task.body}`);
@@ -1150,6 +1193,7 @@ function addMessage(kind, text) {
 
 function render() {
   if ($("docCount")) $("docCount").textContent = `${state.docs.length} docs`;
+  state.notes = state.notes.map(normalizeNote);
   if ($("noteCount")) $("noteCount").textContent = `${state.notes.length} notes`;
   if ($("taskCount")) $("taskCount").textContent = `${state.tasks.length} tasks`;
   state.docs = state.docs.map(normalizeDoc);
@@ -1165,18 +1209,79 @@ function render() {
       card.innerHTML = `<h3>${escapeHtml(doc.name)}</h3><p>${escapeHtml(doc.warning || doc.text || "Selectable text табылмады.")}</p>`;
       $("docsGrid").appendChild(card);
     });
-  if ($("notesList")) {
-    $("notesList").innerHTML = "";
-    state.notes.forEach(note => {
-      const card = document.createElement("article");
-      card.className = "note";
-      card.innerHTML = `<h3>${escapeHtml(note.title)}</h3><p>${escapeHtml(note.body)}</p>`;
-      $("notesList").appendChild(card);
-    });
-  }
+  renderNotes();
   renderTasks();
   renderBrain();
   renderCloudSettings();
+}
+
+function renderNotes() {
+  const list = $("notesList");
+  if (!list) return;
+  const folderFilter = $("noteFolderFilter");
+  const folders = noteFolders();
+  const current = folderFilter?.value || "all";
+  if (folderFilter) {
+    folderFilter.innerHTML = `<option value="all">Барлық папка</option>` + folders.map(folder => `<option value="${escapeHtml(folder)}">${escapeHtml(folder)}</option>`).join("");
+    folderFilter.value = folders.includes(current) ? current : "all";
+  }
+  const activeFolder = folderFilter?.value || "all";
+  const query = $("noteSearch")?.value?.toLowerCase() || "";
+  const filtered = state.notes.filter(note => {
+    const inFolder = activeFolder === "all" || note.folder === activeFolder;
+    const text = `${note.title} ${note.body} ${note.folder} ${note.type} ${(note.tags || []).join(" ")}`.toLowerCase();
+    return inFolder && text.includes(query);
+  });
+  renderNoteFolders(folders, activeFolder);
+  list.innerHTML = "";
+  if (!filtered.length) {
+    list.innerHTML = `<article class="note empty-note"><h3>Жазба жоқ</h3><p>Папка таңдап, қысқа немесе ұзақ ақпарат сақтаңыз.</p></article>`;
+    return;
+  }
+  filtered.forEach(note => {
+    const card = document.createElement("article");
+    card.className = `note note-${escapeHtml(note.type)}`;
+    card.innerHTML = `
+      <div class="note-head">
+        <div>
+          <h3>${escapeHtml(note.title)}</h3>
+          <span>${escapeHtml(note.folder || "General")} · ${escapeHtml(noteTypeLabel(note.type))}</span>
+        </div>
+        <button type="button" data-note-delete="${escapeHtml(note.id)}">Өшіру</button>
+      </div>
+      <p>${escapeHtml(note.body)}</p>
+      <div class="tag-row">${(note.tags || []).map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join("") || `<span class="tag muted-tag">no tags</span>`}</div>
+    `;
+    list.appendChild(card);
+  });
+  list.querySelectorAll("[data-note-delete]").forEach(button => {
+    button.addEventListener("click", () => deleteNote(button.dataset.noteDelete));
+  });
+}
+
+function renderNoteFolders(folders, activeFolder) {
+  const row = $("noteFolders");
+  if (!row) return;
+  const allCount = state.notes.length;
+  row.innerHTML = [`<button type="button" data-note-folder="all" class="${activeFolder === "all" ? "active" : ""}">Барлығы <span>${allCount}</span></button>`]
+    .concat(folders.map(folder => {
+      const count = state.notes.filter(note => note.folder === folder).length;
+      return `<button type="button" data-note-folder="${escapeHtml(folder)}" class="${activeFolder === folder ? "active" : ""}">${escapeHtml(folder)} <span>${count}</span></button>`;
+    }))
+    .join("");
+  row.querySelectorAll("[data-note-folder]").forEach(button => {
+    button.addEventListener("click", () => {
+      if ($("noteFolderFilter")) $("noteFolderFilter").value = button.dataset.noteFolder;
+      if (button.dataset.noteFolder !== "all" && $("noteFolder")) $("noteFolder").value = button.dataset.noteFolder;
+      render();
+    });
+  });
+}
+
+function deleteNote(id) {
+  state.notes = state.notes.filter(note => note.id !== id);
+  persist();
+  render();
 }
 
 function renderTasks() {
@@ -1303,7 +1408,7 @@ function loadState() {
     return {
       docs: Array.isArray(saved.docs) ? saved.docs.map(normalizeDoc) : [],
       tasks: Array.isArray(saved.tasks) ? saved.tasks.map(normalizeTask) : [],
-      notes: Array.isArray(saved.notes) ? saved.notes : []
+      notes: Array.isArray(saved.notes) ? saved.notes.map(normalizeNote) : []
     };
   } catch {
     return { docs: [], tasks: [], notes: [] };

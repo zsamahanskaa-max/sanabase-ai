@@ -1,4 +1,6 @@
 const state = loadState();
+const cloudConfig = loadCloudConfig();
+let cloudTimer = null;
 const titles = {
   chat: ["AI Chat", "Құжаттарыңызға сүйеніп жауап береді."],
   library: ["Knowledge Base", "PDF, Word, Excel және мәтін материалдары."],
@@ -28,6 +30,10 @@ $("brainSearch").addEventListener("input", render);
 $("brainCrmBtn").addEventListener("click", brainCrm);
 $("brainExportBtn").addEventListener("click", exportBrain);
 $("brainImportFile").addEventListener("change", importBrain);
+$("cloudSaveBtn").addEventListener("click", saveCloudSettings);
+$("cloudPushBtn").addEventListener("click", () => pushCloud(true));
+$("cloudPullBtn").addEventListener("click", () => pullCloud(true));
+$("cloudClearBtn").addEventListener("click", clearCloudSettings);
 $("clearDocs").addEventListener("click", () => {
   state.docs = [];
   persist();
@@ -35,6 +41,7 @@ $("clearDocs").addEventListener("click", () => {
 });
 
 render();
+renderCloudSettings();
 addMessage("ai", "Сәлем! Price Match бөлімі 1-құжаттың формуласы бар қорап/саны бағандарын сақтап, бағаны almat company price арқылы қояды.");
 
 function setView(view) {
@@ -569,6 +576,146 @@ function saveBrainMeta(id) {
   $("brainOut").textContent = `${doc.name} сақталды.`;
 }
 
+function saveCloudSettings() {
+  cloudConfig.url = cleanSupabaseUrl($("cloudUrl").value);
+  cloudConfig.key = $("cloudKey").value.trim();
+  cloudConfig.workspace = $("cloudWorkspace").value.trim() || "default";
+  if (!cloudConfig.url || !cloudConfig.key) {
+    setCloudStatus("Supabase URL және anon key енгізіңіз.", false);
+    return;
+  }
+  localStorage.setItem("sanabase-cloud", JSON.stringify(cloudConfig));
+  renderCloudSettings();
+  setCloudStatus("Cloud қосылды. Қазір Cloud-қа сақтау батырмасын басуға болады.", true);
+}
+
+function clearCloudSettings() {
+  cloudConfig.url = "";
+  cloudConfig.key = "";
+  cloudConfig.workspace = "";
+  localStorage.removeItem("sanabase-cloud");
+  renderCloudSettings();
+  setCloudStatus("Cloud өшірілді. Құжаттар local режимде қалды.", false);
+}
+
+async function pushCloud(showStatus = false) {
+  if (!cloudReady()) {
+    if (showStatus) setCloudStatus("Cloud қосылмаған. URL, anon key және workspace енгізіңіз.", false);
+    return;
+  }
+  try {
+    if (showStatus) setCloudStatus("Cloud-қа сақталып жатыр...", true);
+    const payload = {
+      id: cloudRowId(),
+      workspace_id: cloudConfig.workspace,
+      payload: {
+        docs: state.docs,
+        notes: state.notes,
+        savedAt: new Date().toISOString(),
+        version: 1
+      },
+      updated_at: new Date().toISOString()
+    };
+    const response = await fetch(`${cloudConfig.url}/rest/v1/sanabase_brain?on_conflict=id`, {
+      method: "POST",
+      headers: cloudHeaders({ Prefer: "resolution=merge-duplicates,return=minimal" }),
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) throw new Error(await response.text());
+    setCloudStatus(`Cloud сақталды: ${new Date().toLocaleString()}`, true);
+  } catch (error) {
+    setCloudStatus(`Cloud сақтау қатесі: ${shortError(error)}`, false);
+  }
+}
+
+async function pullCloud(showStatus = false) {
+  if (!cloudReady()) {
+    if (showStatus) setCloudStatus("Cloud қосылмаған. URL, anon key және workspace енгізіңіз.", false);
+    return;
+  }
+  try {
+    if (showStatus) setCloudStatus("Cloud-тан оқылып жатыр...", true);
+    const response = await fetch(`${cloudConfig.url}/rest/v1/sanabase_brain?id=eq.${encodeURIComponent(cloudRowId())}&select=payload,updated_at`, {
+      headers: cloudHeaders()
+    });
+    if (!response.ok) throw new Error(await response.text());
+    const rows = await response.json();
+    if (!rows.length) {
+      setCloudStatus("Cloud-та бұл workspace үшін база әлі жоқ. Алдымен Cloud-қа сақтау басыңыз.", false);
+      return;
+    }
+    const payload = rows[0].payload || {};
+    state.docs = Array.isArray(payload.docs) ? payload.docs.map(normalizeDoc) : [];
+    state.notes = Array.isArray(payload.notes) ? payload.notes : [];
+    persist({ sync: false });
+    render();
+    setCloudStatus(`Cloud-тан алынды: ${rows[0].updated_at || "ready"}`, true);
+  } catch (error) {
+    setCloudStatus(`Cloud оқу қатесі: ${shortError(error)}`, false);
+  }
+}
+
+function scheduleCloudPush() {
+  if (!cloudReady()) return;
+  clearTimeout(cloudTimer);
+  cloudTimer = setTimeout(() => pushCloud(false), 1200);
+}
+
+function renderCloudSettings() {
+  if (!$("cloudUrl")) return;
+  $("cloudUrl").value = cloudConfig.url || "";
+  $("cloudKey").value = cloudConfig.key || "";
+  $("cloudWorkspace").value = cloudConfig.workspace || "";
+  $("cloudBadge").textContent = cloudReady() ? "Cloud" : "Local";
+  setCloudStatus(cloudReady() ? `Cloud дайын: ${cloudConfig.workspace}` : "Cloud қосылмаған. Local backup әлі жұмыс істейді.", cloudReady());
+}
+
+function loadCloudConfig() {
+  try {
+    const saved = JSON.parse(localStorage.getItem("sanabase-cloud")) || {};
+    return {
+      url: cleanSupabaseUrl(saved.url || ""),
+      key: saved.key || "",
+      workspace: saved.workspace || ""
+    };
+  } catch {
+    return { url: "", key: "", workspace: "" };
+  }
+}
+
+function cloudReady() {
+  return Boolean(cloudConfig.url && cloudConfig.key && cloudConfig.workspace);
+}
+
+function cleanSupabaseUrl(value) {
+  return String(value || "").trim().replace(/\/+$/, "");
+}
+
+function cloudRowId() {
+  return `brain:${cloudConfig.workspace}`;
+}
+
+function cloudHeaders(extra = {}) {
+  return {
+    apikey: cloudConfig.key,
+    Authorization: `Bearer ${cloudConfig.key}`,
+    "Content-Type": "application/json",
+    ...extra
+  };
+}
+
+function setCloudStatus(message, good) {
+  const node = $("cloudStatus");
+  if (!node) return;
+  node.textContent = message;
+  node.classList.toggle("ok", Boolean(good));
+  node.classList.toggle("bad", !good);
+}
+
+function shortError(error) {
+  return String(error?.message || error).slice(0, 280);
+}
+
 async function ai(mode, prompt, language = "Kazakh") {
   try {
     return await api("api/ai", {
@@ -807,6 +954,7 @@ function render() {
     $("notesList").appendChild(card);
   });
   renderBrain();
+  renderCloudSettings();
 }
 
 function renderBrain() {
@@ -876,8 +1024,9 @@ function loadState() {
   }
 }
 
-function persist() {
+function persist(options = {}) {
   localStorage.setItem("sanabase-state", JSON.stringify(state));
+  if (options.sync !== false) scheduleCloudPush();
 }
 
 function escapeHtml(value) {

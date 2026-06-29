@@ -133,6 +133,31 @@ p { margin: 6px 0 0; }
 .message.user { align-self: flex-end; background: #f2eadb; }
 .message.ai { border-left: 4px solid var(--leaf); }
 
+.assistant-panel {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.assistant-controls {
+  display: grid;
+  grid-template-columns: minmax(180px, 260px) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.quick-prompts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.quick-prompts button,
+.assistant-controls button {
+  background: white;
+  color: var(--sage);
+}
+
 .composer {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -565,7 +590,7 @@ pre {
     max-width: 100%;
     padding: 12px 13px;
   }
-  .composer, .toolbar, .split, .notes-layout, .tasks-layout, .match-grid, .brain-fields, .brain-head, .cloud-grid, .task-form-grid {
+  .composer, .toolbar, .split, .notes-layout, .tasks-layout, .match-grid, .brain-fields, .brain-head, .cloud-grid, .task-form-grid, .assistant-controls {
     grid-template-columns: 1fr;
   }
   .toolbar {
@@ -587,6 +612,10 @@ pre {
   .task-actions {
     grid-template-columns: 1fr;
   }
+  .quick-prompts {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
   .cloud-actions {
     display: grid;
     grid-template-columns: 1fr;
@@ -603,5 +632,8 @@ pre {
   }
   .conversation {
     height: calc(100dvh - 330px);
+  }
+  .quick-prompts {
+    grid-template-columns: 1fr;
   }
 }

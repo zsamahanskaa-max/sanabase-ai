@@ -31,6 +31,7 @@ document.querySelectorAll(".nav-item").forEach(button => {
 });
 
 on("fileInput", "change", importFiles);
+on("notifyEnableBtn", "click", enableNotifications);
 on("chatForm", "submit", chat);
 on("assistantTaskBtn", "click", taskFromLastAssistantAnswer);
 on("translateBtn", "click", translate);
@@ -80,6 +81,7 @@ document.querySelectorAll("[data-cal-export]").forEach(button => {
 
 render();
 renderCloudSettings();
+startReminderEngine();
 addMessage("ai", "Сәлем! Прайс салыстыру бөлімі 1-құжаттың формуласы бар қорап/саны бағандарын сақтап, бағаны almat company price арқылы қояды.");
 
 function setView(view) {
@@ -642,6 +644,125 @@ function taskFromCrm() {
   persist();
   render();
   setView("tasks");
+}
+
+async function enableNotifications() {
+  localStorage.setItem("sanabase-reminders-enabled", "1");
+  if (!("Notification" in window)) {
+    setNotifyStatus("Бұл браузер notification қолдамайды. Сайт ашық тұрғанда ішкі ескерту ғана көрсетіледі.");
+    checkReminders(true);
+    return;
+  }
+  if (Notification.permission === "default") await Notification.requestPermission();
+  if (Notification.permission === "granted") {
+    setNotifyStatus("Еске салғыш қосылды. Маңызды істер мен даталар сайт ашық тұрғанда хабарланады.");
+    checkReminders(true);
+  } else {
+    setNotifyStatus("Notification рұқсаты берілмеді. Браузер баптауынан рұқсат берсеңіз, еске салғыш жұмыс істейді.");
+  }
+}
+
+function startReminderEngine() {
+  updateNotifyUi();
+  checkReminders(false);
+  setInterval(() => checkReminders(false), 5 * 60 * 1000);
+}
+
+function updateNotifyUi() {
+  const enabled = remindersEnabled();
+  const permission = "Notification" in window ? Notification.permission : "unsupported";
+  if ($("notifyEnableBtn")) $("notifyEnableBtn").textContent = enabled && permission === "granted" ? "Еске салғыш қосулы" : "Еске салғышты қосу";
+  if (enabled && permission === "granted") setNotifyStatus("Еске салғыш қосулы. Бүгінгі маңызды істер автоматты тексеріледі.");
+}
+
+function remindersEnabled() {
+  return localStorage.getItem("sanabase-reminders-enabled") === "1";
+}
+
+function checkReminders(force = false) {
+  if (!remindersEnabled() && !force) return;
+  const items = reminderCandidates();
+  const due = items.filter(item => item.urgency !== "later").slice(0, 8);
+  if (!due.length) {
+    if (force) setNotifyStatus("Қазір еске салатын кешіккен немесе бүгінгі маңызды іс жоқ.");
+    return;
+  }
+  setNotifyStatus(`Еске салғыш: ${due.length} маңызды іс/дата бар.`);
+  due.forEach(item => sendReminder(item, force));
+}
+
+function reminderCandidates() {
+  const cal = calendarData();
+  const today = isoDate();
+  const tomorrow = addDays(today, 1);
+  const items = [];
+  state.tasks.forEach(task => {
+    if (task.status === "done" || !task.due) return;
+    items.push(reminderItem(`task:${task.id}`, task.title, task.due, task.priority, "Тапсырма", task.body));
+  });
+  activeCalItems(cal.calendar_events).forEach(event => {
+    if (["done", "closed", "paid", "sent"].includes(event.status)) return;
+    items.push(reminderItem(`event:${event.id}`, event.title, event.startDate, event.priority, event.category || "Күнтізбе", event.description));
+  });
+  activeCalItems(cal.tasks).forEach(task => {
+    if (["done", "closed"].includes(task.status)) return;
+    items.push(reminderItem(`cal-task:${task.id}`, task.title, task.dueDate, task.priority, task.category || "Тапсырма", task.comment || task.description));
+  });
+  activeCalItems(cal.orders).forEach(order => {
+    if (order.expectedDeliveryDate && !order.receivedDate) {
+      items.push(reminderItem(`order:${order.id}`, `Жеткізілім: ${order.title}`, order.expectedDeliveryDate, order.status === "overdue_delivery" ? "high" : order.priority, "Заказ", order.comment));
+    }
+  });
+  activeCalItems(cal.documents).forEach(doc => {
+    if (doc.esfDeadline && doc.esfStatus !== "sent") {
+      items.push(reminderItem(`esf:${doc.id}`, `ESF мерзімі: ${doc.documentNumber}`, doc.esfDeadline, "high", "ESF", doc.comment));
+    }
+  });
+  activeCalItems(cal.payments).forEach(payment => {
+    if (payment.status !== "paid" && payment.dueDate) {
+      items.push(reminderItem(`payment:${payment.id}`, `Төлем: ${payment.title}`, payment.dueDate, "high", "Қаржы", payment.comment));
+    }
+  });
+  return items
+    .map(item => ({
+      ...item,
+      urgency: item.date < today ? "overdue" : item.date === today ? "today" : item.date === tomorrow ? "tomorrow" : "later"
+    }))
+    .filter(item => item.date && item.date <= tomorrow)
+    .sort((a, b) => urgencyRank(a.urgency) - urgencyRank(b.urgency) || a.date.localeCompare(b.date));
+}
+
+function reminderItem(id, title, date, priority, category, body = "") {
+  return {
+    id,
+    title: title || "Еске салғыш",
+    date,
+    priority: priority || "medium",
+    category,
+    body: body || ""
+  };
+}
+
+function urgencyRank(value) {
+  return { overdue: 0, today: 1, tomorrow: 2, later: 3 }[value] ?? 3;
+}
+
+function sendReminder(item, force) {
+  const dayKey = `sanabase-reminder-sent-${isoDate()}`;
+  const sent = JSON.parse(localStorage.getItem(dayKey) || "[]");
+  const key = `${item.id}:${item.urgency}`;
+  if (!force && sent.includes(key)) return;
+  const title = item.urgency === "overdue" ? `Кешіккен: ${item.title}` : item.urgency === "today" ? `Бүгін: ${item.title}` : `Ертең: ${item.title}`;
+  const body = `${item.category} · ${item.date} · ${priorityLabel(item.priority)}${item.body ? `\n${item.body.slice(0, 120)}` : ""}`;
+  if ("Notification" in window && Notification.permission === "granted") {
+    new Notification(title, { body, tag: key, renotify: false });
+  }
+  sent.push(key);
+  localStorage.setItem(dayKey, JSON.stringify([...new Set(sent)].slice(-100)));
+}
+
+function setNotifyStatus(message) {
+  if ($("notifyStatus")) $("notifyStatus").textContent = message;
 }
 
 function calendarData() {

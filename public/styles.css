@@ -93,6 +93,27 @@ button, .upload, input, textarea, select { min-height: 44px; }
   gap: 16px;
 }
 
+.top-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+#notifyEnableBtn {
+  background: white;
+  color: var(--sage);
+}
+
+.notify-strip {
+  border-bottom: 1px solid var(--line);
+  background: #fff8e8;
+  color: #765b1f;
+  padding: 9px 28px;
+  font-size: 13px;
+}
+
 h1 { margin: 0; font-size: 24px; letter-spacing: 0; }
 p { margin: 6px 0 0; }
 
@@ -924,6 +945,10 @@ pre {
     display: grid;
     grid-template-columns: 1fr;
   }
+  .top-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
   h1 { font-size: 21px; }
   #viewSub { line-height: 1.35; }
   .upload, button {
@@ -991,6 +1016,7 @@ pre {
 @media (max-width: 480px) {
   .sidebar { padding-left: 10px; padding-right: 10px; }
   .topbar, .view { padding-left: 12px; padding-right: 12px; }
+  .notify-strip { padding-left: 12px; padding-right: 12px; }
   .nav-item { min-width: 82px; font-size: 12px; }
   textarea, input, select { font-size: 16px; }
   .doc, .tool-card, .note-form, .note, .brain-card, .task-form, .kanban-column, .cal-form, .cal-column, .cal-history {

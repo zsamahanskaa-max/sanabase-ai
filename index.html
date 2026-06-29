@@ -28,10 +28,12 @@
       <button class="nav-item" data-view="translate">Translate</button>
       <button class="nav-item" data-view="quiz">Quiz</button>
       <button class="nav-item" data-view="crm">CRM</button>
+      <button class="nav-item" data-view="tasks">Tasks</button>
       <button class="nav-item" data-view="notes">Notes</button>
     </nav>
     <div class="status">
       <span id="docCount">0 docs</span>
+      <span id="taskCount">0 tasks</span>
       <span id="noteCount">0 notes</span>
     </div>
   </aside>
@@ -199,6 +201,41 @@ with check (true);</textarea>
       </div>
     </section>
 
+    <section class="view" id="tasks">
+      <div class="tasks-layout">
+        <form id="taskForm" class="task-form">
+          <input id="taskTitle" placeholder="Тапсырма атауы">
+          <textarea id="taskBody" placeholder="Не істеу керек?"></textarea>
+          <div class="task-form-grid">
+            <select id="taskStatus">
+              <option value="todo">Істеу</option>
+              <option value="doing">Жүріп жатыр</option>
+              <option value="done">Дайын</option>
+            </select>
+            <select id="taskPriority">
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+              <option value="low">Low</option>
+            </select>
+          </div>
+          <div class="task-form-grid">
+            <input id="taskDue" type="date">
+            <input id="taskOwner" placeholder="Жауапты адам">
+          </div>
+          <input id="taskLink" placeholder="Құжат/клиент/CRM байланысы">
+          <button type="submit">Тапсырма қосу</button>
+          <button id="taskQuickCrmBtn" type="button">CRM follow-up қосу</button>
+        </form>
+        <div class="tasks-main">
+          <div class="toolbar">
+            <input id="taskSearch" type="search" placeholder="Тапсырмадан іздеу">
+            <button type="button" id="taskRefreshBtn" onclick="render()">Refresh</button>
+          </div>
+          <div class="kanban-board" id="taskBoard"></div>
+        </div>
+      </div>
+    </section>
+
     <section class="view" id="notes">
       <div class="notes-layout">
         <form id="noteForm" class="note-form">
@@ -211,6 +248,6 @@ with check (true);</textarea>
     </section>
   </main>
 
-  <script src="public/app.js?v=20260629-7"></script>
+  <script src="public/app.js?v=20260629-8"></script>
 </body>
 </html>

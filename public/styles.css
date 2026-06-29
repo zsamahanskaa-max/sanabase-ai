@@ -294,6 +294,69 @@ pre {
   justify-content: center;
 }
 
+.cloud-panel {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fbf9;
+  padding: 14px;
+  display: grid;
+  gap: 12px;
+}
+
+.cloud-panel h3 {
+  margin: 0 0 4px;
+  font-size: 16px;
+}
+
+.cloud-panel p {
+  color: var(--muted);
+}
+
+.cloud-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.cloud-grid label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.cloud-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cloud-actions button:last-child {
+  background: white;
+  color: var(--sage);
+}
+
+.cloud-sql summary {
+  cursor: pointer;
+  color: var(--sage);
+  font-weight: 700;
+}
+
+.cloud-sql textarea {
+  min-height: 170px;
+  margin-top: 10px;
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-size: 13px;
+}
+
+#cloudStatus {
+  margin: 0;
+  color: var(--muted);
+}
+
+#cloudStatus.ok { color: var(--leaf); }
+#cloudStatus.bad { color: var(--rose); }
+
 @media (max-width: 820px) {
   body { grid-template-columns: 1fr; }
   .sidebar {
@@ -308,5 +371,5 @@ pre {
   .topbar { padding: 16px; align-items: flex-start; }
   .view { padding: 16px; }
   .conversation { height: calc(100vh - 260px); }
-  .composer, .toolbar, .split, .notes-layout, .match-grid, .brain-fields, .brain-head { grid-template-columns: 1fr; }
+  .composer, .toolbar, .split, .notes-layout, .match-grid, .brain-fields, .brain-head, .cloud-grid { grid-template-columns: 1fr; }
 }

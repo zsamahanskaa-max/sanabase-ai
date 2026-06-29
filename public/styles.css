@@ -288,6 +288,16 @@ pre {
   background: white;
   color: var(--sage);
 }
+.note-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.note-actions button:first-child {
+  background: var(--leaf);
+  color: white;
+}
 .empty-note {
   border-left-color: var(--line);
 }
@@ -440,6 +450,10 @@ pre {
 .brain-card {
   display: grid;
   gap: 12px;
+}
+
+.brain-note {
+  border-left: 4px solid var(--gold);
 }
 
 .brain-head {

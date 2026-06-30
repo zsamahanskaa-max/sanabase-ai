@@ -3820,6 +3820,36 @@ function initSanaBot() {
   if (!$("sanabotMessages").children.length) {
     addSanaBotMessage("bot", "Сәлем, мен SanaBot-пын. Бүгінгі фокус, заказ, қарыз, склад және күндік отчет бойынша көмектесемін. Әзірге local mock режиміндемін.");
   }
+  maybeSanaBotDailyNudge();
+}
+
+function maybeSanaBotDailyNudge() {
+  const root = $("sanabot");
+  if (!root) return;
+  const key = `sanabot-daily-nudge-${isoDate()}`;
+  if (localStorage.getItem(key)) return;
+  localStorage.setItem(key, "1");
+  setTimeout(() => {
+    const metrics = sanaBotMetrics();
+    const important = metrics.todayTasks + metrics.openOrders + metrics.docs + metrics.lowStock + (metrics.unpaid > 0 ? 1 : 0);
+    const message = important
+      ? [
+          `Бүгін ${important} маңызды сигнал бар.`,
+          `Фокус: ${metrics.focus}`,
+          `Task: ${metrics.todayTasks} · заказ: ${metrics.openOrders} · қарыз: ${money(metrics.unpaid)} · склад сигналы: ${metrics.lowStock}`,
+          "SanaBot ұсынысы: ең қауіпті бір нәрсені таңдап, бірден task немесе WhatsApp текст қылып қойыңыз."
+        ].join("\n")
+      : [
+          "Бүгін жүйе тыныш көрініп тұр.",
+          `Фокус: ${metrics.focus}`,
+          "SanaBot ұсынысы: бір қысқа task қосып, күнді жеңіл бастаңыз."
+        ].join("\n");
+    root.classList.add("open", "is-waving");
+    setSanaBotMood(important ? "alert" : "focus");
+    addSanaBotMessage("bot", message);
+    rememberSanaBotAnswer(message, important ? "daily" : "today");
+    setTimeout(() => root.classList.remove("is-waving"), 3800);
+  }, 850);
 }
 
 function toggleSanaBot() {

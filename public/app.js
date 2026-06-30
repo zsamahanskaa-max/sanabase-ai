@@ -7,8 +7,8 @@ const DEFAULT_CLOUD_CONFIG = {
 const cloudConfig = loadCloudConfig();
 let cloudTimer = null;
 let lastAssistantAnswer = "";
-let lastSanaBotAnswer = "";
-let lastSanaBotAction = "chat";
+let lastMimoAnswer = "";
+let lastMimoAction = "chat";
 let sanaBotRoamTimer = null;
 const titles = {
   chat: ["AI чат", "Құжаттарыңызға сүйеніп жауап береді."],
@@ -52,15 +52,15 @@ on("crmStatusFilter", "change", render);
 on("crmReportBtn", "click", buildCrmBusinessReport);
 on("crmReportSaveBtn", "click", saveCrmBusinessReport);
 on("crmReportTaskBtn", "click", tasksFromCrmBusinessReport);
-on("sanabotToggle", "click", toggleSanaBot);
-on("sanabotClose", "click", closeSanaBot);
-on("sanabotForm", "submit", sendSanaBotMessage);
-on("sanabotMakeTaskBtn", "click", taskFromSanaBotAnswer);
-on("sanabotFollowUpBtn", "click", crmFollowUpFromSanaBotAnswer);
-on("sanabotWhatsappBtn", "click", whatsappFromSanaBotAnswer);
-on("sanabotDebtTaskBtn", "click", debtTaskFromSanaBotAnswer);
-on("sanabotSupplierTaskBtn", "click", supplierTaskFromSanaBotAnswer);
-on("sanabotOpenReportBtn", "click", openLatestCrmReportFromSanaBot);
+on("sanabotToggle", "click", toggleMimo);
+on("sanabotClose", "click", closeMimo);
+on("sanabotForm", "submit", sendMimoMessage);
+on("sanabotMakeTaskBtn", "click", taskFromMimoAnswer);
+on("sanabotFollowUpBtn", "click", crmFollowUpFromMimoAnswer);
+on("sanabotWhatsappBtn", "click", whatsappFromMimoAnswer);
+on("sanabotDebtTaskBtn", "click", debtTaskFromMimoAnswer);
+on("sanabotSupplierTaskBtn", "click", supplierTaskFromMimoAnswer);
+on("sanabotOpenReportBtn", "click", openLatestCrmReportFromMimo);
 on("matchBtn", "click", matchPrices);
 on("onecImportBtn", "click", importOneCExcel);
 on("onecSaveBrainBtn", "click", saveOneCToBrain);
@@ -115,12 +115,12 @@ document.querySelectorAll("[data-crm-template]").forEach(button => {
   button.addEventListener("click", () => useCrmTemplate(button.dataset.crmTemplate));
 });
 document.querySelectorAll("[data-sanabot-action]").forEach(button => {
-  button.addEventListener("click", () => runSanaBotAction(button.dataset.sanabotAction));
+  button.addEventListener("click", () => runMimoAction(button.dataset.sanabotAction));
 });
 
 render();
 renderCloudSettings();
-initSanaBot();
+initMimo();
 startReminderEngine();
 addMessage("ai", "Сәлем! Прайс салыстыру бөлімі 1-құжаттың формуласы бар қорап/саны бағандарын сақтап, бағаны almat company price арқылы қояды.");
 
@@ -3286,7 +3286,7 @@ function assistantInstruction(mode) {
     finance: "Қаржы бақылаушысы сияқты жауап бер: қарыз, төлем мерзімі, кешіккен сумма, ESF, счет, поставщик төлемі және қауіп деңгейін шығар.",
     focus: "Фокус коуч сияқты жауап бер: бүгін міндетті 3 әрекет, ертеңге қалатын нәрсе, 15 минутта басталатын бірінші қадам."
   };
-  modes.sanabot = "SanaBot персонажы сияқты жауап бер: жылы, қысқа, нақты, бизнес дерегіне сүйенген. Тапсырма, қарыз, заказ, склад, күндік фокус бойынша 1-3 келесі әрекет шығар.";
+  modes.sanabot = "Mimo персонажы сияқты жауап бер: жылы, қысқа, нақты, бизнес дерегіне сүйенген. Тапсырма, қарыз, заказ, склад, күндік фокус бойынша 1-3 келесі әрекет шығар.";
   return `${base} ${modes[mode] || "Пайдаланушыға ең пайдалы форматты таңда."}`;
 }
 
@@ -3814,18 +3814,18 @@ function addMessage(kind, text) {
   return node;
 }
 
-function initSanaBot() {
+function initMimo() {
   if (!$("sanabotMessages")) return;
-  renderSanaBotFocus();
-  setSanaBotMood(sanaBotDashboardMood());
+  renderMimoFocus();
+  setMimoMood(sanaBotDashboardMood());
   if (!$("sanabotMessages").children.length) {
-    addSanaBotMessage("bot", "Сәлем, мен SanaBot-пын. Бүгінгі фокус, заказ, қарыз, склад және күндік отчет бойынша көмектесемін. Әзірге local mock режиміндемін.");
+    addMimoMessage("bot", "Сәлем, мен Mimo-пын. Бүгінгі фокус, заказ, қарыз, склад және күндік отчет бойынша көмектесемін. Әзірге local mock режиміндемін.");
   }
-  startSanaBotRoaming();
-  maybeSanaBotDailyNudge();
+  startMimoRoaming();
+  maybeMimoDailyNudge();
 }
 
-function maybeSanaBotDailyNudge() {
+function maybeMimoDailyNudge() {
   const root = $("sanabot");
   if (!root) return;
   const key = `sanabot-daily-nudge-${isoDate()}`;
@@ -3839,35 +3839,35 @@ function maybeSanaBotDailyNudge() {
           `Бүгін ${important} маңызды сигнал бар.`,
           `Фокус: ${metrics.focus}`,
           `Task: ${metrics.todayTasks} · заказ: ${metrics.openOrders} · қарыз: ${money(metrics.unpaid)} · склад сигналы: ${metrics.lowStock}`,
-          "SanaBot ұсынысы: ең қауіпті бір нәрсені таңдап, бірден task немесе WhatsApp текст қылып қойыңыз."
+          "Mimo ұсынысы: ең қауіпті бір нәрсені таңдап, бірден task немесе WhatsApp текст қылып қойыңыз."
         ].join("\n")
       : [
           "Бүгін жүйе тыныш көрініп тұр.",
           `Фокус: ${metrics.focus}`,
-          "SanaBot ұсынысы: бір қысқа task қосып, күнді жеңіл бастаңыз."
+          "Mimo ұсынысы: бір қысқа task қосып, күнді жеңіл бастаңыз."
         ].join("\n");
-    moveSanaBotHome();
+    moveMimoHome();
     root.classList.add("open", "is-waving");
-    setSanaBotMood(important ? "alert" : "focus");
-    addSanaBotMessage("bot", message);
-    rememberSanaBotAnswer(message, important ? "daily" : "today");
+    setMimoMood(important ? "alert" : "focus");
+    addMimoMessage("bot", message);
+    rememberMimoAnswer(message, important ? "daily" : "today");
     setTimeout(() => root.classList.remove("is-waving"), 3800);
   }, 850);
 }
 
-function startSanaBotRoaming() {
+function startMimoRoaming() {
   const root = $("sanabot");
   if (!root || sanaBotRoamTimer) return;
-  moveSanaBotHome();
+  moveMimoHome();
   const roam = () => {
-    if (!root.classList.contains("open")) moveSanaBotRandom();
+    if (!root.classList.contains("open")) moveMimoRandom();
   };
   setTimeout(roam, 1300);
   sanaBotRoamTimer = setInterval(roam, 5200);
-  window.addEventListener("resize", () => root.classList.contains("open") ? moveSanaBotHome() : moveSanaBotRandom());
+  window.addEventListener("resize", () => root.classList.contains("open") ? moveMimoHome() : moveMimoRandom());
 }
 
-function moveSanaBotHome() {
+function moveMimoHome() {
   const root = $("sanabot");
   if (!root) return;
   root.style.setProperty("--sanabot-x", `${Math.max(16, window.innerWidth - 94)}px`);
@@ -3875,7 +3875,7 @@ function moveSanaBotHome() {
   root.classList.remove("is-roaming-left");
 }
 
-function moveSanaBotRandom() {
+function moveMimoRandom() {
   const root = $("sanabot");
   if (!root) return;
   const margin = window.innerWidth < 700 ? 14 : 22;
@@ -3890,20 +3890,20 @@ function moveSanaBotRandom() {
   root.classList.toggle("is-roaming-left", nextX < currentX);
 }
 
-function toggleSanaBot() {
+function toggleMimo() {
   const root = $("sanabot");
   if (!root) return;
   root.classList.toggle("open");
-  if (root.classList.contains("open")) moveSanaBotHome();
-  renderSanaBotFocus();
+  if (root.classList.contains("open")) moveMimoHome();
+  renderMimoFocus();
 }
 
-function closeSanaBot() {
+function closeMimo() {
   $("sanabot")?.classList.remove("open");
-  setTimeout(moveSanaBotRandom, 400);
+  setTimeout(moveMimoRandom, 400);
 }
 
-function addSanaBotMessage(kind, text) {
+function addMimoMessage(kind, text) {
   const box = $("sanabotMessages");
   if (!box) return;
   const node = document.createElement("div");
@@ -3914,32 +3914,32 @@ function addSanaBotMessage(kind, text) {
   return node;
 }
 
-async function sendSanaBotMessage(event) {
+async function sendMimoMessage(event) {
   event.preventDefault();
   const input = $("sanabotInput");
   const text = input?.value.trim();
   if (!text) return;
   input.value = "";
-  addSanaBotMessage("user", text);
-  setSanaBotMood("thinking");
-  const pending = addSanaBotMessage("bot", "Ойланып жатырмын...");
+  addMimoMessage("user", text);
+  setMimoMood("thinking");
+  const pending = addMimoMessage("bot", "Ойланып жатырмын...");
   const answer = await sanaBotAiReply(text, "chat");
   pending.textContent = answer;
-  rememberSanaBotAnswer(answer, "chat");
+  rememberMimoAnswer(answer, "chat");
 }
 
-async function runSanaBotAction(action) {
-  addSanaBotMessage("user", sanaBotActionLabel(action));
+async function runMimoAction(action) {
+  addMimoMessage("user", sanaBotActionLabel(action));
   const local = sanaBotActionReply(action);
-  setSanaBotMood(action === "debt" || action === "stock" ? "alert" : action === "daily" ? "focus" : "thinking");
-  const pending = addSanaBotMessage("bot", local);
+  setMimoMood(action === "debt" || action === "stock" ? "alert" : action === "daily" ? "focus" : "thinking");
+  const pending = addMimoMessage("bot", local);
   const answer = await sanaBotAiReply(`${sanaBotActionLabel(action)}\n\nLocal summary:\n${local}`, action, local);
   pending.textContent = answer;
-  rememberSanaBotAnswer(answer, action);
-  renderSanaBotFocus();
+  rememberMimoAnswer(answer, action);
+  renderMimoFocus();
 }
 
-function renderSanaBotFocus() {
+function renderMimoFocus() {
   const focus = $("sanabotFocus");
   if (!focus) return;
   const metrics = sanaBotMetrics();
@@ -3948,44 +3948,46 @@ function renderSanaBotFocus() {
     <strong>${escapeHtml(metrics.focus)}</strong>
     <small>${metrics.todayTasks} task · ${metrics.openOrders} заказ · ${money(metrics.unpaid)} қарыз</small>
   `;
-  setSanaBotMood(sanaBotDashboardMood(), false);
+  setMimoMood(sanaBotDashboardMood(), false);
 }
 
-function rememberSanaBotAnswer(text, action) {
-  lastSanaBotAnswer = text || "";
-  lastSanaBotAction = action || "chat";
-  if ($("sanabotSuggestions")) $("sanabotSuggestions").classList.toggle("show", Boolean(lastSanaBotAnswer));
-  updateSanaBotActionCards();
-  if (lastSanaBotAction === "debt" || /қарыз|карыз|төлем|оплата|debt/i.test(lastSanaBotAnswer)) setSanaBotMood("alert");
-  else if (lastSanaBotAction === "stock" || /склад|остат|тауар|stock/i.test(lastSanaBotAnswer)) setSanaBotMood("alert");
-  else setSanaBotMood("focus");
+function rememberMimoAnswer(text, action) {
+  lastMimoAnswer = text || "";
+  lastMimoAction = action || "chat";
+  if ($("sanabotSuggestions")) $("sanabotSuggestions").classList.toggle("show", Boolean(lastMimoAnswer));
+  updateMimoActionCards();
+  if (lastMimoAction === "debt" || /қарыз|карыз|төлем|оплата|debt/i.test(lastMimoAnswer)) setMimoMood("alert");
+  else if (lastMimoAction === "stock" || /склад|остат|тауар|stock/i.test(lastMimoAnswer)) setMimoMood("alert");
+  else setMimoMood("focus");
 }
 
-function updateSanaBotActionCards() {
-  const text = `${lastSanaBotAction} ${lastSanaBotAnswer}`.toLowerCase();
-  toggleSanaBotCard("sanabotWhatsappBtn", /қарыз|карыз|төлем|оплата|debt|whatsapp/.test(text));
-  toggleSanaBotCard("sanabotDebtTaskBtn", /қарыз|карыз|төлем|оплата|debt/.test(text));
-  toggleSanaBotCard("sanabotSupplierTaskBtn", /склад|остат|тауар|товар|stock|поставщик|заказ/.test(text));
-  toggleSanaBotCard("sanabotOpenReportBtn", Boolean(state.crmReports?.length));
+function updateMimoActionCards() {
+  const text = `${lastMimoAction} ${lastMimoAnswer}`.toLowerCase();
+  toggleMimoCard("sanabotWhatsappBtn", /қарыз|карыз|төлем|оплата|debt|whatsapp/.test(text));
+  toggleMimoCard("sanabotDebtTaskBtn", /қарыз|карыз|төлем|оплата|debt/.test(text));
+  toggleMimoCard("sanabotSupplierTaskBtn", /склад|остат|тауар|товар|stock|поставщик|заказ/.test(text));
+  toggleMimoCard("sanabotOpenReportBtn", Boolean(state.crmReports?.length));
 }
 
-function toggleSanaBotCard(id, show) {
+function toggleMimoCard(id, show) {
   const node = $(id);
   if (node) node.classList.toggle("is-suggested", Boolean(show));
 }
 
-function setSanaBotMood(mood, force = true) {
+function setMimoMood(mood, force = true) {
   const root = $("sanabot");
   if (!root) return;
   if (!force && root.dataset.mood === "happy") return;
   const next = mood || "ready";
   root.dataset.mood = next;
   const labels = {
-    ready: "Focus companion · ready",
+    ready: "Mimo · ready",
     focus: "Focus mode · жоспар",
     alert: "Alert mode · тексеру керек",
     happy: "Happy mode · жарайсыз",
-    thinking: "Thinking · жауап дайындалуда"
+    thinking: "Thinking · бұртиып ойлануда",
+    sad: "Sad mode · бұртиып қалды",
+    angry: "Angry mode · қабағын түйді"
   };
   if ($("sanabotMoodText")) $("sanabotMoodText").textContent = labels[next] || labels.ready;
 }
@@ -4019,7 +4021,7 @@ function sanaBotMetrics() {
 }
 
 function sanaBotActionLabel(action) {
-  return { today: "Бүгінгі жоспар", debt: "Қарыздарды тексер", orders: "Заказдарды тексер", stock: "Складты қара", daily: "Күндік отчет" }[action] || "SanaBot";
+  return { today: "Бүгінгі жоспар", debt: "Қарыздарды тексер", orders: "Заказдарды тексер", stock: "Складты қара", daily: "Күндік отчет" }[action] || "Mimo";
 }
 
 function sanaBotActionReply(action) {
@@ -4071,7 +4073,7 @@ async function sanaBotAiReply(prompt, action = "chat", fallbackText = "") {
 function sanaBotPrompt(prompt, action, local) {
   const metrics = sanaBotMetrics();
   return [
-    `SanaBot action: ${action}`,
+    `Mimo action: ${action}`,
     `User message: ${prompt}`,
     "",
     "Current dashboard signals:",
@@ -4085,94 +4087,94 @@ function sanaBotPrompt(prompt, action, local) {
     "Local draft:",
     local,
     "",
-    "Answer as SanaBot: warm, original, concise, business-aware. Give concrete next actions."
+    "Answer as Mimo: warm, original, concise, business-aware. Give concrete next actions."
   ].join("\n");
 }
 
-function taskFromSanaBotAnswer() {
-  if (!lastSanaBotAnswer) {
-    addSanaBotMessage("bot", "Алдымен SanaBot-тан жауап алыңыз, содан кейін оны task қыламын.");
+function taskFromMimoAnswer() {
+  if (!lastMimoAnswer) {
+    addMimoMessage("bot", "Алдымен Mimo-тан жауап алыңыз, содан кейін оны task қыламын.");
     return;
   }
-  const title = sanaBotTaskTitle(lastSanaBotAnswer);
+  const title = sanaBotTaskTitle(lastMimoAnswer);
   state.tasks.unshift(normalizeTask({
     title,
-    body: lastSanaBotAnswer,
+    body: lastMimoAnswer,
     status: "todo",
-    priority: /қарыз|карыз|төлем|заказ|склад|alert/i.test(lastSanaBotAnswer) ? "high" : "medium",
+    priority: /қарыз|карыз|төлем|заказ|склад|alert/i.test(lastMimoAnswer) ? "high" : "medium",
     due: isoDate(),
-    owner: "SanaBot",
-    link: `SanaBot · ${lastSanaBotAction}`
+    owner: "Mimo",
+    link: `Mimo · ${lastMimoAction}`
   }));
   persist();
   render();
-  setSanaBotMood("happy");
-  addSanaBotMessage("bot", `Task дайын: ${title}`);
+  setMimoMood("happy");
+  addMimoMessage("bot", `Task дайын: ${title}`);
 }
 
-function crmFollowUpFromSanaBotAnswer() {
-  if (!lastSanaBotAnswer) {
-    addSanaBotMessage("bot", "Алдымен қарыз/заказ/CRM туралы жауап алыңыз, содан кейін follow-up жасаймын.");
+function crmFollowUpFromMimoAnswer() {
+  if (!lastMimoAnswer) {
+    addMimoMessage("bot", "Алдымен қарыз/заказ/CRM туралы жауап алыңыз, содан кейін follow-up жасаймын.");
     return;
   }
   const cal = calendarData();
   const order = activeCalItems(cal.orders).find(item => !["closed", "received"].includes(item.status));
   if (order) {
     createCalendarTask({
-      title: `SanaBot CRM follow-up: ${order.title}`,
+      title: `Mimo CRM follow-up: ${order.title}`,
       date: addDays(isoDate(), 1),
       category: "CRM",
       priority: "high",
       status: "open",
       orderId: order.id,
-      comment: lastSanaBotAnswer
+      comment: lastMimoAnswer
     });
-    logHistory("crm_deal", order.id, "SanaBot follow-up", null, order, "SanaBot action");
+    logHistory("crm_deal", order.id, "Mimo follow-up", null, order, "Mimo action");
   } else {
     state.tasks.unshift(normalizeTask({
-      title: "SanaBot CRM follow-up",
-      body: lastSanaBotAnswer,
+      title: "Mimo CRM follow-up",
+      body: lastMimoAnswer,
       status: "todo",
       priority: "high",
       due: addDays(isoDate(), 1),
       owner: "CRM",
-      link: "SanaBot"
+      link: "Mimo"
     }));
   }
   persist();
   render();
-  setSanaBotMood("happy");
-  addSanaBotMessage("bot", "CRM follow-up дайын. Мен оны ертеңге task ретінде қойдым.");
+  setMimoMood("happy");
+  addMimoMessage("bot", "CRM follow-up дайын. Мен оны ертеңге task ретінде қойдым.");
 }
 
-function whatsappFromSanaBotAnswer() {
+function whatsappFromMimoAnswer() {
   const report = state.crmReports?.[0];
   const text = report?.whatsapp?.[0] || sanaBotWhatsappDraft();
-  lastSanaBotAnswer = text;
-  addSanaBotMessage("bot", text);
-  setSanaBotMood("focus");
+  lastMimoAnswer = text;
+  addMimoMessage("bot", text);
+  setMimoMood("focus");
 }
 
-function debtTaskFromSanaBotAnswer() {
+function debtTaskFromMimoAnswer() {
   const cal = calendarData();
   const debt = activeCalItems(cal.payments).find(payment => payment.status !== "paid");
   const title = debt ? `Қарызды сұрау: ${debt.title}` : "Қарыздарды тексеру";
   state.tasks.unshift(normalizeTask({
     title,
-    body: debt ? `${debt.title}\nСома: ${money(debt.amount)}\nМерзім: ${debt.dueDate || "-"}` : (lastSanaBotAnswer || "Қарыз/төлем тізімін тексеру."),
+    body: debt ? `${debt.title}\nСома: ${money(debt.amount)}\nМерзім: ${debt.dueDate || "-"}` : (lastMimoAnswer || "Қарыз/төлем тізімін тексеру."),
     status: "todo",
     priority: "high",
     due: isoDate(),
-    owner: "SanaBot",
+    owner: "Mimo",
     link: "Қарыз бақылау"
   }));
   persist();
   render();
-  setSanaBotMood("happy");
-  addSanaBotMessage("bot", `Қарыз task дайын: ${title}`);
+  setMimoMood("happy");
+  addMimoMessage("bot", `Қарыз task дайын: ${title}`);
 }
 
-function supplierTaskFromSanaBotAnswer() {
+function supplierTaskFromMimoAnswer() {
   const report = state.crmReports?.[0];
   const body = supplierOrderDraft(report);
   state.tasks.unshift(normalizeTask({
@@ -4181,20 +4183,20 @@ function supplierTaskFromSanaBotAnswer() {
     status: "todo",
     priority: "high",
     due: addDays(isoDate(), 1),
-    owner: "SanaBot",
+    owner: "Mimo",
     link: "Склад / поставщик"
   }));
   persist();
   render();
-  setSanaBotMood("happy");
-  addSanaBotMessage("bot", "Поставщик заказ task дайын. Складтағы аз/жоқ товарларды тексеруге қойдым.");
+  setMimoMood("happy");
+  addMimoMessage("bot", "Поставщик заказ task дайын. Складтағы аз/жоқ товарларды тексеруге қойдым.");
 }
 
-function openLatestCrmReportFromSanaBot() {
+function openLatestCrmReportFromMimo() {
   const report = state.crmReports?.[0];
   if (!report) {
-    addSanaBotMessage("bot", "Әзірге сақталған CRM отчет жоқ. CRM бөлімінде толық отчет жасап сақтаңыз.");
-    setSanaBotMood("alert");
+    addMimoMessage("bot", "Әзірге сақталған CRM отчет жоқ. CRM бөлімінде толық отчет жасап сақтаңыз.");
+    setMimoMood("alert");
     return;
   }
   setView("crm");
@@ -4224,20 +4226,20 @@ function supplierOrderDraft(report) {
   }
   const oneC = state.oneC?.text || "";
   if (oneC) return oneC.split(/\r?\n/).filter(line => /остаток жоқ|остаток аз|заказ|поставщик/i.test(line)).slice(0, 18).join("\n") || oneC.slice(0, 1200);
-  return "1С Excel немесе CRM отчет орталығына номенклатура/остаток файлын жүктеңіз. SanaBot аз/жоқ товарларды поставщик бойынша task қылып береді.";
+  return "1С Excel немесе CRM отчет орталығына номенклатура/остаток файлын жүктеңіз. Mimo аз/жоқ товарларды поставщик бойынша task қылып береді.";
 }
 
 function sanaBotTaskTitle(text) {
-  const first = String(text || "").split(/\r?\n/).find(line => line.trim()) || "SanaBot task";
-  return first.replace(/^[-\d.\s]+/, "").slice(0, 90) || "SanaBot task";
+  const first = String(text || "").split(/\r?\n/).find(line => line.trim()) || "Mimo task";
+  return first.replace(/^[-\d.\s]+/, "").slice(0, 90) || "Mimo task";
 }
 
 function sanaBotReactToTask(task) {
   if (!$("sanabotMessages")) return;
   $("sanabot")?.classList.add("open");
-  setSanaBotMood("happy");
-  addSanaBotMessage("bot", `Жарайсыз! “${task.title}” орындалды. Кішкентай жеңіс те жүйені алға жылжытады.`);
-  renderSanaBotFocus();
+  setMimoMood("happy");
+  addMimoMessage("bot", `Жарайсыз! “${task.title}” орындалды. Кішкентай жеңіс те жүйені алға жылжытады.`);
+  renderMimoFocus();
 }
 
 function render() {
@@ -4295,7 +4297,7 @@ function render() {
   renderOneC();
   renderAssistantDashboard();
   renderCloudSettings();
-  renderSanaBotFocus();
+  renderMimoFocus();
 }
 
 function renderOneC() {

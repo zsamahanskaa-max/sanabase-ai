@@ -1459,7 +1459,7 @@ pre {
 .sanabot-avatar {
   width: 48px;
   height: 52px;
-  border-radius: 22px 22px 18px 18px;
+  border-radius: 24px 24px 20px 20px;
   background:
     radial-gradient(circle at 30% 20%, rgba(255, 255, 255, .92), transparent 0 12%, transparent 22%),
     linear-gradient(145deg, #f4fffb, #72f8d8 42%, #2b8ca0);
@@ -1476,7 +1476,8 @@ pre {
   height: 58px;
 }
 
-.sanabot[data-mood="alert"] .sanabot-fab {
+.sanabot[data-mood="alert"] .sanabot-fab,
+.sanabot[data-mood="angry"] .sanabot-fab {
   border-color: rgba(255, 186, 92, .68);
   background: radial-gradient(circle at 30% 20%, #ffd08a, #854d0e 48%, #101018 100%);
   box-shadow: 0 18px 50px rgba(11, 17, 24, .38), 0 0 26px rgba(255, 186, 92, .34);
@@ -1498,7 +1499,8 @@ pre {
   animation: sanabotHeartPop 1.25s ease-in-out infinite;
 }
 
-.sanabot[data-mood="thinking"] .sanabot-fab {
+.sanabot[data-mood="thinking"] .sanabot-fab,
+.sanabot[data-mood="sad"] .sanabot-fab {
   border-color: rgba(147, 197, 253, .75);
   background: radial-gradient(circle at 30% 20%, #bfdbfe, #2563eb 48%, #0b1118 100%);
 }
@@ -1532,19 +1534,6 @@ pre {
     radial-gradient(circle at 20% 50%, rgba(255, 146, 184, .52), transparent 0 5px),
     radial-gradient(circle at 80% 50%, rgba(255, 146, 184, .52), transparent 0 5px);
   pointer-events: none;
-}
-
-.sanabot-face::after {
-  content: "";
-  position: absolute;
-  right: -7px;
-  top: -8px;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, .78);
-  box-shadow: 0 0 12px rgba(255, 255, 255, .72);
-  opacity: .72;
 }
 
 .sanabot-leg {
@@ -1595,7 +1584,8 @@ pre {
     radial-gradient(ellipse at center, transparent 0 45%, #082128 47% 57%, transparent 60%) center 82% / 16px 8px no-repeat;
 }
 
-.sanabot[data-mood="alert"] .sanabot-face {
+.sanabot[data-mood="alert"] .sanabot-face,
+.sanabot[data-mood="angry"] .sanabot-face {
   background:
     linear-gradient(25deg, transparent 0 36%, #082128 38% 50%, transparent 52%) 18% 18% / 10px 6px no-repeat,
     linear-gradient(-25deg, transparent 0 36%, #082128 38% 50%, transparent 52%) 82% 18% / 10px 6px no-repeat,
@@ -1604,14 +1594,16 @@ pre {
     linear-gradient(#082128, #082128) center 84% / 16px 2px no-repeat;
 }
 
-.sanabot[data-mood="thinking"] .sanabot-face {
+.sanabot[data-mood="thinking"] .sanabot-face,
+.sanabot[data-mood="sad"] .sanabot-face {
   background:
-    radial-gradient(circle at 35% 45%, #082128 0 3px, transparent 4px),
-    radial-gradient(circle at 72% 38%, #082128 0 2px, transparent 3px),
-    radial-gradient(circle at 54% 82%, transparent 0 3px, #082128 4px 5px, transparent 6px) center / 18px 12px no-repeat;
+    radial-gradient(circle at 34% 44%, #082128 0 3px, transparent 4px),
+    radial-gradient(circle at 68% 44%, #082128 0 3px, transparent 4px),
+    radial-gradient(ellipse at center, #082128 0 45%, transparent 48%) center 84% / 10px 5px no-repeat;
 }
 
-.sanabot[data-mood="thinking"] .sanabot-face::before {
+.sanabot[data-mood="thinking"] .sanabot-face::before,
+.sanabot[data-mood="sad"] .sanabot-face::before {
   opacity: .28;
 }
 

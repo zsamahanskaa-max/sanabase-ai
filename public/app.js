@@ -411,46 +411,83 @@ function createCrmCalendarDocument(title, text) {
 
 function saveCrmQuickDeal(event) {
   event.preventDefault();
-  const title = $("crmDealTitle")?.value?.trim();
-  if (!title) return;
-  const clientName = $("crmDealClient")?.value?.trim();
-  const amount = Number($("crmDealAmount")?.value || 0);
-  const status = $("crmDealStatus")?.value || "client_order_received";
-  const due = $("crmDealDue")?.value || addDays(isoDate(), 1);
-  const comment = $("crmDealComment")?.value?.trim() || "";
+  const orderNumber = $("crmOrderNumber")?.value?.trim() || `ORD-${Date.now().toString().slice(-6)}`;
+  const date = $("crmOrderDate")?.value || isoDate();
+  const clientName = $("crmClientName")?.value?.trim() || "";
+  const schoolName = $("crmSchoolName")?.value?.trim() || clientName;
+  const productName = $("crmProductName")?.value?.trim() || "";
+  const quantity = Number($("crmQuantity")?.value || 0);
+  const purchasePrice = Number($("crmPurchasePrice")?.value || 0);
+  const salePrice = Number($("crmSalePrice")?.value || 0);
+  const paidAmount = Number($("crmPaidAmount")?.value || 0);
+  const paymentMethod = $("crmPaymentMethod")?.value || "bank";
+  const documentStatus = $("crmDocumentStatus")?.value || "жоқ";
+  const esfStatus = $("crmEsfStatus")?.value || "жоқ";
+  const oneCStatus = $("crmOneCStatus")?.value || "енгізілмеді";
+  const comment = $("crmComment")?.value?.trim() || "";
+  if (!clientName && !schoolName && !productName) return;
+  const totalAmount = quantity * salePrice;
+  const costAmount = quantity * purchasePrice;
+  const marginAmount = totalAmount - costAmount;
+  const debtAmount = Math.max(0, totalAmount - paidAmount);
+  const status = debtAmount > 0 ? "client_order_received" : "closed";
   const order = createOrder({
     entity: "client_order",
-    title,
-    date: isoDate(),
-    endDate: due,
+    title: `${orderNumber} · ${productName || schoolName || clientName}`,
+    date,
+    endDate: date,
     category: "CRM",
-    priority: amount >= 1000000 ? "high" : "medium",
-    clientName,
+    priority: debtAmount > 0 ? "high" : "medium",
+    clientName: schoolName || clientName,
     supplierName: "",
-    amount,
+    amount: totalAmount,
     status,
     comment
   });
-  if (amount > 0) {
+  Object.assign(order, {
+    orderNumber,
+    date,
+    clientName,
+    schoolName,
+    productName,
+    quantity,
+    purchasePrice,
+    salePrice,
+    totalAmount,
+    costAmount,
+    marginAmount,
+    paidAmount,
+    debtAmount,
+    paymentMethod,
+    paymentStatus: debtAmount <= 0 ? "paid" : paidAmount > 0 ? "partial" : "unpaid",
+    documentStatus,
+    esfStatus,
+    oneCStatus,
+    comment,
+    productsJson: productName,
+    updatedAt: nowIso()
+  });
+  if (paidAmount > 0) {
     const payment = createPayment({
-      title: `Төлем: ${title}`,
-      amount,
-      status: "planned",
-      date: due,
-      category: "CRM",
-      priority: "high",
-      clientName,
+      title: `Төлем: ${orderNumber}`,
+      amount: paidAmount,
+      status: "paid",
+      date,
+      category: paymentMethod,
+      priority: "medium",
+      clientName: schoolName || clientName,
       supplierName: "",
-      comment: `CRM заказ: ${title}`
+      comment: `CRM order ${orderNumber}: ${productName}`
     });
     payment.orderId = order.id;
+    payment.method = paymentMethod;
     order.relatedPaymentId = payment.id;
   }
-  logHistory("crm_deal", order.id, "CRM сделка қосу", null, order, "CRM толық панелі");
+  logHistory("crm_order", order.id, "CRM order қосу", null, order, "CRM order form");
   event.target.reset();
   persist();
   render();
-  if ($("crmOut")) $("crmOut").textContent = `CRM-ге қосылды: ${title}. Енді ол pipeline, кесте, төлем және еске салғыш ішінде көрінеді.`;
+  if ($("crmOut")) $("crmOut").textContent = `CRM order сақталды: ${orderNumber}. Total: ${money(totalAmount)}, paid: ${money(paidAmount)}, debt: ${money(debtAmount)}.`;
 }
 
 function crmSourceSummary() {
@@ -586,7 +623,7 @@ function renderCrmOperatingPanel(cal = calendarData()) {
   const query = $("crmSearch")?.value?.toLowerCase() || "";
   const filter = $("crmStatusFilter")?.value || "all";
   const rows = crmDealRows(cal).filter(row => {
-    const haystack = `${row.title} ${row.clientName} ${row.statusLabel} ${row.comment}`.toLowerCase();
+    const haystack = `${row.orderNumber} ${row.date} ${row.clientName} ${row.schoolName} ${row.productName} ${row.paymentMethod} ${row.documentStatus} ${row.esfStatus} ${row.oneCStatus} ${row.comment}`.toLowerCase();
     if (query && !haystack.includes(query)) return false;
     if (filter === "debt") return row.debt > 0;
     if (filter !== "all") return row.status === filter;
@@ -611,23 +648,31 @@ function renderCrmOperatingPanel(cal = calendarData()) {
     `;
   }).join("");
   $("crmTable").innerHTML = `
-    <div class="crm-row crm-row-head">
-      <span>Клиент</span><span>Заказ</span><span>Статус</span><span>Сома</span><span>Қарыз</span><span>Келесі әрекет</span><span></span>
+    <div class="crm-row crm-row-head crm-order-row">
+      <span>orderNumber</span><span>date</span><span>clientName</span><span>schoolName</span><span>productName</span><span>quantity</span><span>purchasePrice</span><span>salePrice</span><span>paidAmount</span><span>paymentMethod</span><span>documentStatus</span><span>esfStatus</span><span>oneCStatus</span><span>comment</span><span></span>
     </div>
     ${rows.map(row => `
-      <div class="crm-row ${row.overdue ? "overdue" : ""}">
+      <div class="crm-row crm-order-row ${row.overdue ? "overdue" : ""}">
+        <span>${escapeHtml(row.orderNumber || "-")}</span>
+        <span>${escapeHtml(String(row.date || "").slice(0, 10) || "-")}</span>
         <span>${escapeHtml(row.clientName || "-")}</span>
-        <span><strong>${escapeHtml(row.title)}</strong><small>${escapeHtml(row.comment || "")}</small></span>
-        <span>${escapeHtml(row.statusLabel)}</span>
-        <span>${money(row.amount)}</span>
-        <span>${money(row.debt)}</span>
-        <span>${escapeHtml(row.nextAction || "-")}</span>
+        <span>${escapeHtml(row.schoolName || "-")}</span>
+        <span><strong>${escapeHtml(row.productName || "-")}</strong><small>Total: ${money(row.amount)} · Debt: ${money(row.debt)}</small></span>
+        <span>${escapeHtml(row.quantity || 0)}</span>
+        <span>${money(row.purchasePrice)}</span>
+        <span>${money(row.salePrice)}</span>
+        <span>${money(row.paidAmount)}</span>
+        <span>${escapeHtml(row.paymentMethod || "-")}</span>
+        <span>${escapeHtml(row.documentStatus || "-")}</span>
+        <span>${escapeHtml(row.esfStatus || "-")}</span>
+        <span>${escapeHtml(row.oneCStatus || "-")}</span>
+        <span>${escapeHtml(row.comment || "-")}</span>
         <span class="crm-row-actions">
           <button type="button" data-crm-task="${escapeHtml(row.id)}">Task</button>
           <button type="button" data-crm-close="${escapeHtml(row.id)}">Жабу</button>
         </span>
       </div>
-    `).join("") || `<div class="crm-row"><span>CRM ішінде жазба жоқ. Жоғарыдағы форма арқылы клиент/заказ қосыңыз немесе Күнтізбе жүйесінен заказ енгізіңіз.</span></div>`}
+    `).join("") || `<div class="crm-row crm-order-row"><span>CRM ішінде order жазба жоқ. Жоғарыдағы форма арқылы orderNumber, clientName, productName енгізіңіз.</span></div>`}
   `;
   $("crmTable").querySelectorAll("[data-crm-task]").forEach(button => {
     button.addEventListener("click", () => createCrmFollowUpTask(button.dataset.crmTask));
@@ -642,34 +687,53 @@ function crmDealRows(cal = calendarData()) {
   const payments = activeCalItems(cal.payments);
   return activeCalItems(cal.orders).map(order => {
     const client = clients.get(order.clientId);
+    const quantity = Number(order.quantity || 0);
+    const purchasePrice = Number(order.purchasePrice || 0);
+    const salePrice = Number(order.salePrice || 0);
+    const computedTotal = quantity && salePrice ? quantity * salePrice : Number(order.totalAmount || 0);
+    const computedCost = quantity && purchasePrice ? quantity * purchasePrice : Number(order.costAmount || 0);
     const orderPayments = payments.filter(payment => payment.orderId === order.id);
-    const linkedPayments = orderPayments.length ? orderPayments : payments.filter(payment => order.clientId && payment.clientId === order.clientId);
-    const unpaid = linkedPayments.filter(payment => payment.status !== "paid").reduce((sum, payment) => sum + Math.abs(Number(payment.amount || 0)), 0);
+    const paidAmount = Number(order.paidAmount ?? orderPayments.filter(payment => payment.status === "paid").reduce((sum, payment) => sum + Math.abs(Number(payment.amount || 0)), 0));
+    const debt = Math.max(0, computedTotal - paidAmount);
     const nextTask = activeCalItems(cal.tasks)
       .filter(task => task.orderId === order.id && !["done", "closed"].includes(task.status))
       .sort((a, b) => String(a.dueDate || "").localeCompare(String(b.dueDate || "")))[0];
-    const nextAction = nextTask?.dueDate || order.expectedDeliveryDate || client?.nextActionDate || "";
+    const nextAction = nextTask?.dueDate || order.expectedDeliveryDate || client?.nextActionDate || order.date || "";
     return {
       id: order.id,
+      orderNumber: order.orderNumber || "",
+      date: order.date || order.clientOrderDate || order.createdAt || "",
+      clientName: order.clientName || client?.name || "",
+      schoolName: order.schoolName || client?.name || "",
+      productName: order.productName || order.productsJson || order.title || "",
+      quantity,
+      purchasePrice,
+      salePrice,
+      paidAmount,
+      paymentMethod: order.paymentMethod || "",
+      documentStatus: order.documentStatus || "жоқ",
+      esfStatus: order.esfStatus || "жоқ",
+      oneCStatus: order.oneCStatus || "енгізілмеді",
+      comment: order.comment || "",
       title: order.title || order.orderNumber || "CRM заказ",
-      clientName: client?.name || "",
       status: order.status || "client_order_received",
       statusLabel: crmStatusLabel(order.status),
-      amount: Number(order.totalAmount || 0),
-      debt: unpaid || Number(order.debtAmount || 0),
+      amount: computedTotal,
+      costAmount: computedCost,
+      marginAmount: Number(order.marginAmount ?? (computedTotal - computedCost)),
+      debt,
       nextAction,
-      overdue: Boolean(nextAction && nextAction < isoDate() && !["closed", "received"].includes(order.status)),
-      comment: order.comment || order.productsJson || ""
+      overdue: Boolean(nextAction && nextAction < isoDate() && !["closed", "received"].includes(order.status))
     };
-  }).sort((a, b) => Number(b.overdue) - Number(a.overdue) || String(a.nextAction || "9999").localeCompare(String(b.nextAction || "9999")));
+  }).sort((a, b) => Number(b.overdue) - Number(a.overdue) || String(a.date || "9999").localeCompare(String(b.date || "9999")));
 }
 
 function crmDealCard(row) {
   return `
     <article class="crm-deal-card ${row.overdue ? "overdue" : ""}">
-      <b>${escapeHtml(row.title)}</b>
-      <span>${escapeHtml(row.clientName || "Клиент жоқ")} · ${money(row.amount)}</span>
-      <small>${row.debt > 0 ? `Қарыз: ${money(row.debt)} · ` : ""}${escapeHtml(row.nextAction || "күн жоқ")}</small>
+      <b>${escapeHtml(row.orderNumber || row.title)}</b>
+      <span>${escapeHtml(row.schoolName || row.clientName || "Клиент жоқ")} · ${money(row.amount)}</span>
+      <small>${escapeHtml(row.productName || "Тауар жоқ")} · ${row.quantity || 0} дана · debt ${money(row.debt)}</small>
     </article>
   `;
 }
@@ -2289,7 +2353,7 @@ function createOrder(input) {
   const supplier = input.supplierName ? upsertSupplier(input.supplierName) : null;
   const order = {
     id: crypto.randomUUID(),
-    orderNumber: `ORD-${Date.now().toString().slice(-6)}`,
+    orderNumber: input.orderNumber || `ORD-${Date.now().toString().slice(-6)}`,
     title: input.title,
     clientId: client?.id || "",
     supplierId: supplier?.id || "",
@@ -2303,10 +2367,24 @@ function createOrder(input) {
     receivedDate: input.status === "received" ? input.date : "",
     deliveredToClientDate: "",
     closedDate: "",
-    totalAmount: input.amount,
-    paidAmount: 0,
-    debtAmount: input.amount,
-    productsJson: input.comment,
+    totalAmount: input.totalAmount ?? input.amount,
+    costAmount: input.costAmount || 0,
+    marginAmount: input.marginAmount ?? ((input.totalAmount ?? input.amount) - (input.costAmount || 0)),
+    paidAmount: input.paidAmount || 0,
+    debtAmount: input.debtAmount ?? ((input.totalAmount ?? input.amount) - (input.paidAmount || 0)),
+    productName: input.productName || "",
+    quantity: input.quantity || 0,
+    purchasePrice: input.purchasePrice || 0,
+    salePrice: input.salePrice || 0,
+    paymentMethod: input.paymentMethod || "",
+    paymentStatus: input.paymentStatus || "",
+    documentStatus: input.documentStatus || "",
+    esfStatus: input.esfStatus || "",
+    oneCStatus: input.oneCStatus || "",
+    clientName: input.clientName || "",
+    schoolName: input.schoolName || input.clientName || "",
+    date: input.date || isoDate(),
+    productsJson: input.productName || input.comment,
     missingProductsJson: "",
     comment: input.comment,
     problemComment: "",

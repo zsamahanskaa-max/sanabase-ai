@@ -325,9 +325,19 @@ textarea:focus, input:focus, select:focus { border-color: var(--leaf); }
 }
 
 .crm-quick-form {
-  grid-template-columns: 1.2fr 1fr 130px 170px 150px 1fr 130px;
+  grid-template-columns: repeat(5, minmax(150px, 1fr));
 }
 
+
+.crm-order-form textarea {
+  min-height: 42px;
+  resize: vertical;
+}
+
+.crm-order-row {
+  grid-template-columns: 120px 100px 150px 160px 190px 80px 120px 120px 120px 120px 140px 110px 130px minmax(180px, 1fr) 110px;
+  min-width: 1780px;
+}
 .crm-report-center {
   border-left: 4px solid var(--leaf);
 }
@@ -446,7 +456,8 @@ textarea:focus, input:focus, select:focus { border-color: var(--leaf); }
 .crm-table {
   border: 1px solid var(--line);
   border-radius: 8px;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
   background: white;
 }
 

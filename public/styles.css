@@ -1476,31 +1476,6 @@ pre {
   height: 58px;
 }
 
-.sanabot-avatar::before,
-.sanabot-avatar::after {
-  content: "";
-  position: absolute;
-  top: -6px;
-  width: 14px;
-  height: 18px;
-  border-radius: 12px 12px 8px 8px;
-  background: linear-gradient(160deg, #f3fff9, #69f4d2 70%, #23879b);
-  box-shadow: inset 0 -4px 8px rgba(9, 31, 39, .16), 0 4px 10px rgba(96, 245, 210, .18);
-  z-index: 0;
-  animation: sanabotEarWiggle 3.6s ease-in-out infinite;
-}
-
-.sanabot-avatar::before {
-  left: 5px;
-  transform-origin: bottom right;
-}
-
-.sanabot-avatar::after {
-  right: 5px;
-  transform-origin: bottom left;
-  animation-delay: .35s;
-}
-
 .sanabot[data-mood="alert"] .sanabot-fab {
   border-color: rgba(255, 186, 92, .68);
   background: radial-gradient(circle at 30% 20%, #ffd08a, #854d0e 48%, #101018 100%);
@@ -1843,12 +1818,6 @@ pre {
 @keyframes sanabotRightLeg {
   0%, 100% { transform: rotate(-22deg) translateY(2px); }
   50% { transform: rotate(18deg) translateY(0); }
-}
-
-@keyframes sanabotEarWiggle {
-  0%, 100% { transform: rotate(0deg); }
-  45% { transform: rotate(-7deg); }
-  70% { transform: rotate(4deg); }
 }
 
 @keyframes sanabotBlink {

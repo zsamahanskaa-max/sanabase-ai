@@ -7,6 +7,8 @@ const DEFAULT_CLOUD_CONFIG = {
 const cloudConfig = loadCloudConfig();
 let cloudTimer = null;
 let lastAssistantAnswer = "";
+let lastSanaBotAnswer = "";
+let lastSanaBotAction = "chat";
 const titles = {
   chat: ["AI чат", "Құжаттарыңызға сүйеніп жауап береді."],
   library: ["Білім базасы", "PDF, Word, Excel және мәтін материалдары."],
@@ -52,6 +54,8 @@ on("crmReportTaskBtn", "click", tasksFromCrmBusinessReport);
 on("sanabotToggle", "click", toggleSanaBot);
 on("sanabotClose", "click", closeSanaBot);
 on("sanabotForm", "submit", sendSanaBotMessage);
+on("sanabotMakeTaskBtn", "click", taskFromSanaBotAnswer);
+on("sanabotFollowUpBtn", "click", crmFollowUpFromSanaBotAnswer);
 on("matchBtn", "click", matchPrices);
 on("onecImportBtn", "click", importOneCExcel);
 on("onecSaveBrainBtn", "click", saveOneCToBrain);
@@ -3808,6 +3812,7 @@ function addMessage(kind, text) {
 function initSanaBot() {
   if (!$("sanabotMessages")) return;
   renderSanaBotFocus();
+  setSanaBotMood(sanaBotDashboardMood());
   if (!$("sanabotMessages").children.length) {
     addSanaBotMessage("bot", "Сәлем, мен SanaBot-пын. Бүгінгі фокус, заказ, қарыз, склад және күндік отчет бойынша көмектесемін. Әзірге local mock режиміндемін.");
   }
@@ -3842,15 +3847,21 @@ async function sendSanaBotMessage(event) {
   if (!text) return;
   input.value = "";
   addSanaBotMessage("user", text);
+  setSanaBotMood("thinking");
   const pending = addSanaBotMessage("bot", "Ойланып жатырмын...");
-  pending.textContent = await sanaBotAiReply(text, "chat");
+  const answer = await sanaBotAiReply(text, "chat");
+  pending.textContent = answer;
+  rememberSanaBotAnswer(answer, "chat");
 }
 
 async function runSanaBotAction(action) {
   addSanaBotMessage("user", sanaBotActionLabel(action));
   const local = sanaBotActionReply(action);
+  setSanaBotMood(action === "debt" || action === "stock" ? "alert" : action === "daily" ? "focus" : "thinking");
   const pending = addSanaBotMessage("bot", local);
-  pending.textContent = await sanaBotAiReply(`${sanaBotActionLabel(action)}\n\nLocal summary:\n${local}`, action, local);
+  const answer = await sanaBotAiReply(`${sanaBotActionLabel(action)}\n\nLocal summary:\n${local}`, action, local);
+  pending.textContent = answer;
+  rememberSanaBotAnswer(answer, action);
   renderSanaBotFocus();
 }
 
@@ -3863,6 +3874,39 @@ function renderSanaBotFocus() {
     <strong>${escapeHtml(metrics.focus)}</strong>
     <small>${metrics.todayTasks} task · ${metrics.openOrders} заказ · ${money(metrics.unpaid)} қарыз</small>
   `;
+  setSanaBotMood(sanaBotDashboardMood(), false);
+}
+
+function rememberSanaBotAnswer(text, action) {
+  lastSanaBotAnswer = text || "";
+  lastSanaBotAction = action || "chat";
+  if ($("sanabotSuggestions")) $("sanabotSuggestions").classList.toggle("show", Boolean(lastSanaBotAnswer));
+  if (lastSanaBotAction === "debt" || /қарыз|карыз|төлем|оплата|debt/i.test(lastSanaBotAnswer)) setSanaBotMood("alert");
+  else if (lastSanaBotAction === "stock" || /склад|остат|тауар|stock/i.test(lastSanaBotAnswer)) setSanaBotMood("alert");
+  else setSanaBotMood("focus");
+}
+
+function setSanaBotMood(mood, force = true) {
+  const root = $("sanabot");
+  if (!root) return;
+  if (!force && root.dataset.mood === "happy") return;
+  const next = mood || "ready";
+  root.dataset.mood = next;
+  const labels = {
+    ready: "Focus companion · ready",
+    focus: "Focus mode · жоспар",
+    alert: "Alert mode · тексеру керек",
+    happy: "Happy mode · жарайсыз",
+    thinking: "Thinking · жауап дайындалуда"
+  };
+  if ($("sanabotMoodText")) $("sanabotMoodText").textContent = labels[next] || labels.ready;
+}
+
+function sanaBotDashboardMood() {
+  const metrics = sanaBotMetrics();
+  if (metrics.unpaid > 0 || metrics.lowStock > 0 || metrics.docs > 0) return "alert";
+  if (metrics.todayTasks || metrics.openOrders) return "focus";
+  return "ready";
 }
 
 function sanaBotMetrics() {
@@ -3957,9 +4001,71 @@ function sanaBotPrompt(prompt, action, local) {
   ].join("\n");
 }
 
+function taskFromSanaBotAnswer() {
+  if (!lastSanaBotAnswer) {
+    addSanaBotMessage("bot", "Алдымен SanaBot-тан жауап алыңыз, содан кейін оны task қыламын.");
+    return;
+  }
+  const title = sanaBotTaskTitle(lastSanaBotAnswer);
+  state.tasks.unshift(normalizeTask({
+    title,
+    body: lastSanaBotAnswer,
+    status: "todo",
+    priority: /қарыз|карыз|төлем|заказ|склад|alert/i.test(lastSanaBotAnswer) ? "high" : "medium",
+    due: isoDate(),
+    owner: "SanaBot",
+    link: `SanaBot · ${lastSanaBotAction}`
+  }));
+  persist();
+  render();
+  setSanaBotMood("happy");
+  addSanaBotMessage("bot", `Task дайын: ${title}`);
+}
+
+function crmFollowUpFromSanaBotAnswer() {
+  if (!lastSanaBotAnswer) {
+    addSanaBotMessage("bot", "Алдымен қарыз/заказ/CRM туралы жауап алыңыз, содан кейін follow-up жасаймын.");
+    return;
+  }
+  const cal = calendarData();
+  const order = activeCalItems(cal.orders).find(item => !["closed", "received"].includes(item.status));
+  if (order) {
+    createCalendarTask({
+      title: `SanaBot CRM follow-up: ${order.title}`,
+      date: addDays(isoDate(), 1),
+      category: "CRM",
+      priority: "high",
+      status: "open",
+      orderId: order.id,
+      comment: lastSanaBotAnswer
+    });
+    logHistory("crm_deal", order.id, "SanaBot follow-up", null, order, "SanaBot action");
+  } else {
+    state.tasks.unshift(normalizeTask({
+      title: "SanaBot CRM follow-up",
+      body: lastSanaBotAnswer,
+      status: "todo",
+      priority: "high",
+      due: addDays(isoDate(), 1),
+      owner: "CRM",
+      link: "SanaBot"
+    }));
+  }
+  persist();
+  render();
+  setSanaBotMood("happy");
+  addSanaBotMessage("bot", "CRM follow-up дайын. Мен оны ертеңге task ретінде қойдым.");
+}
+
+function sanaBotTaskTitle(text) {
+  const first = String(text || "").split(/\r?\n/).find(line => line.trim()) || "SanaBot task";
+  return first.replace(/^[-\d.\s]+/, "").slice(0, 90) || "SanaBot task";
+}
+
 function sanaBotReactToTask(task) {
   if (!$("sanabotMessages")) return;
   $("sanabot")?.classList.add("open");
+  setSanaBotMood("happy");
   addSanaBotMessage("bot", `Жарайсыз! “${task.title}” орындалды. Кішкентай жеңіс те жүйені алға жылжытады.`);
   renderSanaBotFocus();
 }

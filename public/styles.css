@@ -1458,6 +1458,26 @@ pre {
   height: 50px;
 }
 
+.sanabot[data-mood="alert"] .sanabot-fab {
+  border-color: rgba(255, 186, 92, .68);
+  background: radial-gradient(circle at 30% 20%, #ffd08a, #854d0e 48%, #101018 100%);
+  box-shadow: 0 18px 50px rgba(11, 17, 24, .38), 0 0 26px rgba(255, 186, 92, .34);
+}
+
+.sanabot[data-mood="happy"] .sanabot-fab {
+  border-color: rgba(134, 239, 172, .75);
+  background: radial-gradient(circle at 30% 20%, #b8ffcc, #22a06b 48%, #0b1118 100%);
+}
+
+.sanabot[data-mood="thinking"] .sanabot-fab {
+  border-color: rgba(147, 197, 253, .75);
+  background: radial-gradient(circle at 30% 20%, #bfdbfe, #2563eb 48%, #0b1118 100%);
+}
+
+.sanabot[data-mood="focus"] .sanabot-fab {
+  border-color: rgba(96, 245, 210, .75);
+}
+
 .sanabot-face {
   width: 26px;
   height: 18px;
@@ -1571,6 +1591,25 @@ pre {
   background: rgba(255, 255, 255, .1);
   justify-self: end;
   max-width: 88%;
+}
+
+.sanabot-suggestions {
+  display: none;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 0 14px 12px;
+}
+
+.sanabot-suggestions.show {
+  display: grid;
+}
+
+.sanabot-suggestions button {
+  width: 100%;
+  border: 1px solid rgba(96, 245, 210, .24);
+  background: rgba(96, 245, 210, .1);
+  color: #e8fff9;
+  padding: 9px 10px;
 }
 
 .sanabot-form {
@@ -1775,6 +1814,9 @@ pre {
     max-height: calc(100dvh - 104px);
   }
   .sanabot-form {
+    grid-template-columns: 1fr;
+  }
+  .sanabot-suggestions {
     grid-template-columns: 1fr;
   }
   .sanabot-form button {

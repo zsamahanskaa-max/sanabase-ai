@@ -9,6 +9,7 @@ let cloudTimer = null;
 let lastAssistantAnswer = "";
 let lastSanaBotAnswer = "";
 let lastSanaBotAction = "chat";
+let sanaBotRoamTimer = null;
 const titles = {
   chat: ["AI чат", "Құжаттарыңызға сүйеніп жауап береді."],
   library: ["Білім базасы", "PDF, Word, Excel және мәтін материалдары."],
@@ -3820,6 +3821,7 @@ function initSanaBot() {
   if (!$("sanabotMessages").children.length) {
     addSanaBotMessage("bot", "Сәлем, мен SanaBot-пын. Бүгінгі фокус, заказ, қарыз, склад және күндік отчет бойынша көмектесемін. Әзірге local mock режиміндемін.");
   }
+  startSanaBotRoaming();
   maybeSanaBotDailyNudge();
 }
 
@@ -3844,6 +3846,7 @@ function maybeSanaBotDailyNudge() {
           `Фокус: ${metrics.focus}`,
           "SanaBot ұсынысы: бір қысқа task қосып, күнді жеңіл бастаңыз."
         ].join("\n");
+    moveSanaBotHome();
     root.classList.add("open", "is-waving");
     setSanaBotMood(important ? "alert" : "focus");
     addSanaBotMessage("bot", message);
@@ -3852,15 +3855,52 @@ function maybeSanaBotDailyNudge() {
   }, 850);
 }
 
+function startSanaBotRoaming() {
+  const root = $("sanabot");
+  if (!root || sanaBotRoamTimer) return;
+  moveSanaBotHome();
+  const roam = () => {
+    if (!root.classList.contains("open")) moveSanaBotRandom();
+  };
+  setTimeout(roam, 1300);
+  sanaBotRoamTimer = setInterval(roam, 5200);
+  window.addEventListener("resize", () => root.classList.contains("open") ? moveSanaBotHome() : moveSanaBotRandom());
+}
+
+function moveSanaBotHome() {
+  const root = $("sanabot");
+  if (!root) return;
+  root.style.setProperty("--sanabot-x", `${Math.max(16, window.innerWidth - 94)}px`);
+  root.style.setProperty("--sanabot-y", `${Math.max(16, window.innerHeight - 94)}px`);
+  root.classList.remove("is-roaming-left");
+}
+
+function moveSanaBotRandom() {
+  const root = $("sanabot");
+  if (!root) return;
+  const margin = window.innerWidth < 700 ? 14 : 22;
+  const maxX = Math.max(margin, window.innerWidth - 92);
+  const maxY = Math.max(margin + 72, window.innerHeight - 98);
+  const minY = window.innerWidth < 700 ? 86 : 74;
+  const nextX = Math.round(margin + Math.random() * (maxX - margin));
+  const nextY = Math.round(minY + Math.random() * (maxY - minY));
+  const currentX = Number.parseFloat(root.style.getPropertyValue("--sanabot-x")) || maxX;
+  root.style.setProperty("--sanabot-x", `${nextX}px`);
+  root.style.setProperty("--sanabot-y", `${nextY}px`);
+  root.classList.toggle("is-roaming-left", nextX < currentX);
+}
+
 function toggleSanaBot() {
   const root = $("sanabot");
   if (!root) return;
   root.classList.toggle("open");
+  if (root.classList.contains("open")) moveSanaBotHome();
   renderSanaBotFocus();
 }
 
 function closeSanaBot() {
   $("sanabot")?.classList.remove("open");
+  setTimeout(moveSanaBotRandom, 400);
 }
 
 function addSanaBotMessage(kind, text) {

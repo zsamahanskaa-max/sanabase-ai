@@ -1416,10 +1416,18 @@ pre {
 
 .sanabot {
   position: fixed;
-  right: 22px;
-  bottom: 22px;
+  left: var(--sanabot-x, calc(100vw - 94px));
+  top: var(--sanabot-y, calc(100dvh - 94px));
   z-index: 80;
   font-family: inherit;
+  transition: left 4.6s cubic-bezier(.34, 1.2, .64, 1), top 4.6s cubic-bezier(.34, 1.2, .64, 1);
+  will-change: left, top;
+}
+
+.sanabot.open {
+  left: calc(100vw - 94px);
+  top: calc(100dvh - 94px);
+  transition-duration: .35s;
 }
 
 .sanabot-fab {
@@ -1504,6 +1512,17 @@ pre {
   background: radial-gradient(circle at 30% 20%, #b8ffcc, #22a06b 48%, #0b1118 100%);
 }
 
+.sanabot[data-mood="happy"] .sanabot-fab::after {
+  content: "\2665";
+  position: absolute;
+  right: -2px;
+  top: -17px;
+  color: #ff7aa8;
+  font-size: 19px;
+  text-shadow: 0 0 12px rgba(255, 122, 168, .72);
+  animation: sanabotHeartPop 1.25s ease-in-out infinite;
+}
+
 .sanabot[data-mood="thinking"] .sanabot-fab {
   border-color: rgba(147, 197, 253, .75);
   background: radial-gradient(circle at 30% 20%, #bfdbfe, #2563eb 48%, #0b1118 100%);
@@ -1555,7 +1574,7 @@ pre {
 
 .sanabot-leg {
   position: absolute;
-  bottom: -7px;
+  bottom: -13px;
   width: 10px;
   height: 14px;
   border-radius: 999px 999px 8px 8px;
@@ -1576,7 +1595,7 @@ pre {
 }
 
 .sanabot-avatar.large .sanabot-leg {
-  bottom: -8px;
+  bottom: -13px;
   width: 11px;
   height: 15px;
 }
@@ -1603,16 +1622,26 @@ pre {
 
 .sanabot[data-mood="alert"] .sanabot-face {
   background:
-    radial-gradient(circle at 30% 45%, #082128 0 3px, transparent 4px),
-    radial-gradient(circle at 70% 45%, #082128 0 3px, transparent 4px),
-    linear-gradient(#082128, #082128) center 83% / 16px 2px no-repeat;
+    linear-gradient(25deg, transparent 0 36%, #082128 38% 50%, transparent 52%) 18% 18% / 10px 6px no-repeat,
+    linear-gradient(-25deg, transparent 0 36%, #082128 38% 50%, transparent 52%) 82% 18% / 10px 6px no-repeat,
+    radial-gradient(circle at 30% 50%, #082128 0 3px, transparent 4px),
+    radial-gradient(circle at 70% 50%, #082128 0 3px, transparent 4px),
+    linear-gradient(#082128, #082128) center 84% / 16px 2px no-repeat;
 }
 
 .sanabot[data-mood="thinking"] .sanabot-face {
   background:
     radial-gradient(circle at 35% 45%, #082128 0 3px, transparent 4px),
     radial-gradient(circle at 72% 38%, #082128 0 2px, transparent 3px),
-    linear-gradient(#082128, #082128) center 80% / 8px 2px no-repeat;
+    radial-gradient(circle at 54% 82%, transparent 0 3px, #082128 4px 5px, transparent 6px) center / 18px 12px no-repeat;
+}
+
+.sanabot[data-mood="thinking"] .sanabot-face::before {
+  opacity: .28;
+}
+
+.sanabot.is-roaming-left .sanabot-avatar {
+  transform: scaleX(-1);
 }
 
 .sanabot-panel {
@@ -1799,6 +1828,13 @@ pre {
   62% { transform: translateY(-2px) rotate(-5deg) scale(1.01); }
 }
 
+@keyframes sanabotHeartPop {
+  0%, 100% { transform: translateY(4px) scale(.72) rotate(-8deg); opacity: 0; }
+  30% { opacity: 1; }
+  58% { transform: translateY(-9px) scale(1.05) rotate(8deg); opacity: 1; }
+  82% { transform: translateY(-17px) scale(.86) rotate(-4deg); opacity: 0; }
+}
+
 @keyframes sanabotLeftLeg {
   0%, 100% { transform: rotate(16deg) translateY(0); }
   50% { transform: rotate(-24deg) translateY(2px); }
@@ -1978,8 +2014,12 @@ pre {
     grid-template-columns: 1fr;
   }
   .sanabot {
-    right: 14px;
-    bottom: 14px;
+    left: var(--sanabot-x, calc(100vw - 74px));
+    top: var(--sanabot-y, calc(100dvh - 74px));
+  }
+  .sanabot.open {
+    left: calc(100vw - 74px);
+    top: calc(100dvh - 74px);
   }
   .sanabot-fab {
     width: 60px;

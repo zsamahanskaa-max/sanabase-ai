@@ -72,6 +72,8 @@ on("cfoChatForm", "submit", askCfoMock);
 on("cfoSeedBtn", "click", seedCfoDemoData);
 on("cfoExportBtn", "click", exportCfoData);
 on("cfoClearBtn", "click", clearCfoData);
+on("cfoImportBtn", "click", importCfoFiles);
+on("cfoImportReportBtn", "click", showCfoImportReport);
 on("taskForm", "submit", saveTask);
 on("taskSearch", "input", render);
 on("taskQuickCrmBtn", "click", taskFromCrm);
@@ -4379,6 +4381,192 @@ function clearCfoData() {
   state.cfo = defaultCfoState();
   persist();
   render();
+}
+
+async function importCfoFiles() {
+  const out = $("cfoImportOut");
+  const files = {
+    realization: $("cfoRealizationFile")?.files?.[0],
+    bank: $("cfoBankFile")?.files?.[0],
+    counterparties: $("cfoCounterpartyFile")?.files?.[0],
+    stock: $("cfoStockFile")?.files?.[0]
+  };
+  if (!Object.values(files).some(Boolean)) {
+    if (out) out.textContent = "Кемінде бір Excel/CSV файл таңдаңыз.";
+    return;
+  }
+  if (out) out.textContent = "AI Бас бухгалтер файлдарды оқып жатыр...";
+  try {
+    const tables = {};
+    for (const [key, file] of Object.entries(files)) {
+      if (file) tables[key] = await readTableFile(file);
+    }
+    const result = cfoImportTables(tables);
+    state.cfo = normalizeCfo(state.cfo || {});
+    state.cfo.orders = mergeCfoRows(state.cfo.orders, result.orders);
+    state.cfo.payments = mergeCfoRows(state.cfo.payments, result.payments);
+    state.cfo.clients = mergeCfoRows(state.cfo.clients, result.clients);
+    state.cfo.suppliers = mergeCfoRows(state.cfo.suppliers, result.suppliers);
+    state.cfo.products = mergeCfoRows(state.cfo.products, result.products);
+    state.cfo.documents = mergeCfoRows(state.cfo.documents, result.documents);
+    state.cfo.lastImport = {
+      at: new Date().toISOString(),
+      files: Object.values(files).filter(Boolean).map(file => file.name),
+      summary: result.summary,
+      report: result.report
+    };
+    persist();
+    render();
+    if (out) out.textContent = result.report;
+  } catch (error) {
+    if (out) out.textContent = `Импорт қатесі: ${shortError(error)}`;
+  }
+}
+
+function cfoImportTables(tables) {
+  const realization = tables.realization ? parseRealizationTable(tables.realization) : [];
+  const bank = tables.bank ? parseKaspiTable(tables.bank) : [];
+  const counterparties = tables.counterparties ? parseCounterpartyTable(tables.counterparties) : [];
+  const stock = tables.stock ? parseNomenclatureTable(tables.stock) : [];
+  const paidByName = groupSum(bank, row => normalizeParty(row.name || row.purpose), row => row.amount);
+  const orders = realization.map(row => {
+    const paid = paidByName.get(normalizeParty(row.client)) || 0;
+    return normalizeCfoOrder({
+      business: /мектеп|school|школ/i.test(row.client) ? "b2b" : "retail",
+      clientName: row.client,
+      schoolName: row.client,
+      date: normalizeDateInput(row.date) || isoDate(),
+      status: "delivered",
+      totalAmount: row.amount,
+      costAmount: row.cost,
+      paidAmount: Math.min(row.amount || 0, paid || 0),
+      documentStatus: row.doc ? "дайын" : "толық емес",
+      esfStatus: "",
+      oneCStatus: row.doc ? `1С ${row.doc}` : "1С реализация табылды",
+      comment: row.item || ""
+    });
+  });
+  const payments = bank.map(row => normalizeCfoPayment({
+    business: /мектеп|school|школ/i.test(row.name || row.purpose) ? "b2b" : "retail",
+    date: normalizeDateInput(row.date) || isoDate(),
+    type: row.amount < 0 ? "expense" : "income",
+    method: "bank",
+    category: inferCfoPaymentCategory(row),
+    amount: Math.abs(row.amount || 0),
+    counterparty: row.name || row.purpose || "",
+    relatedOrderId: "",
+    comment: row.purpose || ""
+  }));
+  const clients = counterparties.map(row => normalizeCfoClient({
+    business: /мектеп|school|школ/i.test(row.name) ? "b2b" : "retail",
+    name: row.name,
+    bin: row.bin,
+    phone: row.phone,
+    debtAmount: row.debt,
+    lastPaymentDate: "",
+    comment: "1С контрагент импорт"
+  }));
+  const products = stock.map(row => normalizeCfoProduct({
+    business: /viko|teklet|электр|розетка|кабель|автомат/i.test(`${row.name} ${row.supplier}`) ? "retail" : "b2b",
+    name: row.name || row.code,
+    oneCName: row.name || row.code,
+    category: row.supplier || "",
+    purchasePrice: row.buyPrice,
+    salePrice: row.sellPrice,
+    quantity: row.stock,
+    minQuantity: cfoMinStock(row)
+  }));
+  const suppliers = [...new Set(stock.map(row => row.supplier).filter(Boolean))].map(name => normalizeCfoSupplier({
+    business: "retail",
+    name,
+    payableAmount: 0,
+    comment: "Номенклатура файлы бойынша поставщик"
+  }));
+  const documents = realization.map(row => normalizeCfoDocument({
+    business: /мектеп|school|школ/i.test(row.client) ? "b2b" : "retail",
+    orderId: "",
+    type: "реализация",
+    status: row.doc ? "дайын" : "жоқ",
+    date: normalizeDateInput(row.date) || isoDate(),
+    comment: row.doc || `${row.client} реализация`
+  }));
+  const summary = {
+    orders: orders.length,
+    payments: payments.length,
+    clients: clients.length,
+    products: products.length,
+    documents: documents.length,
+    debt: orders.reduce((sum, order) => sum + order.debtAmount, 0),
+    lowStock: products.filter(product => product.quantity < product.minQuantity).length
+  };
+  const report = [
+    "AI Бас бухгалтер импорт отчеты",
+    `Файлдар: ${Object.keys(tables).join(", ")}`,
+    `Заказ/реализация: ${summary.orders}`,
+    `Төлем: ${summary.payments}`,
+    `Клиент/контрагент: ${summary.clients}`,
+    `Товар/остаток: ${summary.products}`,
+    `Құжат: ${summary.documents}`,
+    `Импорттан кейінгі қарыз: ${money(summary.debt)}`,
+    `Склад warning: ${summary.lowStock}`,
+    "",
+    "Келесі қадам: Audit Check бөлімін ашып, ЭСФ, құжат, қарыз, төлем байланысын тексеріңіз."
+  ].join("\n");
+  return { orders, payments, clients, suppliers, products, documents, summary, report };
+}
+
+function mergeCfoRows(existing = [], incoming = []) {
+  const seen = new Set(existing.map(row => cfoMergeKey(row)));
+  const merged = [...existing];
+  incoming.forEach(row => {
+    const key = cfoMergeKey(row);
+    if (seen.has(key)) return;
+    seen.add(key);
+    merged.unshift(row);
+  });
+  return merged;
+}
+
+function cfoMergeKey(row = {}) {
+  return [
+    row.clientName || row.name || row.counterparty || row.type || "",
+    row.schoolName || row.oneCName || row.comment || "",
+    row.date || row.dueDate || "",
+    row.totalAmount || row.amount || row.debtAmount || row.quantity || ""
+  ].map(value => normalizeText(value)).join("|");
+}
+
+function inferCfoPaymentCategory(row = {}) {
+  const source = normalizeText(`${row.name || ""} ${row.purpose || ""}`);
+  if (/аренда|rent/.test(source)) return "аренда";
+  if (/налог|салық|салык/.test(source)) return "салық";
+  if (/viko|teklet|поставщик|жеткізуші/.test(source)) return "поставщик төлемі";
+  if (/мектеп|school|школ/.test(source)) return "мектеп төлемі";
+  return "";
+}
+
+function cfoMinStock(row = {}) {
+  const name = normalizeText(`${row.name || ""} ${row.supplier || ""}`);
+  if (/viko|teklet|розетка|автомат|кабель/.test(name)) return 8;
+  return 3;
+}
+
+function normalizeDateInput(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  const date = new Date(text);
+  if (!Number.isNaN(date.getTime())) return date.toISOString().slice(0, 10);
+  const match = text.match(/(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{2,4})/);
+  if (!match) return "";
+  const year = match[3].length === 2 ? `20${match[3]}` : match[3];
+  return `${year}-${match[2].padStart(2, "0")}-${match[1].padStart(2, "0")}`;
+}
+
+function showCfoImportReport() {
+  const out = $("cfoImportOut");
+  state.cfo = normalizeCfo(state.cfo || {});
+  if (!out) return;
+  out.textContent = state.cfo.lastImport?.report || "Әзірге импорт отчеты жоқ. Алдымен файл жүктеп, “Бухгалтерге импорттау” басыңыз.";
 }
 
 function saveCfoQuickRecord(event) {

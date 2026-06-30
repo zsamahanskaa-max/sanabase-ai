@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#28433f">
   <title>SanaBase AI</title>
-  <link rel="manifest" href="public/manifest.json?v=20260701-01">
-  <link rel="stylesheet" href="public/styles.css?v=20260701-01">
+  <link rel="manifest" href="public/manifest.json?v=20260701-02">
+  <link rel="stylesheet" href="public/styles.css?v=20260701-02">
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs" type="module"></script>
@@ -773,6 +773,23 @@ with check (true);</textarea>
             <option value="retail">Электр дүкені</option>
           </select>
         </div>
+        <section class="cfo-import">
+          <div>
+            <h3>1С / Kaspi / Банк импорт</h3>
+            <p>Файлдарды жүктесеңіз, AI Бас бухгалтер заказ, төлем, клиент, склад және құжат warning-терін өзі толтырады.</p>
+          </div>
+          <div class="cfo-file-grid">
+            <label><span>1С реализация</span><input id="cfoRealizationFile" type="file" accept=".xlsx,.xls,.csv,.tsv"></label>
+            <label><span>Kaspi / банк выписка</span><input id="cfoBankFile" type="file" accept=".xlsx,.xls,.csv,.tsv"></label>
+            <label><span>1С контрагенттер</span><input id="cfoCounterpartyFile" type="file" accept=".xlsx,.xls,.csv,.tsv"></label>
+            <label><span>Номенклатура / остаток</span><input id="cfoStockFile" type="file" accept=".xlsx,.xls,.csv,.tsv"></label>
+          </div>
+          <div class="cfo-actions-row">
+            <button id="cfoImportBtn" type="button">Бухгалтерге импорттау</button>
+            <button id="cfoImportReportBtn" type="button">Импорт отчетын көру</button>
+          </div>
+          <pre id="cfoImportOut">1С реализация, Kaspi/банк выписка, контрагенттер немесе номенклатура файлын таңдаңыз.</pre>
+        </section>
         <div class="cfo-layout">
           <form id="cfoQuickForm" class="cfo-form">
             <h3>Жылдам дерек енгізу</h3>
@@ -912,6 +929,6 @@ with check (true);</textarea>
     </section>
   </div>
 
-  <script src="public/app.js?v=20260701-01"></script>
+  <script src="public/app.js?v=20260701-02"></script>
 </body>
 </html>

@@ -670,6 +670,55 @@ textarea:focus, input:focus, select:focus { border-color: var(--leaf); }
   color: #eefcf8;
 }
 
+.cfo-import {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .78);
+  box-shadow: var(--shadow);
+  padding: 14px;
+  display: grid;
+  gap: 12px;
+}
+
+.cfo-import h3,
+.cfo-import p {
+  margin: 0;
+}
+
+.cfo-import p,
+.cfo-file-grid span {
+  color: var(--muted);
+}
+
+.cfo-file-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.cfo-file-grid label {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #f8fbf9;
+  padding: 10px;
+  display: grid;
+  gap: 7px;
+}
+
+.cfo-actions-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.cfo-actions-row button {
+  width: auto;
+}
+
+#cfoImportOut {
+  min-height: 120px;
+}
+
 .cfo-accountant-grid {
   display: grid;
   grid-template-columns: 1.2fr 1fr 1fr;
@@ -2155,7 +2204,7 @@ pre {
     max-width: 100%;
     padding: 12px 13px;
   }
-  .composer, .toolbar, .split, .notes-layout, .tasks-layout, .cal-layout, .cal-hero, .match-grid, .brain-fields, .brain-head, .cloud-grid, .task-form-grid, .note-form-grid, .cal-form-grid, .assistant-controls, .assistant-dashboard, .goal-toolbar, .goal-layout, .goal-columns, .goal-form-grid, .crm-actions, .crm-dashboard, .crm-sections, .crm-template-grid, .crm-panel-head, .crm-toolbar, .crm-quick-form, .crm-file-grid, .crm-smart-archive, .crm-report-card, .cfo-hero, .cfo-layout, .cfo-toolbar, .cfo-form-grid, .cfo-accountant-grid {
+  .composer, .toolbar, .split, .notes-layout, .tasks-layout, .cal-layout, .cal-hero, .match-grid, .brain-fields, .brain-head, .cloud-grid, .task-form-grid, .note-form-grid, .cal-form-grid, .assistant-controls, .assistant-dashboard, .goal-toolbar, .goal-layout, .goal-columns, .goal-form-grid, .crm-actions, .crm-dashboard, .crm-sections, .crm-template-grid, .crm-panel-head, .crm-toolbar, .crm-quick-form, .crm-file-grid, .crm-smart-archive, .crm-report-card, .cfo-hero, .cfo-layout, .cfo-toolbar, .cfo-form-grid, .cfo-accountant-grid, .cfo-file-grid {
     grid-template-columns: 1fr;
   }
   .cfo-kpis,

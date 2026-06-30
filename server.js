@@ -85,7 +85,7 @@ async function handleAi(req, res) {
   }
 
   const mode = body.mode || "chat";
-  const system = buildSystemPrompt(mode, body.language || "Kazakh");
+  const system = body.system || buildSystemPrompt(mode, body.language || "Kazakh");
   const input = [
     { role: "system", content: system },
     {
@@ -127,6 +127,7 @@ function buildSystemPrompt(mode, language) {
     translate: "Translate the user's text faithfully. Preserve meaning, formatting, names, and numbers.",
     quiz: "Create a useful quiz from the context. Include questions, four options when suitable, and an answer key.",
     crm: "Analyze CRM, sales, leads, client, pipeline, and spreadsheet context. Identify trends, bottlenecks, risks, opportunities, and next actions.",
+    sanabot: "Act as SanaBot, an original warm digital companion for SanaBase. Be concise, practical, business-aware, and give 1-3 next actions for focus, tasks, orders, debt, stock, and daily reports.",
     notes: "Turn the request and context into clean study notes with headings, bullets, and key takeaways.",
     summary: "Summarize the context into executive summary, key facts, and next actions."
   };
@@ -147,6 +148,20 @@ function localAnswer(body, reason) {
   const prompt = String(body.prompt || "").trim();
   const notes = String(body.notes || "").trim();
   const source = [context, notes].filter(Boolean).join("\n\n");
+
+  if (mode === "sanabot") {
+    return [
+      "SanaBot local companion",
+      `Reason: ${reason}`,
+      "",
+      prompt || "Бүгінгі жоспар, қарыз, заказ, склад немесе күндік отчетты сұраңыз.",
+      "",
+      "Келесі әрекет:",
+      "- Бүгінгі басты фокусты таңдаңыз.",
+      "- Қарыз/заказ/склад сигналын тексеріңіз.",
+      "- Бір нақты task қосыңыз."
+    ].join("\n");
+  }
 
   if (!source) {
     return [

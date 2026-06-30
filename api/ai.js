@@ -9,7 +9,7 @@ module.exports = async function handler(req, res) {
   const input = [
     {
       role: "system",
-      content: `You are SanaBase AI. Answer in ${body.language || "Kazakh"}. Use uploaded context. For CRM, give pipeline, sales, risks, and next actions.`
+      content: body.system || `You are SanaBase AI. Answer in ${body.language || "Kazakh"}. Use uploaded context. For CRM, give pipeline, sales, risks, and next actions.`
     },
     {
       role: "user",
@@ -48,6 +48,19 @@ function collect(data) {
 
 function fallback(body, reason) {
   const source = `${body.context || ""}\n${body.notes || ""}`.trim();
+  if (body.mode === "sanabot") {
+    return [
+      "SanaBot local companion",
+      `AI provider warning: ${reason}`,
+      "",
+      body.prompt || "Бүгінгі фокус, қарыз, заказ, склад немесе күндік отчет бойынша сұрақ жазыңыз.",
+      "",
+      "Келесі әрекет:",
+      "- Бүгінгі 1 басты фокусты таңдаңыз.",
+      "- Қарыз/заказ/склад сигналын тексеріңіз.",
+      "- Бір нақты task қосыңыз."
+    ].join("\n");
+  }
   if (body.mode === "crm") {
     const rows = source.split(/\r?\n/).filter(line => /Rows:|Columns:|Top values|amount|status|client|owner|sales|lead/i.test(line));
     return [

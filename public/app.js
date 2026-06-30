@@ -3229,6 +3229,7 @@ function unsupported(file, warning) {
 
 function localAnswer(mode, prompt, language, assistantMode = "auto") {
   const context = buildContext();
+  if (mode === "sanabot") return sanaBotMockReply(prompt);
   if (!context.trim()) {
     return emptyAssistantAnswer(assistantMode);
   }
@@ -3276,6 +3277,7 @@ function assistantInstruction(mode) {
     finance: "Қаржы бақылаушысы сияқты жауап бер: қарыз, төлем мерзімі, кешіккен сумма, ESF, счет, поставщик төлемі және қауіп деңгейін шығар.",
     focus: "Фокус коуч сияқты жауап бер: бүгін міндетті 3 әрекет, ертеңге қалатын нәрсе, 15 минутта басталатын бірінші қадам."
   };
+  modes.sanabot = "SanaBot персонажы сияқты жауап бер: жылы, қысқа, нақты, бизнес дерегіне сүйенген. Тапсырма, қарыз, заказ, склад, күндік фокус бойынша 1-3 келесі әрекет шығар.";
   return `${base} ${modes[mode] || "Пайдаланушыға ең пайдалы форматты таңда."}`;
 }
 
@@ -3830,21 +3832,25 @@ function addSanaBotMessage(kind, text) {
   node.textContent = text;
   box.appendChild(node);
   box.scrollTop = box.scrollHeight;
+  return node;
 }
 
-function sendSanaBotMessage(event) {
+async function sendSanaBotMessage(event) {
   event.preventDefault();
   const input = $("sanabotInput");
   const text = input?.value.trim();
   if (!text) return;
   input.value = "";
   addSanaBotMessage("user", text);
-  addSanaBotMessage("bot", sanaBotMockReply(text));
+  const pending = addSanaBotMessage("bot", "Ойланып жатырмын...");
+  pending.textContent = await sanaBotAiReply(text, "chat");
 }
 
-function runSanaBotAction(action) {
+async function runSanaBotAction(action) {
   addSanaBotMessage("user", sanaBotActionLabel(action));
-  addSanaBotMessage("bot", sanaBotActionReply(action));
+  const local = sanaBotActionReply(action);
+  const pending = addSanaBotMessage("bot", local);
+  pending.textContent = await sanaBotAiReply(`${sanaBotActionLabel(action)}\n\nLocal summary:\n${local}`, action, local);
   renderSanaBotFocus();
 }
 
@@ -3916,6 +3922,39 @@ function sanaBotMockReply(text) {
   if (/отчет|есеп|күндік|daily/.test(query)) return sanaBotActionReply("daily");
   if (/жоспар|бүгін|today|focus/.test(query)) return sanaBotActionReply("today");
   return "Түсіндім. MVP режимінде мен local деректерге қараймын: жоспар, task, заказ, қарыз, склад, күндік отчет. Кейін осы жерге AI API жауап беру қабатын қосамыз.";
+}
+
+async function sanaBotAiReply(prompt, action = "chat", fallbackText = "") {
+  const local = fallbackText || sanaBotMockReply(prompt);
+  try {
+    const result = await ai("sanabot", sanaBotPrompt(prompt, action, local), "Kazakh", "sanabot");
+    const text = String(result?.text || "").trim();
+    if (!text || /OpenAI is not available|AI service is not available|OPENAI_API_KEY/i.test(text)) return local;
+    return text;
+  } catch {
+    return local;
+  }
+}
+
+function sanaBotPrompt(prompt, action, local) {
+  const metrics = sanaBotMetrics();
+  return [
+    `SanaBot action: ${action}`,
+    `User message: ${prompt}`,
+    "",
+    "Current dashboard signals:",
+    `- Focus: ${metrics.focus}`,
+    `- Today tasks: ${metrics.todayTasks}`,
+    `- Open orders: ${metrics.openOrders}`,
+    `- Unpaid/debt: ${money(metrics.unpaid)}`,
+    `- Docs/ESF alerts: ${metrics.docs}`,
+    `- Low/no stock: ${metrics.lowStock}`,
+    "",
+    "Local draft:",
+    local,
+    "",
+    "Answer as SanaBot: warm, original, concise, business-aware. Give concrete next actions."
+  ].join("\n");
 }
 
 function sanaBotReactToTask(task) {

@@ -162,9 +162,34 @@ p { margin: 6px 0 0; }
 
 .assistant-controls {
   display: grid;
-  grid-template-columns: minmax(180px, 260px) auto;
+  grid-template-columns: minmax(180px, 1fr) repeat(3, auto);
   gap: 10px;
   align-items: center;
+}
+
+.assistant-dashboard {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(90px, 1fr));
+  gap: 8px;
+}
+
+.assistant-dashboard article {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #102823;
+  color: white;
+  padding: 10px;
+  display: grid;
+  gap: 4px;
+}
+
+.assistant-dashboard span {
+  color: #bfd0ca;
+  font-size: 12px;
+}
+
+.assistant-dashboard strong {
+  font-size: 18px;
 }
 
 .quick-prompts {
@@ -1279,7 +1304,7 @@ pre {
     max-width: 100%;
     padding: 12px 13px;
   }
-  .composer, .toolbar, .split, .notes-layout, .tasks-layout, .cal-layout, .cal-hero, .match-grid, .brain-fields, .brain-head, .cloud-grid, .task-form-grid, .note-form-grid, .cal-form-grid, .assistant-controls, .goal-toolbar, .goal-layout, .goal-columns, .goal-form-grid, .crm-actions, .crm-dashboard, .crm-sections, .crm-template-grid {
+  .composer, .toolbar, .split, .notes-layout, .tasks-layout, .cal-layout, .cal-hero, .match-grid, .brain-fields, .brain-head, .cloud-grid, .task-form-grid, .note-form-grid, .cal-form-grid, .assistant-controls, .assistant-dashboard, .goal-toolbar, .goal-layout, .goal-columns, .goal-form-grid, .crm-actions, .crm-dashboard, .crm-sections, .crm-template-grid {
     grid-template-columns: 1fr;
   }
   .toolbar {

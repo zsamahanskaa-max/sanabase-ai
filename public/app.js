@@ -35,6 +35,8 @@ on("fileInput", "change", importFiles);
 on("notifyEnableBtn", "click", enableNotifications);
 on("chatForm", "submit", chat);
 on("assistantTaskBtn", "click", taskFromLastAssistantAnswer);
+on("assistantPlanBtn", "click", planFromLastAssistantAnswer);
+on("assistantCrmDocBtn", "click", crmDocFromLastAssistantAnswer);
 on("translateBtn", "click", translate);
 on("quizBtn", "click", quiz);
 on("crmBtn", "click", crm);
@@ -165,6 +167,62 @@ function taskFromLastAssistantAnswer() {
   persist();
   render();
   addMessage("ai", "Соңғы жауап Тапсырмалар тақтасына қосылды.");
+}
+
+function planFromLastAssistantAnswer() {
+  if (!lastAssistantAnswer.trim()) {
+    addMessage("ai", "Алдымен ассистенттен жауап алыңыз, содан кейін оны жоспарға айналдырамын.");
+    return;
+  }
+  state.plans.unshift(normalizePlan({
+    title: firstMeaningfulLine(lastAssistantAnswer).slice(0, 90) || `AI жоспар ${isoDate()}`,
+    type: "daily",
+    category: "Бизнес",
+    date: isoDate(),
+    focus: lastAssistantAnswer.slice(0, 500),
+    tasks: extractActionLines(lastAssistantAnswer).map(title => ({ id: crypto.randomUUID(), title, done: false })),
+    status: "today"
+  }));
+  persist();
+  render();
+  addMessage("ai", "Соңғы жауап Фокус орталығы / Жоспарлар ішіне қосылды.");
+}
+
+function crmDocFromLastAssistantAnswer() {
+  if (!lastAssistantAnswer.trim()) {
+    addMessage("ai", "Алдымен CRM немесе бизнес бойынша жауап алыңыз, содан кейін CRM құжат жасаймын.");
+    return;
+  }
+  const name = `AI CRM құжат ${isoDate()}`;
+  const documentText = crmDocumentEnvelope(name, lastAssistantAnswer);
+  state.docs.unshift(normalizeDoc({
+    name: `${name}.txt`,
+    type: "crm_report",
+    text: documentText,
+    tags: ["crm", "ai", "есеп"],
+    links: ["AI чат", "CRM"]
+  }));
+  state.notes.unshift(normalizeNote({
+    title: name,
+    folder: "CRM",
+    type: "long",
+    body: documentText,
+    tags: ["crm", "ai"],
+    brain: true
+  }));
+  createCrmCalendarDocument(name, documentText);
+  persist();
+  render();
+  addMessage("ai", "Соңғы жауап CRM құжат ретінде сақталды: Білім базасы, Жазбалар / CRM, Екінші ми және Күнтізбе / Құжаттар.");
+}
+
+function extractActionLines(text) {
+  const lines = String(text || "")
+    .split(/\n+/)
+    .map(line => line.replace(/^[-*\d.)\s]+/, "").trim())
+    .filter(line => line.length > 8 && line.length < 160)
+    .filter(line => /(керек|жасау|тексеру|хабарласу|жіберу|төлеу|сұрау|енгізу|бақылау|follow|call|send|check)/i.test(line));
+  return [...new Set(lines)].slice(0, 8);
 }
 
 function maybeCreateTaskFromPrompt(prompt, answer) {
@@ -437,6 +495,26 @@ function renderCrmWorkspace() {
     "Әр ұсыныстан кейін: коммерциялық ұсыныс жіберілді ме, жауап келді ме, келесі қоңырау күні бар ма.",
     "Қауіпті жер: қарыз, кешіккен жеткізілім, код/баға сәйкес келмеуі, ESF мерзімі."
   ].map(item => `<p>${item}</p>`).join("");
+}
+
+function renderAssistantDashboard() {
+  if (!$("assistantDashboard")) return;
+  const cal = calendarData();
+  const today = isoDate();
+  const openTasks = state.tasks.filter(task => task.status !== "done");
+  const overdueTasks = openTasks.filter(task => task.due && task.due < today);
+  const todayPlans = state.plans.filter(plan => plan.date === today && plan.status !== "done");
+  const unpaid = activeCalItems(cal.payments).filter(payment => payment.status !== "paid");
+  const openOrders = activeCalItems(cal.orders).filter(order => !["closed", "received"].includes(order.status));
+  const esf = activeCalItems(cal.documents).filter(doc => doc.esfDeadline && doc.esfStatus !== "sent");
+  $("assistantDashboard").innerHTML = [
+    ["Бүгінгі жоспар", todayPlans.length],
+    ["Ашық task", openTasks.length],
+    ["Кешіккен", overdueTasks.length],
+    ["Ашық заказ", openOrders.length],
+    ["Төлем/қарыз", unpaid.length],
+    ["ESF", esf.length]
+  ].map(([label, value]) => `<article><span>${label}</span><strong>${value}</strong></article>`).join("");
 }
 
 async function matchPrices() {
@@ -2355,6 +2433,10 @@ function answerFromContext(prompt, context, assistantMode = "auto") {
     .map(item => item.sentence);
   if (assistantMode === "crm") return analyzeCrm(context);
   if (assistantMode === "tasks") return taskPlanFromContext(prompt, context, sentences);
+  if (assistantMode === "owner") return ownerBriefing(context);
+  if (assistantMode === "b2b") return b2bBriefing(context);
+  if (assistantMode === "finance") return financeBriefing(context);
+  if (assistantMode === "focus") return focusBriefing(context);
   if (assistantMode === "action") return actionPlanAnswer(prompt, sentences.length ? sentences : [context.slice(0, 1200)]);
   if (!sentences.length) return "Бұл сұраққа нақты сәйкес жол табылмады. Базаңыздан ең маңызды үзінді:\n\n" + context.slice(0, 1200) + nextStepBlock();
   if (assistantMode === "brief") return sentences.slice(0, 3).join("\n\n");
@@ -2367,7 +2449,11 @@ function assistantInstruction(mode) {
     brief: "Өте қысқа жауап бер: максимум 5 bullet.",
     action: "Жауапты міндетті түрде: Қорытынды, Нақты әрекеттер, Тәуекел, Келесі қадам форматында бер.",
     crm: "CRM аналитик сияқты жауап бер: клиент, табыс, pipeline, тәуекел, келесі әрекет.",
-    tasks: "Құжаттан орындалатын тапсырмаларды шығар: атауы, маңыздылығы, мерзімі бар болса көрсет."
+    tasks: "Құжаттан орындалатын тапсырмаларды шығар: атауы, маңыздылығы, мерзімі бар болса көрсет.",
+    owner: "Екі бизнес иесінің операционный директоры сияқты жауап бер: электр дүкені, B2B клиент, ақша, қарыз, заказ, поставщик, құжат, ESF және бүгінгі 3 фокус бойынша нақты айт.",
+    b2b: "B2B сату жетекшісі сияқты жауап бер: клиент сегменті, follow-up, коммерциялық ұсыныс, төлем сұрау, повторная продажа және келесі байланыс күнін шығар.",
+    finance: "Қаржы бақылаушысы сияқты жауап бер: қарыз, төлем мерзімі, кешіккен сумма, ESF, счет, поставщик төлемі және қауіп деңгейін шығар.",
+    focus: "Фокус коуч сияқты жауап бер: бүгін міндетті 3 әрекет, ертеңге қалатын нәрсе, 15 минутта басталатын бірінші қадам."
   };
   return `${base} ${modes[mode] || "Пайдаланушыға ең пайдалы форматты таңда."}`;
 }
@@ -2376,6 +2462,10 @@ function emptyAssistantAnswer(mode) {
   const base = "Әзірге база бос. PDF/Word/Excel/CSV жүктесеңіз, мен соның ішінен жауап беремін.";
   if (mode === "tasks") return `${base}\n\nҚосуға болатын нәрсе: құжаттан автоматты тапсырма шығару, мерзім табу, жауапты адамды белгілеу.`;
   if (mode === "crm") return `${base}\n\nCRM үшін Excel/CSV жүктеңіз: мен клиенттерді, сатылым сомасын, тәуекелді және келесі әрекет тапсырмаларын шығарамын.`;
+  if (mode === "owner") return `${base}\n\nИесінің штабы үшін: құжат, CRM, заказ, төлем, қарыз, мақсат және бүгінгі фокус деректерін жүктеңіз.`;
+  if (mode === "b2b") return `${base}\n\nB2B үшін: клиенттер, заказдар, коммерциялық ұсыныстар және төлем файлдарын жүктеңіз.`;
+  if (mode === "finance") return `${base}\n\nҚаржы бақылауы үшін: төлем, қарыз, счет, ESF және поставщик деректерін жүктеңіз.`;
+  if (mode === "focus") return `${base}\n\nФокус үшін: мақсат, жоспар, task немесе бүгінгі ойларыңызды енгізіңіз.`;
   return `${base}\n\nМен қазір мынаны істей аламын: құжат оқу, прайс салыстыру, CRM талдау, тапсырма жасау, тест/аударма, Екінші ми ішінен іздеу.`;
 }
 
@@ -2445,6 +2535,90 @@ function analyzeCrm(context) {
     `- Сандық мәндер: ${money.length ? money.slice(0, 12).join(", ") : "табылмады"}`,
     "",
     "Егер екі прайсты код бойынша толықтыру керек болса, Прайс салыстыру бөлімін қолданыңыз."
+  ].join("\n");
+}
+
+function ownerBriefing(context) {
+  const cal = calendarData();
+  const today = isoDate();
+  const openTasks = state.tasks.filter(task => task.status !== "done");
+  const overdueTasks = openTasks.filter(task => task.due && task.due < today);
+  const openOrders = activeCalItems(cal.orders).filter(order => !["closed", "received"].includes(order.status));
+  const unpaid = activeCalItems(cal.payments).filter(payment => payment.status !== "paid");
+  return [
+    "Иесінің штабы:",
+    `- Ашық тапсырма: ${openTasks.length}, кешіккені: ${overdueTasks.length}`,
+    `- Ашық заказ: ${openOrders.length}`,
+    `- Бақылаудағы төлем/қарыз: ${unpaid.length}`,
+    `- Құжат/ESF бақылау: ${activeCalItems(cal.documents).filter(doc => doc.esfDeadline && doc.esfStatus !== "sent").length}`,
+    "",
+    "Бүгінгі 3 фокус:",
+    "1. Ақша: төлемі кешіккен клиент пен поставщик міндеттемесін тексеру.",
+    "2. Продажа: B2B клиенттерге follow-up және коммерциялық ұсыныс жіберу.",
+    "3. Операция: заказ, остаток, код/баға сәйкестігін тексеру.",
+    "",
+    "Келесі әрекет:",
+    extractActionLines(context).slice(0, 5).map((line, index) => `${index + 1}. ${line}`).join("\n") || "1. CRM/заказ/төлем құжатын жүктеп, қайта аудит жасаңыз."
+  ].join("\n");
+}
+
+function b2bBriefing(context) {
+  const clientLines = context.split(/\n+/).filter(line => /клиент|client|заказ|ұсыныс|счет|төлем|payment/i.test(line)).slice(0, 8);
+  return [
+    "B2B сату штабы:",
+    "- Клиенттерді A/B/C деп бөліңіз: тұрақты, жылы лид, ұйықтап жатқан клиент.",
+    "- Әр клиентке келесі байланыс күні керек.",
+    "- Коммерциялық ұсыныс жіберілгеннен кейін 1-2 күнде follow-up жасаңыз.",
+    "",
+    "Бүгінгі follow-up:",
+    ...(clientLines.length ? clientLines.map((line, index) => `${index + 1}. ${line.slice(0, 160)}`) : ["1. Бүгін төлем/заказ/ұсыныс күтіп тұрған клиенттер тізімін жүктеңіз."]),
+    "",
+    "Сату мүмкіндігі:",
+    "- Электр тауарларында комплектпен сату: кабель + автомат + щит + розетка + расходник."
+  ].join("\n");
+}
+
+function financeBriefing(context) {
+  const cal = calendarData();
+  const unpaid = activeCalItems(cal.payments).filter(payment => payment.status !== "paid");
+  const total = unpaid.reduce((sum, payment) => sum + Math.abs(Number(payment.amount || 0)), 0);
+  const docs = activeCalItems(cal.documents).filter(doc => doc.esfDeadline && doc.esfStatus !== "sent");
+  return [
+    "Қаржы / қарыз бақылауы:",
+    `- Ашық төлем саны: ${unpaid.length}`,
+    `- Шамамен қарыз/төлем сомасы: ${Math.round(total).toLocaleString("kk-KZ")} ₸`,
+    `- ESF/құжат бақылауы: ${docs.length}`,
+    "",
+    "Қауіптер:",
+    "- Мерзімі өткен төлем клиентпен қатынасты да, cashflow-ды да тежейді.",
+    "- ESF мерзімі өтіп кетсе, құжаттық проблема шығады.",
+    "- Поставщикке төлем кешіксе, келесі поставка тоқтауы мүмкін.",
+    "",
+    "Бүгін істеу:",
+    "1. Ең үлкен 3 қарызды сұрау.",
+    "2. ESF мерзімі жақын құжаттарды тексеру.",
+    "3. Поставщик төлемін және клиенттен күтілетін ақшаны салыстыру."
+  ].join("\n");
+}
+
+function focusBriefing(context) {
+  const today = isoDate();
+  const tasks = state.tasks.filter(task => task.status !== "done" && (!task.due || task.due <= today)).slice(0, 5);
+  const plans = state.plans.filter(plan => plan.status !== "done" && plan.date <= today).slice(0, 3);
+  return [
+    "Фокус режимі:",
+    "",
+    "Бүгін міндетті 3 әрекет:",
+    ...(tasks.length ? tasks.slice(0, 3).map((task, index) => `${index + 1}. ${task.title}`) : ["1. CRM/заказ/төлем бойынша ең маңызды бір істі таңдаңыз.", "2. Бір B2B клиентке хабарласыңыз.", "3. Бір құжат/төлемді реттеңіз."]),
+    "",
+    "Жоспардан:",
+    ...(plans.length ? plans.map(plan => `- ${plan.title}: ${planProgress(plan).percent}%`) : ["- Бүгінгі жоспар әлі жоқ. Соңғы жауаптан “Жоспар” батырмасын басып қосуға болады."]),
+    "",
+    "Ертеңге қалдыруға болады:",
+    "- Маңызсыз, ақшаға/клиентке/мерзімге әсер етпейтін ұсақ жұмыстар.",
+    "",
+    "15 минуттық старт:",
+    extractActionLines(context)[0] || "Бір клиент/бір төлем/бір заказды ашып, нақты статусын белгілеңіз."
   ].join("\n");
 }
 
@@ -2782,6 +2956,7 @@ function render() {
   renderCalendarOS();
   renderGoals();
   renderCrmWorkspace();
+  renderAssistantDashboard();
   renderCloudSettings();
 }
 

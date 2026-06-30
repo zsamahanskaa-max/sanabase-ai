@@ -56,6 +56,10 @@ on("sanabotClose", "click", closeSanaBot);
 on("sanabotForm", "submit", sendSanaBotMessage);
 on("sanabotMakeTaskBtn", "click", taskFromSanaBotAnswer);
 on("sanabotFollowUpBtn", "click", crmFollowUpFromSanaBotAnswer);
+on("sanabotWhatsappBtn", "click", whatsappFromSanaBotAnswer);
+on("sanabotDebtTaskBtn", "click", debtTaskFromSanaBotAnswer);
+on("sanabotSupplierTaskBtn", "click", supplierTaskFromSanaBotAnswer);
+on("sanabotOpenReportBtn", "click", openLatestCrmReportFromSanaBot);
 on("matchBtn", "click", matchPrices);
 on("onecImportBtn", "click", importOneCExcel);
 on("onecSaveBrainBtn", "click", saveOneCToBrain);
@@ -3881,9 +3885,23 @@ function rememberSanaBotAnswer(text, action) {
   lastSanaBotAnswer = text || "";
   lastSanaBotAction = action || "chat";
   if ($("sanabotSuggestions")) $("sanabotSuggestions").classList.toggle("show", Boolean(lastSanaBotAnswer));
+  updateSanaBotActionCards();
   if (lastSanaBotAction === "debt" || /қарыз|карыз|төлем|оплата|debt/i.test(lastSanaBotAnswer)) setSanaBotMood("alert");
   else if (lastSanaBotAction === "stock" || /склад|остат|тауар|stock/i.test(lastSanaBotAnswer)) setSanaBotMood("alert");
   else setSanaBotMood("focus");
+}
+
+function updateSanaBotActionCards() {
+  const text = `${lastSanaBotAction} ${lastSanaBotAnswer}`.toLowerCase();
+  toggleSanaBotCard("sanabotWhatsappBtn", /қарыз|карыз|төлем|оплата|debt|whatsapp/.test(text));
+  toggleSanaBotCard("sanabotDebtTaskBtn", /қарыз|карыз|төлем|оплата|debt/.test(text));
+  toggleSanaBotCard("sanabotSupplierTaskBtn", /склад|остат|тауар|товар|stock|поставщик|заказ/.test(text));
+  toggleSanaBotCard("sanabotOpenReportBtn", Boolean(state.crmReports?.length));
+}
+
+function toggleSanaBotCard(id, show) {
+  const node = $(id);
+  if (node) node.classList.toggle("is-suggested", Boolean(show));
 }
 
 function setSanaBotMood(mood, force = true) {
@@ -4055,6 +4073,88 @@ function crmFollowUpFromSanaBotAnswer() {
   render();
   setSanaBotMood("happy");
   addSanaBotMessage("bot", "CRM follow-up дайын. Мен оны ертеңге task ретінде қойдым.");
+}
+
+function whatsappFromSanaBotAnswer() {
+  const report = state.crmReports?.[0];
+  const text = report?.whatsapp?.[0] || sanaBotWhatsappDraft();
+  lastSanaBotAnswer = text;
+  addSanaBotMessage("bot", text);
+  setSanaBotMood("focus");
+}
+
+function debtTaskFromSanaBotAnswer() {
+  const cal = calendarData();
+  const debt = activeCalItems(cal.payments).find(payment => payment.status !== "paid");
+  const title = debt ? `Қарызды сұрау: ${debt.title}` : "Қарыздарды тексеру";
+  state.tasks.unshift(normalizeTask({
+    title,
+    body: debt ? `${debt.title}\nСома: ${money(debt.amount)}\nМерзім: ${debt.dueDate || "-"}` : (lastSanaBotAnswer || "Қарыз/төлем тізімін тексеру."),
+    status: "todo",
+    priority: "high",
+    due: isoDate(),
+    owner: "SanaBot",
+    link: "Қарыз бақылау"
+  }));
+  persist();
+  render();
+  setSanaBotMood("happy");
+  addSanaBotMessage("bot", `Қарыз task дайын: ${title}`);
+}
+
+function supplierTaskFromSanaBotAnswer() {
+  const report = state.crmReports?.[0];
+  const body = supplierOrderDraft(report);
+  state.tasks.unshift(normalizeTask({
+    title: "Поставщикке заказ дайындау",
+    body,
+    status: "todo",
+    priority: "high",
+    due: addDays(isoDate(), 1),
+    owner: "SanaBot",
+    link: "Склад / поставщик"
+  }));
+  persist();
+  render();
+  setSanaBotMood("happy");
+  addSanaBotMessage("bot", "Поставщик заказ task дайын. Складтағы аз/жоқ товарларды тексеруге қойдым.");
+}
+
+function openLatestCrmReportFromSanaBot() {
+  const report = state.crmReports?.[0];
+  if (!report) {
+    addSanaBotMessage("bot", "Әзірге сақталған CRM отчет жоқ. CRM бөлімінде толық отчет жасап сақтаңыз.");
+    setSanaBotMood("alert");
+    return;
+  }
+  setView("crm");
+  viewCrmReport(report.id);
+  $("sanabot")?.classList.remove("open");
+}
+
+function sanaBotWhatsappDraft() {
+  const cal = calendarData();
+  const debt = activeCalItems(cal.payments).find(payment => payment.status !== "paid");
+  if (!debt) {
+    return "WhatsApp текст:\nСәлеметсіз бе! Төлем/қарыз бойынша нақты сумма шығару үшін Kaspi выписка немесе 1С контрагент/реализация файлын жүктеңіз.";
+  }
+  return [
+    "WhatsApp текст:",
+    "Сәлеметсіз бе!",
+    `Біздің есеп бойынша ${debt.title} төлемі әлі жабылмаған болып тұр.`,
+    `Сома: ${money(debt.amount)}. Мерзім: ${debt.dueDate || "көрсетілмеген"}.`,
+    "Төлем жасалған болса, чек/платежка жіберіп қоясыз ба?"
+  ].join("\n");
+}
+
+function supplierOrderDraft(report) {
+  if (report?.text) {
+    const lines = report.text.split(/\r?\n/).filter(line => /поставщик|складта жоқ|аз қалды|заказ беру/i.test(line));
+    if (lines.length) return lines.slice(0, 18).join("\n");
+  }
+  const oneC = state.oneC?.text || "";
+  if (oneC) return oneC.split(/\r?\n/).filter(line => /остаток жоқ|остаток аз|заказ|поставщик/i.test(line)).slice(0, 18).join("\n") || oneC.slice(0, 1200);
+  return "1С Excel немесе CRM отчет орталығына номенклатура/остаток файлын жүктеңіз. SanaBot аз/жоқ товарларды поставщик бойынша task қылып береді.";
 }
 
 function sanaBotTaskTitle(text) {

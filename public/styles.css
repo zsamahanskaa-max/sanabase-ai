@@ -848,6 +848,16 @@ textarea:focus, input:focus, select:focus { border-color: var(--leaf); }
   gap: 10px;
 }
 
+.cfo-chat-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cfo-chat-actions button {
+  width: auto;
+}
+
 .cfo-form h3,
 .cfo-table h3 {
   margin: 0;

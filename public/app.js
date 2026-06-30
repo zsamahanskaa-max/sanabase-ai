@@ -69,6 +69,7 @@ on("cfoQuickForm", "submit", saveCfoQuickRecord);
 on("cfoSearch", "input", render);
 on("cfoBusinessFilter", "change", render);
 on("cfoChatForm", "submit", askCfoMock);
+on("cfoAutoReportBtn", "click", generateCfoAutoReport);
 on("cfoSeedBtn", "click", seedCfoDemoData);
 on("cfoExportBtn", "click", exportCfoData);
 on("cfoClearBtn", "click", clearCfoData);
@@ -4833,40 +4834,182 @@ function cfoRows(title, rows) {
   return `<section class="cfo-table"><h3>${escapeHtml(title)}</h3>${rows.map(row => `<div class="cfo-row">${row.map(cell => `<span>${escapeHtml(cell)}</span>`).join("")}</div>`).join("")}</section>`;
 }
 
+function cfoPersonaIntro() {
+  return [
+    "Сен — Жадыраның жеке AI Бас бухгалтері және финансисісің.",
+    "Стиль: қазақша, қысқа, нақты, по шагово. 1С және бухгалтерия терминдері орысша атауымен көрсетіледі.",
+    "Шектеу: құпия логин, ЭЦП, банк кілтін сұрамаймын; өз бетімше декларация, төлем, ЭСФ жібермеймін; маңызды әрекетке адам растауы керек.",
+    "Салық/заң бойынша нақты ставка немесе мерзім айтылса, міндетті түрде актуалды заңнамамен тексеру керек. Қауіпті жағдайда кәсіби бухгалтер/салық консультантымен тексеріңіз."
+  ].join("\n");
+}
+
+function cfoAnalysisBlock(problem, cause, risk, solution, docs, next) {
+  return [
+    `1. Мәселе: ${problem}`,
+    `2. Себеп: ${cause}`,
+    `3. Қауіп: ${risk}`,
+    `4. Шешім: ${solution}`,
+    `5. Қай құжат/1С бөлімі тексеріледі: ${docs}`,
+    `6. Келесі нақты қадам: ${next}`
+  ].join("\n");
+}
+
+function cfoTopRows(rows, count = 5) {
+  return rows.slice(0, count);
+}
+
+function cfoWhatsappDebtTexts(cfo) {
+  const debts = cfo.orders
+    .filter(order => order.business === "b2b" && order.debtAmount > 0)
+    .sort((a, b) => b.debtAmount - a.debtAmount);
+  if (!debts.length) return "WhatsApp мәтіні: B2B бойынша ашық қарыз табылмады.";
+  return debts.slice(0, 5).map(order => [
+    `${order.clientName || order.schoolName} үшін WhatsApp мәтіні:`,
+    `Сәлеметсіз бе! ${order.schoolName || order.clientName} бойынша біздің есепте ${money(order.debtAmount)} төлем қалды деп тұр.`,
+    "Өтінемін, төлем статусын және төлем жасалған болса платежное поручение/выписка жіберіп растап бересіз бе?",
+    "Құжат бойынша сверка керек болса, акт сверки дайындап жібереміз. Рақмет!"
+  ].join("\n")).join("\n\n");
+}
+
+function buildCfoAutoReport(cfo = normalizeCfo(state.cfo || {})) {
+  const metrics = cfoMetrics(cfo);
+  const warnings = cfoAuditWarnings(cfo);
+  const b2bDebt = cfo.orders.filter(order => order.business === "b2b" && order.debtAmount > 0).sort((a, b) => b.debtAmount - a.debtAmount);
+  const kaspiPayments = cfo.payments.filter(payment => payment.business === "kaspi");
+  const kaspiOrders = cfo.orders.filter(order => order.business === "kaspi");
+  const lowStock = cfo.products.filter(product => product.quantity < product.minQuantity).sort((a, b) => (a.quantity - a.minQuantity) - (b.quantity - b.minQuantity));
+  const taxOpen = cfo.taxTasks.filter(task => task.status !== "done");
+  const missingDocs = cfo.documents.filter(doc => !/қол қойылды|жабылды|дайын|жіберілді/i.test(doc.status || ""));
+  const sections = [
+    cfoPersonaIntro(),
+    "",
+    `AUTO CFO REPORT · ${isoDate()}`,
+    "",
+    "Қысқа қаржы қорытынды:",
+    `- Бүгінгі түсім: ${money(metrics.todayIncome)}`,
+    `- Айлық түсім: ${money(metrics.monthIncome)}`,
+    `- Таза пайда болжамы: ${money(metrics.netProfit)}`,
+    `- Дебиторка: ${money(metrics.debtors)}`,
+    `- Кредиторка: ${money(metrics.creditors)}`,
+    `- Касса: ${money(metrics.cash)} · Банк: ${money(metrics.bank)}`,
+    `- B2B түсім: ${money(metrics.b2bRevenue)} · Дүкен: ${money(metrics.retailRevenue)} · Kaspi: ${money(metrics.kaspiRevenue)}`,
+    "",
+    cfoAnalysisBlock(
+      `B2B қарыз бақылауы: ${b2bDebt.length} ашық позиция, жалпы ${money(b2bDebt.reduce((sum, order) => sum + order.debtAmount, 0))}`,
+      "Жеткізілген заказдарда paidAmount < totalAmount немесе төлем заказға байланыспаған.",
+      "Ақша айналымы тежеледі, акт сверки/төлем статусы шатасады, клиентпен қарыз дауы шығуы мүмкін.",
+      "Дебиторка тізімін шығарып, әр мектепке акт сверки және WhatsApp еске салу дайындау.",
+      "1С: Реализация товаров и услуг, Контрагенты, Акт сверки, Банк/Касса выписка.",
+      b2bDebt[0] ? `${b2bDebt[0].clientName || b2bDebt[0].schoolName} бойынша ${money(b2bDebt[0].debtAmount)} қарызды бірінші тексеру.` : "B2B дебиторка таза болса, жаңа реализацияларды тексеру."
+    ),
+    "",
+    cfoAnalysisBlock(
+      `Kaspi сверка: ${kaspiOrders.length} сатылым және ${kaspiPayments.length} төлем/комиссия жолы бар.` ,
+      "Kaspi отчет, банк выписка және 1С сатылым бір-бірімен толық байланыспауы мүмкін.",
+      "Комиссия, логистика, возврат бөлек көрінбесе, маржа мен салыққа база бұрмалануы мүмкін.",
+      "Kaspi түсімін, комиссиясын, логистикасын, возвратты бөлек категориялап, 1С сатылыммен салыстыру.",
+      "Kaspi отчет, Банк выписка, 1С: Отчет о розничных продажах/Реализация, Номенклатура.",
+      "Kaspi / Банк выписка файлын жүктеп, Kaspi магазин табындағы айырманы қарау."
+    ),
+    "",
+    cfoAnalysisBlock(
+      `Магазин склад: ${lowStock.length} товар минимумнан төмен.` ,
+      "Складтағы quantity < minQuantity, әсіресе Teklet/Viko және Kaspi витринасына шыққан товарлар азайған.",
+      "Сатылым тоқтайды, Kaspi рейтинг/доставка бұзылады, клиент жоғалуы мүмкін.",
+      "Аз қалған позицияларды поставщик бойынша жинап, заказ тізімін дайындау.",
+      "1С: Номенклатура, Остатки товаров, Поступление товаров, Поставщики.",
+      lowStock[0] ? `${lowStock[0].name} бойынша ${lowStock[0].quantity}/${lowStock[0].minQuantity}; поставщикке заказ дайындау.` : "Склад минимумдары таза, бірақ аптасына бір рет остаток импорттау."
+    ),
+    "",
+    cfoAnalysisBlock(
+      `ИП ОУР салыққа дайындық: ${taxOpen.length} ашық салық/есеп пункті бар.` ,
+      "Салық календарь, банк/касса/Kaspi түсімдері және шығын категориялары толық жабылмаған болуы мүмкін.",
+      "Декларацияға база толық емес түседі, мерзім өткізу немесе қате есеп тәуекелі бар.",
+      "ОУР чеклистін толтырып, нақты ставка/мерзімді актуалды заңнамамен және бухгалтермен тексеру.",
+      "1С: Банк, Касса, Реализация, Поступление, Доходы/расходы, Салық календарь.",
+      taxOpen[0] ? `${taxOpen[0].taxType} (${taxOpen[0].dueDate || "күні жоқ"}) пунктін бірінші жабу.` : "Келесі есеп кезеңіне reminder қосу."
+    ),
+    "",
+    cfoAnalysisBlock(
+      `Құжат тәртібі: ${metrics.missingEsf} ЭСФ warning, ${metrics.missingDocs} заказда құжат толық емес.` ,
+      "Реализация бар, бірақ ЭСФ/documentStatus/oneCStatus толық жабылмаған.",
+      "Контрагентпен сверкада айырма, төлем кешігуі немесе салық есебінде қате пайда болуы мүмкін.",
+      "Әр реализацияға счет, накладной, ЭСФ, акт сверки статусын белгілеу.",
+      "1С: Реализация товаров и услуг, ЭСФ, Счет на оплату, Акт сверки.",
+      missingDocs[0] ? `${missingDocs[0].type} құжатын тексеру: ${missingDocs[0].comment || "комментарий жоқ"}.` : "Құжаттар тізімін аптасына бір рет экспорттау."
+    ),
+    "",
+    "Күндік отчет:",
+    `- Бүгінгі түсім: ${money(metrics.todayIncome)}`,
+    `- Ашық warning: ${warnings.length}`,
+    "- Бүгін: төлемдерді заказға байлау, категориясыз шығындарды жабу, Kaspi сверка қарау.",
+    "",
+    "Апталық отчет:",
+    "- B2B дебиторка бойынша топ мектептерге WhatsApp/акт сверки жіберу.",
+    "- Teklet/Viko және Kaspi витринасы бойынша аз қалған товарларға заказ дайындау.",
+    "- Поставщиктерге кредиторка сверка жасау.",
+    "",
+    "Айлық отчет:",
+    "- P&L, Cash Flow, Банк/Касса/Kaspi сверка, ОУР салыққа дайындық, ЭСФ/реализация статусын жабу.",
+    "- Нақты салық ставкасы мен мерзімдерін міндетті түрде актуалды заңнамамен тексеру керек.",
+    "",
+    "WhatsApp қарыз мәтіндері:",
+    cfoWhatsappDebtTexts(cfo),
+    "",
+    "Адам растауы керек әрекеттер:",
+    "- Декларация жіберу, салық төлеу, ЭСФ жіберу, банк төлемі жасау, ЭЦП қолдану. Мен бұларды өз бетімше жасамаймын.",
+    "",
+    "Топ тәуекелдер:",
+    warnings.slice(0, 8).map((warning, index) => `${index + 1}. [${warning.severity}] ${warning.title}: ${warning.description}`).join("\n") || "Қазір автоматты warning жоқ."
+  ];
+  return sections.join("\n");
+}
+
+function generateCfoAutoReport() {
+  state.cfo = normalizeCfo(state.cfo || {});
+  const report = buildCfoAutoReport(state.cfo);
+  state.cfo.lastAutoReport = { at: new Date().toISOString(), report };
+  persist();
+  if ($("cfoChatOut")) $("cfoChatOut").textContent = report;
+}
 function askCfoMock(event) {
   event.preventDefault();
   const prompt = $("cfoChatPrompt")?.value?.trim() || "";
   const cfo = cfoFilteredData();
   const metrics = cfoMetrics(cfo);
   const warnings = cfoAuditWarnings(cfo);
-  const topWarnings = warnings.slice(0, 6).map((warning, index) => `${index + 1}. [${warning.severity}] ${warning.title}: ${warning.description}`).join("\n") || "Қазір автоматты warning жоқ.";
-  $("cfoChatOut").textContent = [
-    "AI Бас бухгалтер mock жауап:",
+  const lowerPrompt = normalizeText(prompt);
+  if (/отчет|есеп|айлық|апталық|күндік|whatsapp|қарыз мәтін|kaspi сверка|оур/i.test(lowerPrompt)) {
+    if ($("cfoChatOut")) $("cfoChatOut").textContent = buildCfoAutoReport(cfo);
+    return;
+  }
+  const topWarning = warnings[0];
+  const problem = topWarning ? topWarning.title : "Жалпы бухгалтериялық бақылау";
+  const cause = topWarning ? topWarning.description : "Қазір үлкен warning жоқ, бірақ банк, касса, 1С, Kaspi және салық календарь үнемі сверка қажет.";
+  const risk = topWarning ? "Егер уақытында жабылмаса, ақша айналымы, салық есебі немесе құжат тәртібі бұзылуы мүмкін." : "Дерек жаңартылмаса, отчет толық емес болады.";
+  const answer = [
+    cfoPersonaIntro(),
+    "",
     `Сұрақ: ${prompt || "жалпы жағдай"}`,
     "",
-    "Бизнес бойынша қысқа қорытынды:",
-    `- B2B мектептер түсімі: ${money(metrics.b2bRevenue)} · дебиторка: ${money(metrics.debtors)}`,
-    `- Электр дүкені түсімі: ${money(metrics.retailRevenue)} · склад warning Audit ішінде көрінеді`,
-    `- Kaspi магазин түсімі: ${money(metrics.kaspiRevenue)} · Kaspi шығыны: ${money(metrics.kaspiExpense)}`,
+    cfoAnalysisBlock(
+      problem,
+      cause,
+      risk,
+      "Алдымен деректі 1С/банк/Kaspi файлдарымен салыстырып, категориясыз төлем мен құжат статусын жабу.",
+      "1С: Реализация товаров и услуг, Банк/Касса выписка, Контрагенты, Номенклатура, ЭСФ, Акт сверки.",
+      "Auto отчет генераторды басып, толық B2B қарыз, Kaspi сверка, склад және ОУР дайындық есебін алыңыз."
+    ),
+    "",
+    "Қысқа қаржы суреті:",
     `- Таза пайда болжамы: ${money(metrics.netProfit)}`,
-    `- Касса: ${money(metrics.cash)} · Банк: ${money(metrics.bank)}`,
+    `- Дебиторка: ${money(metrics.debtors)}`,
+    `- Кредиторка: ${money(metrics.creditors)}`,
+    `- B2B: ${money(metrics.b2bRevenue)} · Дүкен: ${money(metrics.retailRevenue)} · Kaspi: ${money(metrics.kaspiRevenue)}`,
     "",
-    "ИП ОУР бақылауы:",
-    `- Ашық салық/мерзім пункттері: ${metrics.taxOpen}`,
-    "- Нақты салық сомасын заңды бухгалтер немесе КГД күнтізбесімен тексеріңіз, бірақ жүйе мерзім, төлем, категория, құжат және cashflow тәртібін ұстап тұрады.",
-    "",
-    "Тәуекелдер:",
-    topWarnings,
-    "",
-    "Бүгін жабылатын әрекеттер:",
-    "1. Банк/Kaspi төлемдерін заказдармен және 1С реализациямен байланыстыру.",
-    "2. Жеткізілген B2B заказдар бойынша ЭСФ, акт сверки және төлем статусын жабу.",
-    "3. Kaspi комиссия, логистика, возвратты бөлек категорияға бөлу.",
-    "4. Viko/Teklet аз қалған позицияларын поставщик заказына шығару.",
-    "5. ОУР салық календаріне декларация/төлем мерзімін енгізу.",
-    "",
-    "Толық отчет үшін жүктелетін файлдар: 1С реализация, Kaspi/банк выписка, 1С контрагенттер, номенклатура/остаток, ЭСФ реестр."
+    "Маңызды ескерту: нақты салық ставкасы, мерзімі немесе декларация формасы айтылса, міндетті түрде актуалды заңнамамен тексеру керек. Қауіпті жағдайда кәсіби бухгалтер/салық консультантымен тексеріңіз."
   ].join("\n");
+  if ($("cfoChatOut")) $("cfoChatOut").textContent = answer;
 }
 
 function render() {

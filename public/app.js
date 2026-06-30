@@ -69,6 +69,9 @@ on("cfoQuickForm", "submit", saveCfoQuickRecord);
 on("cfoSearch", "input", render);
 on("cfoBusinessFilter", "change", render);
 on("cfoChatForm", "submit", askCfoMock);
+on("cfoSeedBtn", "click", seedCfoDemoData);
+on("cfoExportBtn", "click", exportCfoData);
+on("cfoClearBtn", "click", clearCfoData);
 on("taskForm", "submit", saveTask);
 on("taskSearch", "input", render);
 on("taskQuickCrmBtn", "click", taskFromCrm);
@@ -4330,6 +4333,54 @@ function setCfoTab(tab) {
   renderCfo();
 }
 
+function seedCfoDemoData() {
+  state.cfo = normalizeCfo(state.cfo || {});
+  state.cfo.orders = [
+    normalizeCfoOrder({ business: "b2b", clientName: "№23 мектеп", schoolName: "№23 мектеп канцтовар заказ", date: addDays(isoDate(), -18), status: "delivered", totalAmount: 485000, costAmount: 352000, paidAmount: 250000, documentStatus: "толық емес", esfStatus: "", oneCStatus: "", comment: "Реализация бар, төлем толық емес, ЭСФ тексеру керек" }),
+    normalizeCfoOrder({ business: "b2b", clientName: "№7 мектеп", schoolName: "№7 мектеп хозтовар заказ", date: addDays(isoDate(), -4), status: "delivered", totalAmount: 310000, costAmount: 255000, paidAmount: 310000, documentStatus: "толық", esfStatus: "жіберілді", oneCStatus: "1С реализация жасалды", comment: "Маржа төмендеу" }),
+    normalizeCfoOrder({ business: "retail", clientName: "Дүкен клиенттері", schoolName: "Viko/Teklet күндік сатылым", date: isoDate(), status: "closed", totalAmount: 190000, costAmount: 128000, paidAmount: 190000, documentStatus: "толық", esfStatus: "қажет емес", oneCStatus: "1С чек/сатылым түсті", comment: "Электр дүкені" })
+  ];
+  state.cfo.payments = [
+    normalizeCfoPayment({ business: "b2b", date: isoDate(), type: "income", method: "bank", category: "мектеп төлемі", amount: 250000, counterparty: "№23 мектеп", relatedOrderId: "", comment: "Заказға байланыстыру керек" }),
+    normalizeCfoPayment({ business: "retail", date: isoDate(), type: "income", method: "cash", category: "дүкен түсімі", amount: 190000, counterparty: "Касса", relatedOrderId: "retail-day", comment: "Күндік сатылым" }),
+    normalizeCfoPayment({ business: "retail", date: isoDate(), type: "expense", method: "bank", category: "", amount: 76000, counterparty: "Поставщик Viko", comment: "Категория қою керек" })
+  ];
+  state.cfo.clients = [
+    normalizeCfoClient({ business: "b2b", name: "№23 мектеп", bin: "000000000023", contactPerson: "Завхоз", phone: "+7 700 000 23 23", debtAmount: 235000, lastPaymentDate: isoDate(), comment: "Қарыз қалды" }),
+    normalizeCfoClient({ business: "b2b", name: "№7 мектеп", bin: "000000000007", contactPerson: "Бухгалтер", phone: "+7 700 000 07 07", debtAmount: 0, lastPaymentDate: isoDate(), comment: "Таза" })
+  ];
+  state.cfo.suppliers = [
+    normalizeCfoSupplier({ business: "retail", name: "Teklet", bin: "", contactPerson: "Менеджер", phone: "", payableAmount: 120000, comment: "Келесі заказ алдында сверка" }),
+    normalizeCfoSupplier({ business: "retail", name: "Viko", bin: "", contactPerson: "Менеджер", phone: "", payableAmount: 76000, comment: "Төлем категориясын нақтылау" })
+  ];
+  state.cfo.products = [
+    normalizeCfoProduct({ business: "retail", name: "Viko розетка", oneCName: "VIKO розетка белая", category: "Viko", purchasePrice: 950, salePrice: 1450, quantity: 4, minQuantity: 10 }),
+    normalizeCfoProduct({ business: "retail", name: "Teklet автомат 16A", oneCName: "TEKLET автомат 16A", category: "Teklet", purchasePrice: 1800, salePrice: 2300, quantity: 2, minQuantity: 8 })
+  ];
+  state.cfo.documents = [
+    normalizeCfoDocument({ business: "b2b", type: "реализация", status: "дайын", date: addDays(isoDate(), -18), comment: "№23 мектеп ЭСФ жоқ" }),
+    normalizeCfoDocument({ business: "b2b", type: "акт сверки", status: "жоқ", date: isoDate(), comment: "№23 мектеппен сверка керек" })
+  ];
+  state.cfo.taxTasks = [
+    normalizeCfoTaxTask({ business: "all", taxType: "ОУР декларация", period: "ай/квартал", dueDate: addDays(isoDate(), 7), paymentDueDate: addDays(isoDate(), 10), status: "open", amount: 0, reminderDate: addDays(isoDate(), 3), comment: "Нақты соманы бухгалтермен тексеру" })
+  ];
+  state.cfo.activeTab = "dashboard";
+  persist();
+  render();
+}
+
+function exportCfoData() {
+  state.cfo = normalizeCfo(state.cfo || {});
+  downloadText(`sana_cfo_${isoDate()}.json`, JSON.stringify(state.cfo, null, 2));
+}
+
+function clearCfoData() {
+  if (!confirm("AI Бас бухгалтер ішіндегі CFO деректерін өшіреміз бе?")) return;
+  state.cfo = defaultCfoState();
+  persist();
+  render();
+}
+
 function saveCfoQuickRecord(event) {
   event.preventDefault();
   state.cfo = normalizeCfo(state.cfo || {});
@@ -4448,7 +4499,28 @@ function cfoTabContent(tab, cfo, metrics, warnings) {
 
 function cfoDashboardCards(metrics, warnings) {
   const entries = Object.entries(metrics).slice(0, 8);
-  return `<div class="cfo-mini-grid">${entries.map(([label, value]) => `<article class="cfo-mini-card"><span>${escapeHtml(label)}</span><strong>${typeof value === "number" ? money(value) : escapeHtml(value)}</strong></article>`).join("")}</div><article class="cfo-empty"><strong>Бас бухгалтер фокусы</strong><p>${warnings[0] ? escapeHtml(warnings[0].title + ": " + warnings[0].description) : "Дерек енгізіңіз: заказ, төлем, товар, құжат және салық мерзімі."}</p></article>`;
+  const firstRisk = warnings[0] ? `${warnings[0].title}: ${warnings[0].description}` : "Қазір үлкен warning жоқ. Дерек енгізген сайын қайта тексеремін.";
+  return `
+    <div class="cfo-accountant-grid">
+      <article class="cfo-accountant-card primary">
+        <span>Бас бухгалтер фокусы</span>
+        <strong>${escapeHtml(firstRisk)}</strong>
+        <p>Бірінші кезекте қарыз, ЭСФ, құжат, 1С статус және салық мерзімін жабу керек.</p>
+      </article>
+      <article class="cfo-accountant-card">
+        <span>Бизнес профилі</span>
+        <strong>ОУР · жұмысшы жоқ</strong>
+        <p>B2B мектептер: канцтовар/хозтовар. Дүкен: Teklet/Viko электр тауарлары.</p>
+      </article>
+      <article class="cfo-accountant-card">
+        <span>Бүгінгі бухгалтер чеклист</span>
+        <strong>Төлем -> 1С -> ЭСФ -> Құжат</strong>
+        <p>Kaspi/банк выпискасын заказға байлау, реализацияны 1С-те тексеру, ЭСФ пен акт/накладной статусын жабу.</p>
+      </article>
+    </div>
+    <div class="cfo-mini-grid">${entries.map(([label, value]) => `<article class="cfo-mini-card"><span>${escapeHtml(label)}</span><strong>${typeof value === "number" ? money(value) : escapeHtml(value)}</strong></article>`).join("")}</div>
+    <article class="cfo-empty"><strong>№1 Бас бухгалтер режимі</strong><p>Демо дерек батырмасын бассаңыз, мектеп қарызы, ЭСФ, Viko/Teklet склад және салық warning-тері бірден көрінеді.</p></article>
+  `;
 }
 
 function cfoRows(title, rows) {
@@ -4462,7 +4534,28 @@ function askCfoMock(event) {
   const cfo = cfoFilteredData();
   const metrics = cfoMetrics(cfo);
   const warnings = cfoAuditWarnings(cfo);
-  $("cfoChatOut").textContent = ["AI Бас бухгалтер mock жауап:", `Сұрақ: ${prompt || "жалпы жағдай"}`, `Таза пайда: ${money(metrics.netProfit)}. Дебиторка: ${money(metrics.debtors)}. Кредиторка: ${money(metrics.creditors)}.`, warnings[0] ? `Бірінші тәуекел: ${warnings[0].title} — ${warnings[0].description}` : "Қазір үлкен warning жоқ.", "Келесі әрекет: 1С реализация, Kaspi/банк выписка, склад остаток және ЭСФ статусын осы модульге енгізіңіз."].join("\n");
+  const topWarnings = warnings.slice(0, 5).map((warning, index) => `${index + 1}. [${warning.severity}] ${warning.title}: ${warning.description}`).join("\n") || "Қазір автоматты warning жоқ.";
+  $("cfoChatOut").textContent = [
+    "AI Бас бухгалтер mock жауап:",
+    `Сұрақ: ${prompt || "жалпы жағдай"}`,
+    "",
+    "Бухгалтерлік қорытынды:",
+    `- Таза пайда: ${money(metrics.netProfit)}`,
+    `- Дебиторка: ${money(metrics.debtors)}`,
+    `- Кредиторка: ${money(metrics.creditors)}`,
+    `- Касса: ${money(metrics.cash)} · Банк: ${money(metrics.bank)}`,
+    "",
+    "Тәуекелдер:",
+    topWarnings,
+    "",
+    "Бүгін жабылатын әрекеттер:",
+    "1. Банктегі/Каспидегі төлемдерді заказдарға байланыстыру.",
+    "2. Жеткізілген заказдар бойынша ЭСФ және реализация статусын тексеру.",
+    "3. Қарызы бар мектептерге WhatsApp мәтін дайындау.",
+    "4. Viko/Teklet аз қалған позицияларын поставщик заказына шығару.",
+    "",
+    "Толық отчет үшін жүктелетін файлдар: 1С реализация, Kaspi/банк выписка, 1С контрагенттер, номенклатура/остаток, ЭСФ реестр."
+  ].join("\n");
 }
 
 function render() {

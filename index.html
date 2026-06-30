@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#28433f">
   <title>SanaBase AI</title>
-  <link rel="manifest" href="public/manifest.json?v=20260630-26">
-  <link rel="stylesheet" href="public/styles.css?v=20260630-26">
+  <link rel="manifest" href="public/manifest.json?v=20260701-01">
+  <link rel="stylesheet" href="public/styles.css?v=20260701-01">
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs" type="module"></script>
@@ -26,7 +26,7 @@
       <button class="nav-item" data-view="calendaros">Күнтізбе жүйесі</button>
       <button class="nav-item" data-view="match">Прайс салыстыру</button>
       <button class="nav-item" data-view="onec">1С Excel</button>
-      <button class="nav-item" data-view="cfo">Sana CFO</button>
+      <button class="nav-item" data-view="cfo">AI Бас бухгалтер</button>
       <button class="nav-item" data-view="brain">Екінші ми</button>
       <button class="nav-item" data-view="translate">Аударма</button>
       <button class="nav-item" data-view="quiz">Тест</button>
@@ -745,6 +745,11 @@ with check (true);</textarea>
             <p>B2B мектептерге канцтовар/хозтовар жеткізу және электр тауарлары дүкені үшін ОУР режиміндегі қаржы, қарыз, құжат, склад және салық бақылауы.</p>
           </div>
           <div class="cfo-disclaimer">Бұл заңды бухгалтерді толық алмастырмайды. Күнделікті бақылау, анализ, ескерту және 1С тәртібін тексеру үшін.</div>
+          <div class="cfo-actions">
+            <button id="cfoSeedBtn" type="button">Демо бухгалтер дерегін толтыру</button>
+            <button id="cfoExportBtn" type="button">CFO экспорт</button>
+            <button id="cfoClearBtn" type="button">CFO тазалау</button>
+          </div>
         </div>
         <div class="cfo-kpis" id="cfoKpis"></div>
         <div class="cfo-tabs" id="cfoTabs">
@@ -907,6 +912,6 @@ with check (true);</textarea>
     </section>
   </div>
 
-  <script src="public/app.js?v=20260630-26"></script>
+  <script src="public/app.js?v=20260701-01"></script>
 </body>
 </html>

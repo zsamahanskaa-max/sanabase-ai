@@ -4258,21 +4258,31 @@ function defaultCfoState() {
   return {
     activeTab: "dashboard",
     profile: {
-      taxRegime: "ОУР",
+      taxRegime: "ИП ОУР",
       employees: 0,
       businesses: [
-        { id: "b2b", name: "B2B мектептер", description: "Канцтовар және хозтовар жеткізу" },
-        { id: "retail", name: "Электр дүкені", description: "Teklet және Viko электр тауарлары" }
+        { id: "b2b", name: "B2B мектептер", description: "Канцтовар және хозтовар жеткізу, реализация, ЭСФ, дебиторка" },
+        { id: "retail", name: "Электр дүкені", description: "Teklet және Viko электр тауарлары, касса, склад, поставщик" },
+        { id: "kaspi", name: "Kaspi магазин", description: "Kaspi сатылым, комиссия, логистика, возврат және банк түсімі" }
+      ],
+      taxChecklist: [
+        "ИП ОУР декларация/салық мерзімін бақылау",
+        "Касса мен банк түсімін күнделікті сверка жасау",
+        "Kaspi комиссия, логистика және возвратты бөлек категориялау",
+        "1С реализация, ЭСФ, накладной, акт сверки тәртібін тексеру",
+        "Teklet/Viko поставщик қарызы мен склад минимумын бақылау"
       ]
     },
     orders: [], payments: [], clients: [], suppliers: [], products: [], documents: [], taxTasks: [],
     auditRules: [
       { id: "delivered-unpaid", title: "Жеткізілді, бірақ толық төленбеді", severity: "high", description: "paidAmount < totalAmount болса дебиторкаға шығару", status: "active" },
       { id: "missing-esf", title: "Реализация бар, ЭСФ жоқ", severity: "high", description: "ЭСФ бос болса ескерту беру", status: "active" },
-      { id: "unlinked-payment", title: "Төлем заказға байланбаған", severity: "medium", description: "relatedOrderId жоқ төлемдерді тексеру", status: "active" },
+      { id: "unlinked-payment", title: "Төлем заказға байланыспаған", severity: "medium", description: "relatedOrderId жоқ төлемдерді тексеру", status: "active" },
       { id: "low-stock", title: "Склад минимумы", severity: "high", description: "quantity < minQuantity болса заказға ұсыну", status: "active" },
       { id: "missing-documents", title: "Құжат толық емес", severity: "medium", description: "documentStatus толық емес болса бақылауға алу", status: "active" },
-      { id: "low-margin", title: "Маржа төмен", severity: "medium", description: "Маржа 15%-дан төмен болса profitability warning", status: "active" }
+      { id: "low-margin", title: "Маржа төмен", severity: "medium", description: "Маржа 15%-дан төмен болса profitability warning", status: "active" },
+      { id: "kaspi-reconcile", title: "Kaspi сверка", severity: "medium", description: "Kaspi түсім, комиссия, возврат және 1С сатылымын салыстыру", status: "active" },
+      { id: "ip-our-tax", title: "ИП ОУР салық бақылауы", severity: "high", description: "Салық мерзімі, төлем, декларация және категориясыз шығындарды бақылау", status: "active" }
     ]
   };
 }
@@ -4282,7 +4292,7 @@ function normalizeCfo(cfo = {}) {
   return {
     ...base,
     ...cfo,
-    profile: { ...base.profile, ...(cfo.profile || {}) },
+    profile: { ...base.profile, ...(cfo.profile || {}), businesses: base.profile.businesses, taxChecklist: base.profile.taxChecklist },
     orders: Array.isArray(cfo.orders) ? cfo.orders.map(normalizeCfoOrder) : [],
     payments: Array.isArray(cfo.payments) ? cfo.payments.map(normalizeCfoPayment) : [],
     clients: Array.isArray(cfo.clients) ? cfo.clients.map(normalizeCfoClient) : [],
@@ -4340,31 +4350,39 @@ function seedCfoDemoData() {
   state.cfo.orders = [
     normalizeCfoOrder({ business: "b2b", clientName: "№23 мектеп", schoolName: "№23 мектеп канцтовар заказ", date: addDays(isoDate(), -18), status: "delivered", totalAmount: 485000, costAmount: 352000, paidAmount: 250000, documentStatus: "толық емес", esfStatus: "", oneCStatus: "", comment: "Реализация бар, төлем толық емес, ЭСФ тексеру керек" }),
     normalizeCfoOrder({ business: "b2b", clientName: "№7 мектеп", schoolName: "№7 мектеп хозтовар заказ", date: addDays(isoDate(), -4), status: "delivered", totalAmount: 310000, costAmount: 255000, paidAmount: 310000, documentStatus: "толық", esfStatus: "жіберілді", oneCStatus: "1С реализация жасалды", comment: "Маржа төмендеу" }),
-    normalizeCfoOrder({ business: "retail", clientName: "Дүкен клиенттері", schoolName: "Viko/Teklet күндік сатылым", date: isoDate(), status: "closed", totalAmount: 190000, costAmount: 128000, paidAmount: 190000, documentStatus: "толық", esfStatus: "қажет емес", oneCStatus: "1С чек/сатылым түсті", comment: "Электр дүкені" })
+    normalizeCfoOrder({ business: "retail", clientName: "Дүкен клиенттері", schoolName: "Viko/Teklet күндік сатылым", date: isoDate(), status: "closed", totalAmount: 190000, costAmount: 128000, paidAmount: 190000, documentStatus: "толық", esfStatus: "қажет емес", oneCStatus: "1С чек/сатылым түсті", comment: "Электр дүкені" }),
+    normalizeCfoOrder({ business: "kaspi", clientName: "Kaspi.kz", schoolName: "Kaspi магазин күндік сатылым", date: isoDate(), status: "closed", totalAmount: 260000, costAmount: 185000, paidAmount: 240000, documentStatus: "толық", esfStatus: "қажеттілігін тексеру", oneCStatus: "Kaspi/1С салыстыру керек", comment: "Kaspi комиссия мен возвратты бөлек тексеру" })
   ];
   state.cfo.payments = [
     normalizeCfoPayment({ business: "b2b", date: isoDate(), type: "income", method: "bank", category: "мектеп төлемі", amount: 250000, counterparty: "№23 мектеп", relatedOrderId: "", comment: "Заказға байланыстыру керек" }),
     normalizeCfoPayment({ business: "retail", date: isoDate(), type: "income", method: "cash", category: "дүкен түсімі", amount: 190000, counterparty: "Касса", relatedOrderId: "retail-day", comment: "Күндік сатылым" }),
-    normalizeCfoPayment({ business: "retail", date: isoDate(), type: "expense", method: "bank", category: "", amount: 76000, counterparty: "Поставщик Viko", comment: "Категория қою керек" })
+    normalizeCfoPayment({ business: "retail", date: isoDate(), type: "expense", method: "bank", category: "", amount: 76000, counterparty: "Поставщик Viko", comment: "Категория қою керек" }),
+    normalizeCfoPayment({ business: "kaspi", date: isoDate(), type: "income", method: "bank", category: "Kaspi магазин түсімі", amount: 240000, counterparty: "Kaspi.kz", relatedOrderId: "", comment: "Kaspi выпискасын 1С сатылыммен байланыстыру" }),
+    normalizeCfoPayment({ business: "kaspi", date: isoDate(), type: "expense", method: "bank", category: "Kaspi комиссия/логистика", amount: 18000, counterparty: "Kaspi.kz", comment: "Комиссия және логистика" })
   ];
   state.cfo.clients = [
     normalizeCfoClient({ business: "b2b", name: "№23 мектеп", bin: "000000000023", contactPerson: "Завхоз", phone: "+7 700 000 23 23", debtAmount: 235000, lastPaymentDate: isoDate(), comment: "Қарыз қалды" }),
-    normalizeCfoClient({ business: "b2b", name: "№7 мектеп", bin: "000000000007", contactPerson: "Бухгалтер", phone: "+7 700 000 07 07", debtAmount: 0, lastPaymentDate: isoDate(), comment: "Таза" })
+    normalizeCfoClient({ business: "b2b", name: "№7 мектеп", bin: "000000000007", contactPerson: "Бухгалтер", phone: "+7 700 000 07 07", debtAmount: 0, lastPaymentDate: isoDate(), comment: "Таза" }),
+    normalizeCfoClient({ business: "kaspi", name: "Kaspi.kz", bin: "", contactPerson: "Маркетплейс", phone: "", debtAmount: 20000, lastPaymentDate: isoDate(), comment: "Kaspi түсімін выпискамен салыстыру" })
   ];
   state.cfo.suppliers = [
     normalizeCfoSupplier({ business: "retail", name: "Teklet", bin: "", contactPerson: "Менеджер", phone: "", payableAmount: 120000, comment: "Келесі заказ алдында сверка" }),
-    normalizeCfoSupplier({ business: "retail", name: "Viko", bin: "", contactPerson: "Менеджер", phone: "", payableAmount: 76000, comment: "Төлем категориясын нақтылау" })
+    normalizeCfoSupplier({ business: "retail", name: "Viko", bin: "", contactPerson: "Менеджер", phone: "", payableAmount: 76000, comment: "Төлем категориясын нақтылау" }),
+    normalizeCfoSupplier({ business: "kaspi", name: "Kaspi.kz", bin: "", contactPerson: "Маркетплейс", phone: "", payableAmount: 18000, comment: "Комиссия/логистика есепте тұр" })
   ];
   state.cfo.products = [
     normalizeCfoProduct({ business: "retail", name: "Viko розетка", oneCName: "VIKO розетка белая", category: "Viko", purchasePrice: 950, salePrice: 1450, quantity: 4, minQuantity: 10 }),
-    normalizeCfoProduct({ business: "retail", name: "Teklet автомат 16A", oneCName: "TEKLET автомат 16A", category: "Teklet", purchasePrice: 1800, salePrice: 2300, quantity: 2, minQuantity: 8 })
+    normalizeCfoProduct({ business: "retail", name: "Teklet автомат 16A", oneCName: "TEKLET автомат 16A", category: "Teklet", purchasePrice: 1800, salePrice: 2300, quantity: 2, minQuantity: 8 }),
+    normalizeCfoProduct({ business: "kaspi", name: "Viko выключатель Kaspi", oneCName: "VIKO выключатель", category: "Viko/Kaspi", purchasePrice: 1200, salePrice: 2100, quantity: 3, minQuantity: 12 })
   ];
   state.cfo.documents = [
     normalizeCfoDocument({ business: "b2b", type: "реализация", status: "дайын", date: addDays(isoDate(), -18), comment: "№23 мектеп ЭСФ жоқ" }),
-    normalizeCfoDocument({ business: "b2b", type: "акт сверки", status: "жоқ", date: isoDate(), comment: "№23 мектеппен сверка керек" })
+    normalizeCfoDocument({ business: "b2b", type: "акт сверки", status: "жоқ", date: isoDate(), comment: "№23 мектеппен сверка керек" }),
+    normalizeCfoDocument({ business: "kaspi", type: "Kaspi отчет", status: "дайын", date: isoDate(), comment: "Kaspi комиссия/возврат файлын банкпен салыстыру" })
   ];
   state.cfo.taxTasks = [
-    normalizeCfoTaxTask({ business: "all", taxType: "ОУР декларация", period: "ай/квартал", dueDate: addDays(isoDate(), 7), paymentDueDate: addDays(isoDate(), 10), status: "open", amount: 0, reminderDate: addDays(isoDate(), 3), comment: "Нақты соманы бухгалтермен тексеру" })
+    normalizeCfoTaxTask({ business: "all", taxType: "ИП ОУР декларация", period: "ай/квартал", dueDate: addDays(isoDate(), 7), paymentDueDate: addDays(isoDate(), 10), status: "open", amount: 0, reminderDate: addDays(isoDate(), 3), comment: "Нақты сома мен форманы бухгалтер/КГД күнтізбесімен тексеру" }),
+    normalizeCfoTaxTask({ business: "kaspi", taxType: "Kaspi түсім/комиссия сверкасы", period: "ай соңы", dueDate: addDays(isoDate(), 5), paymentDueDate: addDays(isoDate(), 5), status: "open", amount: 0, reminderDate: addDays(isoDate(), 2), comment: "Kaspi есебін банк және 1С сатылыммен салыстыру" })
   ];
   state.cfo.activeTab = "dashboard";
   persist();
@@ -4423,16 +4441,25 @@ async function importCfoFiles() {
   }
 }
 
+function inferCfoBusiness(source = "") {
+  const text = normalizeText(source);
+  if (/kaspi|kaspi\.kz|маркетплейс|маркет|возврат|комиссия/.test(text)) return "kaspi";
+  if (/мектеп|school|школ|лицей|гимназ|садик|балабақша/.test(text)) return "b2b";
+  if (/viko|teklet|электр|розетка|кабель|автомат|выключатель|лампа|магазин|касса/.test(text)) return "retail";
+  return "retail";
+}
+
 function cfoImportTables(tables) {
   const realization = tables.realization ? parseRealizationTable(tables.realization) : [];
   const bank = tables.bank ? parseKaspiTable(tables.bank) : [];
   const counterparties = tables.counterparties ? parseCounterpartyTable(tables.counterparties) : [];
   const stock = tables.stock ? parseNomenclatureTable(tables.stock) : [];
-  const paidByName = groupSum(bank, row => normalizeParty(row.name || row.purpose), row => row.amount);
+  const paidByName = groupSum(bank, row => normalizeParty(row.name || row.purpose), row => Math.abs(row.amount || 0));
   const orders = realization.map(row => {
+    const business = inferCfoBusiness(`${row.client} ${row.item} ${row.doc}`);
     const paid = paidByName.get(normalizeParty(row.client)) || 0;
     return normalizeCfoOrder({
-      business: /мектеп|school|школ/i.test(row.client) ? "b2b" : "retail",
+      business,
       clientName: row.client,
       schoolName: row.client,
       date: normalizeDateInput(row.date) || isoDate(),
@@ -4446,19 +4473,22 @@ function cfoImportTables(tables) {
       comment: row.item || ""
     });
   });
-  const payments = bank.map(row => normalizeCfoPayment({
-    business: /мектеп|school|школ/i.test(row.name || row.purpose) ? "b2b" : "retail",
-    date: normalizeDateInput(row.date) || isoDate(),
-    type: row.amount < 0 ? "expense" : "income",
-    method: "bank",
-    category: inferCfoPaymentCategory(row),
-    amount: Math.abs(row.amount || 0),
-    counterparty: row.name || row.purpose || "",
-    relatedOrderId: "",
-    comment: row.purpose || ""
-  }));
+  const payments = bank.map(row => {
+    const business = inferCfoBusiness(`${row.name || ""} ${row.purpose || ""}`);
+    return normalizeCfoPayment({
+      business,
+      date: normalizeDateInput(row.date) || isoDate(),
+      type: row.amount < 0 ? "expense" : "income",
+      method: "bank",
+      category: inferCfoPaymentCategory(row),
+      amount: Math.abs(row.amount || 0),
+      counterparty: row.name || row.purpose || "",
+      relatedOrderId: "",
+      comment: row.purpose || ""
+    });
+  });
   const clients = counterparties.map(row => normalizeCfoClient({
-    business: /мектеп|school|школ/i.test(row.name) ? "b2b" : "retail",
+    business: inferCfoBusiness(row.name),
     name: row.name,
     bin: row.bin,
     phone: row.phone,
@@ -4467,7 +4497,7 @@ function cfoImportTables(tables) {
     comment: "1С контрагент импорт"
   }));
   const products = stock.map(row => normalizeCfoProduct({
-    business: /viko|teklet|электр|розетка|кабель|автомат/i.test(`${row.name} ${row.supplier}`) ? "retail" : "b2b",
+    business: inferCfoBusiness(`${row.name} ${row.supplier}`),
     name: row.name || row.code,
     oneCName: row.name || row.code,
     category: row.supplier || "",
@@ -4477,13 +4507,13 @@ function cfoImportTables(tables) {
     minQuantity: cfoMinStock(row)
   }));
   const suppliers = [...new Set(stock.map(row => row.supplier).filter(Boolean))].map(name => normalizeCfoSupplier({
-    business: "retail",
+    business: inferCfoBusiness(name),
     name,
     payableAmount: 0,
     comment: "Номенклатура файлы бойынша поставщик"
   }));
   const documents = realization.map(row => normalizeCfoDocument({
-    business: /мектеп|school|школ/i.test(row.client) ? "b2b" : "retail",
+    business: inferCfoBusiness(`${row.client} ${row.doc}`),
     orderId: "",
     type: "реализация",
     status: row.doc ? "дайын" : "жоқ",
@@ -4497,7 +4527,10 @@ function cfoImportTables(tables) {
     products: products.length,
     documents: documents.length,
     debt: orders.reduce((sum, order) => sum + order.debtAmount, 0),
-    lowStock: products.filter(product => product.quantity < product.minQuantity).length
+    lowStock: products.filter(product => product.quantity < product.minQuantity).length,
+    b2b: orders.filter(row => row.business === "b2b").length + payments.filter(row => row.business === "b2b").length,
+    retail: orders.filter(row => row.business === "retail").length + payments.filter(row => row.business === "retail").length,
+    kaspi: orders.filter(row => row.business === "kaspi").length + payments.filter(row => row.business === "kaspi").length
   };
   const report = [
     "AI Бас бухгалтер импорт отчеты",
@@ -4507,10 +4540,13 @@ function cfoImportTables(tables) {
     `Клиент/контрагент: ${summary.clients}`,
     `Товар/остаток: ${summary.products}`,
     `Құжат: ${summary.documents}`,
+    `B2B танылған жолдар: ${summary.b2b}`,
+    `Электр дүкені танылған жолдар: ${summary.retail}`,
+    `Kaspi танылған жолдар: ${summary.kaspi}`,
     `Импорттан кейінгі қарыз: ${money(summary.debt)}`,
     `Склад warning: ${summary.lowStock}`,
     "",
-    "Келесі қадам: Audit Check бөлімін ашып, ЭСФ, құжат, қарыз, төлем байланысын тексеріңіз."
+    "Келесі қадам: Audit Check, Kaspi магазин, ИП / ОУР және Финанс табтарын қарап шығыңыз."
   ].join("\n");
   return { orders, payments, clients, suppliers, products, documents, summary, report };
 }
@@ -4613,6 +4649,16 @@ function cfoMetrics(cfo = cfoFilteredData()) {
   const month = today.slice(0, 7);
   const income = cfo.payments.filter(p => p.type === "income");
   const expenses = cfo.payments.filter(p => p.type === "expense");
+  const byBusiness = business => {
+    const orderRevenue = cfo.orders.filter(o => o.business === business).reduce((sum, order) => sum + order.totalAmount, 0);
+    const paymentIncome = income.filter(p => p.business === business).reduce((sum, p) => sum + p.amount, 0);
+    const paymentExpense = expenses.filter(p => p.business === business).reduce((sum, p) => sum + p.amount, 0);
+    const orderCost = cfo.orders.filter(o => o.business === business).reduce((sum, order) => sum + order.costAmount, 0);
+    return { revenue: orderRevenue + paymentIncome, expense: paymentExpense + orderCost };
+  };
+  const b2b = byBusiness("b2b");
+  const retail = byBusiness("retail");
+  const kaspi = byBusiness("kaspi");
   const todayIncome = income.filter(p => p.date === today).reduce((sum, p) => sum + p.amount, 0);
   const monthIncome = income.filter(p => String(p.date).startsWith(month)).reduce((sum, p) => sum + p.amount, 0);
   const totalExpense = expenses.reduce((sum, p) => sum + p.amount, 0) + cfo.orders.reduce((sum, order) => sum + order.costAmount, 0);
@@ -4621,7 +4667,26 @@ function cfoMetrics(cfo = cfoFilteredData()) {
   const creditors = cfo.suppliers.reduce((sum, supplier) => sum + supplier.payableAmount, 0);
   const cash = cfo.payments.filter(p => p.method === "cash").reduce((sum, p) => sum + (p.type === "expense" ? -p.amount : p.amount), 0);
   const bank = cfo.payments.filter(p => p.method === "bank").reduce((sum, p) => sum + (p.type === "expense" ? -p.amount : p.amount), 0);
-  return { todayIncome, monthIncome, totalExpense, netProfit: revenue - totalExpense, debtors, creditors, cash, bank, missingEsf: cfo.orders.filter(order => order.status === "delivered" && !order.esfStatus).length, openRealizations: cfo.documents.filter(doc => doc.type.includes("реализация") && doc.status !== "жабылды").length, missingDocs: cfo.orders.filter(order => order.documentStatus !== "толық").length, taxSoon: cfo.taxTasks.filter(task => task.status !== "done" && daysUntil(task.dueDate) <= 10).length };
+  const taxOpen = cfo.taxTasks.filter(task => task.status !== "done").length;
+  return {
+    todayIncome,
+    monthIncome,
+    totalExpense,
+    netProfit: revenue - totalExpense,
+    debtors,
+    creditors,
+    cash,
+    bank,
+    b2bRevenue: b2b.revenue,
+    retailRevenue: retail.revenue,
+    kaspiRevenue: kaspi.revenue,
+    kaspiExpense: kaspi.expense,
+    taxOpen,
+    missingEsf: cfo.orders.filter(order => order.status === "delivered" && !order.esfStatus).length,
+    openRealizations: cfo.documents.filter(doc => normalizeText(doc.type).includes("реализация") && doc.status !== "жабылды").length,
+    missingDocs: cfo.orders.filter(order => order.documentStatus !== "толық").length,
+    taxSoon: cfo.taxTasks.filter(task => task.status !== "done" && daysUntil(task.dueDate) <= 10).length
+  };
 }
 
 function cfoAuditWarnings(cfo = cfoFilteredData()) {
@@ -4634,19 +4699,25 @@ function cfoAuditWarnings(cfo = cfoFilteredData()) {
     const marginPercent = order.totalAmount ? (order.marginAmount / order.totalAmount) * 100 : 0;
     if (order.totalAmount > 0 && marginPercent < 15) warnings.push({ severity: "medium", title: "Маржа төмен", description: `${order.clientName}: ${marginPercent.toFixed(1)}% ғана.` });
     if (!order.oneCStatus) warnings.push({ severity: "low", title: "1С статус бос", description: `${order.clientName}: 1С-ке түсті ме, тексеріңіз.` });
+    if (order.business === "kaspi" && !normalizeText(order.oneCStatus).includes("1с")) warnings.push({ severity: "medium", title: "Kaspi сатылымы 1С-пен салыстырылмаған", description: `${order.clientName}: Kaspi отчет пен 1С сатылымын сверка жасаңыз.` });
   });
   cfo.payments.forEach(payment => {
-    if (!payment.relatedOrderId && payment.type === "income") warnings.push({ severity: "medium", title: "Төлем заказға байланбаған", description: `${payment.counterparty}: ${money(payment.amount)}` });
+    if (!payment.relatedOrderId && payment.type === "income") warnings.push({ severity: "medium", title: "Төлем заказға байланыспаған", description: `${payment.counterparty}: ${money(payment.amount)}` });
     if (!payment.category) warnings.push({ severity: "low", title: "Төлем категориясыз", description: `${payment.counterparty || "Төлем"} категориясын қойыңыз.` });
+    if (payment.business === "kaspi" && payment.type === "expense" && !/комиссия|логистика|возврат/i.test(payment.category || payment.comment)) warnings.push({ severity: "medium", title: "Kaspi шығыны нақты категориясыз", description: `${payment.counterparty}: комиссия, логистика немесе возврат екенін белгілеңіз.` });
+    if (state.cfo?.profile?.employees === 0 && /зарплата|еңбек|жалақы|оклад/i.test(`${payment.category} ${payment.comment}`)) warnings.push({ severity: "medium", title: "Жұмысшы жоқ, бірақ жалақыға ұқсас шығын бар", description: `${payment.counterparty}: ИП профилін немесе категорияны тексеріңіз.` });
   });
   cfo.products.forEach(product => {
     if (product.quantity < product.minQuantity) warnings.push({ severity: "high", title: "Складта товар аз", description: `${product.name}: ${product.quantity}/${product.minQuantity}` });
     if (product.marginPercent < 15 && product.salePrice > 0) warnings.push({ severity: "medium", title: "Товар маржасы төмен", description: `${product.name}: ${product.marginPercent.toFixed(1)}%` });
+    if (product.business === "kaspi" && product.quantity < product.minQuantity) warnings.push({ severity: "high", title: "Kaspi витринасына товар жетпей қалуы мүмкін", description: `${product.name}: поставщикке заказ дайындаңыз.` });
   });
   cfo.taxTasks.forEach(task => {
     const due = daysUntil(task.dueDate);
     if (task.status !== "done" && due <= 10) warnings.push({ severity: due < 0 ? "high" : "medium", title: "Салық мерзімі жақын", description: `${task.taxType} ${task.period || ""}: ${task.dueDate || "күні жоқ"}` });
   });
+  if (!cfo.taxTasks.length) warnings.push({ severity: "high", title: "ИП ОУР салық календарі бос", description: "Декларация, төлем және еске салу күндерін енгізіңіз." });
+  if (!cfo.payments.some(payment => payment.business === "kaspi") && !cfo.orders.some(order => order.business === "kaspi")) warnings.push({ severity: "medium", title: "Kaspi магазин дерегі жоқ", description: "Kaspi выписка немесе сатылым файлын импорттаңыз." });
   return warnings;
 }
 
@@ -4665,7 +4736,7 @@ function renderCfo() {
   const warnings = cfoAuditWarnings(cfo);
   const tab = state.cfo.activeTab || "dashboard";
   document.querySelectorAll("[data-cfo-tab]").forEach(button => button.classList.toggle("active", button.dataset.cfoTab === tab));
-  $("cfoKpis").innerHTML = [["Бүгінгі түсім", money(metrics.todayIncome)], ["Айлық түсім", money(metrics.monthIncome)], ["Жалпы шығын", money(metrics.totalExpense)], ["Таза пайда", money(metrics.netProfit)], ["Клиенттер қарызы", money(metrics.debtors)], ["Поставщик қарызы", money(metrics.creditors)], ["Касса қалдығы", money(metrics.cash)], ["Банк қалдығы", money(metrics.bank)], ["Жіберілмеген ЭСФ", metrics.missingEsf], ["Жабылмаған реализация", metrics.openRealizations], ["Құжат жетіспейді", metrics.missingDocs], ["Салық жақындады", metrics.taxSoon]].map(([label, value]) => `<article class="cfo-kpi"><span>${label}</span><strong>${value}</strong></article>`).join("");
+  $("cfoKpis").innerHTML = [["Бүгінгі түсім", money(metrics.todayIncome)], ["Айлық түсім", money(metrics.monthIncome)], ["Таза пайда", money(metrics.netProfit)], ["B2B түсім", money(metrics.b2bRevenue)], ["Дүкен түсім", money(metrics.retailRevenue)], ["Kaspi түсім", money(metrics.kaspiRevenue)], ["Клиент қарызы", money(metrics.debtors)], ["Поставщик қарызы", money(metrics.creditors)], ["Касса қалдығы", money(metrics.cash)], ["Банк қалдығы", money(metrics.bank)], ["ЭСФ warning", metrics.missingEsf], ["ОУР бақылау", metrics.taxSoon || metrics.taxOpen]].map(([label, value]) => `<article class="cfo-kpi"><span>${label}</span><strong>${value}</strong></article>`).join("");
   $("cfoWarnings").innerHTML = warnings.slice(0, tab === "audit" ? 50 : 5).map(warning => `<article class="cfo-warning ${escapeHtml(warning.severity)}"><strong>${escapeHtml(warning.title)}</strong><span>${escapeHtml(warning.description)}</span></article>`).join("") || `<article class="cfo-warning ok"><strong>Audit таза</strong><span>Қазір автоматты warning жоқ. Дерек енгізген сайын қайта тексеріледі.</span></article>`;
   $("cfoList").innerHTML = cfoTabContent(tab, cfo, metrics, warnings);
 }
@@ -4675,42 +4746,88 @@ function cfoTabContent(tab, cfo, metrics, warnings) {
   if (tab === "debtors") return cfoRows("Клиенттер қарызы / Дебиторка", cfo.orders.filter(o => o.debtAmount > 0).map(o => [`${o.schoolName || o.clientName}`, money(o.debtAmount), o.paymentStatus, o.date]));
   if (tab === "creditors") return cfoRows("Поставщиктер қарызы / Кредиторка", cfo.suppliers.filter(s => s.payableAmount > 0).map(s => [s.name, money(s.payableAmount), s.phone || "-", s.comment || "-"]));
   if (tab === "cashflow") return cfoRows("Ақша қозғалысы / Cash Flow", cfo.payments.map(p => [p.date, p.type === "expense" ? "Шығын" : "Түсім", money(p.amount), `${p.method} · ${p.category || "категория жоқ"}`]));
-  if (tab === "pnl") return cfoDashboardCards({ "Түсім": metrics.monthIncome, "Шығын": metrics.totalExpense, "Таза пайда": metrics.netProfit, "Дебиторка": metrics.debtors }, warnings);
+  if (tab === "pnl") return cfoDashboardCards({ "Түсім": metrics.monthIncome, "Шығын": metrics.totalExpense, "Таза пайда": metrics.netProfit, "Дебиторка": metrics.debtors, "B2B түсім": metrics.b2bRevenue, "Дүкен түсім": metrics.retailRevenue, "Kaspi түсім": metrics.kaspiRevenue }, warnings);
   if (tab === "stock") return cfoRows("Склад бақылау", cfo.products.map(p => [p.name, `${p.quantity}/${p.minQuantity}`, money(p.salePrice), `${p.marginPercent.toFixed(1)}%`]));
   if (tab === "documents") return cfoRows("Құжаттар бақылауы", cfo.documents.map(d => [d.type, d.status, d.date, d.comment || "-"]).concat(cfo.orders.filter(o => o.documentStatus !== "толық").map(o => [o.clientName, o.documentStatus, o.date, "Заказ құжаты толық емес"])));
   if (tab === "onec") return cfoRows("1С бақылау", cfo.orders.map(o => [o.clientName, o.oneCStatus || "1С статус бос", money(o.totalAmount), o.comment || "-"]));
   if (tab === "tax") return cfoRows("Салық календарь", cfo.taxTasks.map(t => [t.taxType, t.period || "-", t.dueDate || "-", `${money(t.amount)} · ${t.status}`]));
+  if (tab === "tax-ip") return cfoTaxView(cfo, metrics, warnings);
+  if (tab === "kaspi") return cfoKaspiView(cfo, metrics);
+  if (tab === "finance") return cfoFinanceView(metrics);
   if (tab === "audit") return cfoRows("Audit Check", warnings.map(w => [w.severity, w.title, w.description, "AI Бас бухгалтер"]));
-  if (tab === "chat") return `<article class="cfo-empty"><strong>AI Бас бухгалтер чат</strong><p>Төмендегі чатқа сұрақ жазыңыз. MVP mock режимде dashboard деректеріне сүйеніп жауап береді.</p></article>`;
+  if (tab === "chat") return `<article class="cfo-empty"><strong>AI Бас бухгалтер чат</strong><p>Төмендегі чатқа сұрақ жазыңыз. MVP mock режимде B2B, электр дүкен, Kaspi, ИП ОУР және финанс деректеріне сүйеніп жауап береді.</p></article>`;
   return "";
 }
 
 function cfoDashboardCards(metrics, warnings) {
-  const entries = Object.entries(metrics).slice(0, 8);
+  const entries = Object.entries(metrics).slice(0, 10);
   const firstRisk = warnings[0] ? `${warnings[0].title}: ${warnings[0].description}` : "Қазір үлкен warning жоқ. Дерек енгізген сайын қайта тексеремін.";
   return `
     <div class="cfo-accountant-grid">
       <article class="cfo-accountant-card primary">
         <span>Бас бухгалтер фокусы</span>
         <strong>${escapeHtml(firstRisk)}</strong>
-        <p>Бірінші кезекте қарыз, ЭСФ, құжат, 1С статус және салық мерзімін жабу керек.</p>
+        <p>Бірінші кезекте қарыз, ЭСФ, құжат, 1С статус, Kaspi сверка және ОУР салық мерзімін жабу керек.</p>
       </article>
       <article class="cfo-accountant-card">
-        <span>Бизнес профилі</span>
-        <strong>ОУР · жұмысшы жоқ</strong>
-        <p>B2B мектептер: канцтовар/хозтовар. Дүкен: Teklet/Viko электр тауарлары.</p>
+        <span>Бизнес профиль</span>
+        <strong>ИП ОУР · жұмысшы жоқ</strong>
+        <p>B2B мектептер, электр дүкені, Teklet/Viko поставщиктері және Kaspi магазин бір CFO бақылауында.</p>
       </article>
       <article class="cfo-accountant-card">
-        <span>Бүгінгі бухгалтер чеклист</span>
-        <strong>Төлем -> 1С -> ЭСФ -> Құжат</strong>
-        <p>Kaspi/банк выпискасын заказға байлау, реализацияны 1С-те тексеру, ЭСФ пен акт/накладной статусын жабу.</p>
+        <span>Күндік бухгалтер чеклист</span>
+        <strong>Банк/Kaspi -> 1С -> ЭСФ -> Склад -> Салық</strong>
+        <p>Kaspi және банк выпискасын заказға байлау, реализацияны 1С-те тексеру, ЭСФ пен акт/накладной статусын жабу.</p>
       </article>
     </div>
+    <div class="cfo-business-grid">
+      <article><span>B2B мектептер</span><strong>${money(metrics.b2bRevenue)}</strong><p>Мектеп заказдары, дебиторка, ЭСФ, акт сверки.</p></article>
+      <article><span>Электр дүкені</span><strong>${money(metrics.retailRevenue)}</strong><p>Касса, Teklet/Viko склад, поставщик қарызы.</p></article>
+      <article><span>Kaspi магазин</span><strong>${money(metrics.kaspiRevenue)}</strong><p>Маркетплейс түсімі, комиссия, логистика, возврат.</p></article>
+      <article><span>ИП ОУР</span><strong>${metrics.taxSoon || metrics.taxOpen} бақылау</strong><p>Салық мерзімі, категориясыз шығын, банк/касса тәртібі.</p></article>
+    </div>
     <div class="cfo-mini-grid">${entries.map(([label, value]) => `<article class="cfo-mini-card"><span>${escapeHtml(label)}</span><strong>${typeof value === "number" ? money(value) : escapeHtml(value)}</strong></article>`).join("")}</div>
-    <article class="cfo-empty"><strong>№1 Бас бухгалтер режимі</strong><p>Демо дерек батырмасын бассаңыз, мектеп қарызы, ЭСФ, Viko/Teklet склад және салық warning-тері бірден көрінеді.</p></article>
+    <article class="cfo-empty"><strong>№1 Бас бухгалтер режимі</strong><p>Демо дерек батырмасын бассаңыз, мектеп қарызы, ЭСФ, Viko/Teklet склад, Kaspi сверка және ОУР warning-тері бірден көрінеді.</p></article>
   `;
 }
 
+function cfoKaspiView(cfo, metrics) {
+  const rows = [];
+  cfo.orders.filter(order => order.business === "kaspi").forEach(order => rows.push([order.date, order.clientName, money(order.totalAmount), `төленді ${money(order.paidAmount)}`, order.oneCStatus || "1С статус жоқ"]));
+  cfo.payments.filter(payment => payment.business === "kaspi").forEach(payment => rows.push([payment.date, payment.type === "expense" ? "Kaspi шығын" : "Kaspi түсім", money(payment.amount), payment.category || "категория жоқ", payment.comment || "-"]));
+  cfo.products.filter(product => product.business === "kaspi").forEach(product => rows.push(["Склад", product.name, `${product.quantity}/${product.minQuantity}`, money(product.salePrice), `${product.marginPercent.toFixed(1)}%`]));
+  const table = cfoRows("Kaspi магазин бақылауы", rows);
+  return `<div class="cfo-accountant-grid"><article class="cfo-accountant-card primary"><span>Kaspi таза көрініс</span><strong>${money(metrics.kaspiRevenue - metrics.kaspiExpense)}</strong><p>Түсімнен комиссия, логистика және себестоимость бөлек көрінуі керек.</p></article><article class="cfo-accountant-card"><span>Сверка</span><strong>Kaspi отчет = банк = 1С</strong><p>Ай сайын Kaspi отчет, банк выписка және 1С сатылымын салыстырыңыз.</p></article><article class="cfo-accountant-card"><span>Товар</span><strong>Витрина + склад</strong><p>Аз қалған позициялар автоматты түрде заказға ұсынылады.</p></article></div>${table}`;
+}
+
+function cfoFinanceView(metrics) {
+  return `
+    <div class="cfo-accountant-grid">
+      <article class="cfo-accountant-card primary"><span>Cash Flow</span><strong>${money(metrics.cash + metrics.bank)}</strong><p>Касса мен банктің жалпы қалдығы.</p></article>
+      <article class="cfo-accountant-card"><span>P&L</span><strong>${money(metrics.netProfit)}</strong><p>Түсім, себестоимость және шығыннан кейінгі болжамды таза пайда.</p></article>
+      <article class="cfo-accountant-card"><span>Қарыз балансы</span><strong>${money(metrics.debtors - metrics.creditors)}</strong><p>Дебиторкадан кредиторканы алғандағы қысқа позиция.</p></article>
+    </div>
+    <div class="cfo-mini-grid">
+      <article class="cfo-mini-card"><span>B2B</span><strong>${money(metrics.b2bRevenue)}</strong></article>
+      <article class="cfo-mini-card"><span>Дүкен</span><strong>${money(metrics.retailRevenue)}</strong></article>
+      <article class="cfo-mini-card"><span>Kaspi</span><strong>${money(metrics.kaspiRevenue)}</strong></article>
+      <article class="cfo-mini-card"><span>Жалпы шығын</span><strong>${money(metrics.totalExpense)}</strong></article>
+    </div>`;
+}
+
+function cfoTaxView(cfo, metrics, warnings) {
+  const checklist = state.cfo?.profile?.taxChecklist || [];
+  const taxWarnings = warnings.filter(warning => /салық|ОУР|ИП|категория|Касса|Банк/i.test(`${warning.title} ${warning.description}`));
+  return `
+    <div class="cfo-accountant-grid">
+      <article class="cfo-accountant-card primary"><span>ИП ОУР бақылауы</span><strong>${metrics.taxSoon || metrics.taxOpen} ашық пункт</strong><p>Бұл заңды бухгалтерді алмастырмайды, бірақ мерзім, төлем, категория және құжат тәртібін күнде бақылауға көмектеседі.</p></article>
+      <article class="cfo-accountant-card"><span>Профиль</span><strong>ИП ОУР · жұмысшы жоқ</strong><p>Жалақыға ұқсас шығын шықса, жүйе бөлек warning береді.</p></article>
+      <article class="cfo-accountant-card"><span>Салыққа база</span><strong>Банк + касса + Kaspi</strong><p>Толық есеп үшін банк/Kaspi выписка, 1С реализация және шығын категориялары керек.</p></article>
+    </div>
+    <section class="cfo-table"><h3>ОУР чеклист</h3>${checklist.map(item => `<div class="cfo-row"><span>${escapeHtml(item)}</span><span>бақылауда</span></div>`).join("")}</section>
+    ${cfoRows("Салық календарь", cfo.taxTasks.map(t => [t.taxType, t.period || "-", t.dueDate || "-", `${money(t.amount)} · ${t.status}`]))}
+    ${taxWarnings.length ? cfoRows("Салық/финанс warning", taxWarnings.map(w => [w.severity, w.title, w.description])) : ""}`;
+}
 function cfoRows(title, rows) {
   if (!rows.length) return `<article class="cfo-empty"><strong>${escapeHtml(title)}</strong><p>Бұл бөлімде әзірге дерек жоқ. Сол жақтағы форма арқылы енгізіңіз немесе 1С/Excel импортын кейін қосамыз.</p></article>`;
   return `<section class="cfo-table"><h3>${escapeHtml(title)}</h3>${rows.map(row => `<div class="cfo-row">${row.map(cell => `<span>${escapeHtml(cell)}</span>`).join("")}</div>`).join("")}</section>`;
@@ -4722,25 +4839,31 @@ function askCfoMock(event) {
   const cfo = cfoFilteredData();
   const metrics = cfoMetrics(cfo);
   const warnings = cfoAuditWarnings(cfo);
-  const topWarnings = warnings.slice(0, 5).map((warning, index) => `${index + 1}. [${warning.severity}] ${warning.title}: ${warning.description}`).join("\n") || "Қазір автоматты warning жоқ.";
+  const topWarnings = warnings.slice(0, 6).map((warning, index) => `${index + 1}. [${warning.severity}] ${warning.title}: ${warning.description}`).join("\n") || "Қазір автоматты warning жоқ.";
   $("cfoChatOut").textContent = [
     "AI Бас бухгалтер mock жауап:",
     `Сұрақ: ${prompt || "жалпы жағдай"}`,
     "",
-    "Бухгалтерлік қорытынды:",
-    `- Таза пайда: ${money(metrics.netProfit)}`,
-    `- Дебиторка: ${money(metrics.debtors)}`,
-    `- Кредиторка: ${money(metrics.creditors)}`,
+    "Бизнес бойынша қысқа қорытынды:",
+    `- B2B мектептер түсімі: ${money(metrics.b2bRevenue)} · дебиторка: ${money(metrics.debtors)}`,
+    `- Электр дүкені түсімі: ${money(metrics.retailRevenue)} · склад warning Audit ішінде көрінеді`,
+    `- Kaspi магазин түсімі: ${money(metrics.kaspiRevenue)} · Kaspi шығыны: ${money(metrics.kaspiExpense)}`,
+    `- Таза пайда болжамы: ${money(metrics.netProfit)}`,
     `- Касса: ${money(metrics.cash)} · Банк: ${money(metrics.bank)}`,
+    "",
+    "ИП ОУР бақылауы:",
+    `- Ашық салық/мерзім пункттері: ${metrics.taxOpen}`,
+    "- Нақты салық сомасын заңды бухгалтер немесе КГД күнтізбесімен тексеріңіз, бірақ жүйе мерзім, төлем, категория, құжат және cashflow тәртібін ұстап тұрады.",
     "",
     "Тәуекелдер:",
     topWarnings,
     "",
     "Бүгін жабылатын әрекеттер:",
-    "1. Банктегі/Каспидегі төлемдерді заказдарға байланыстыру.",
-    "2. Жеткізілген заказдар бойынша ЭСФ және реализация статусын тексеру.",
-    "3. Қарызы бар мектептерге WhatsApp мәтін дайындау.",
+    "1. Банк/Kaspi төлемдерін заказдармен және 1С реализациямен байланыстыру.",
+    "2. Жеткізілген B2B заказдар бойынша ЭСФ, акт сверки және төлем статусын жабу.",
+    "3. Kaspi комиссия, логистика, возвратты бөлек категорияға бөлу.",
     "4. Viko/Teklet аз қалған позицияларын поставщик заказына шығару.",
+    "5. ОУР салық календаріне декларация/төлем мерзімін енгізу.",
     "",
     "Толық отчет үшін жүктелетін файлдар: 1С реализация, Kaspi/банк выписка, 1С контрагенттер, номенклатура/остаток, ЭСФ реестр."
   ].join("\n");

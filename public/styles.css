@@ -352,6 +352,49 @@ textarea:focus, input:focus, select:focus { border-color: var(--leaf); }
   font-size: 12px;
 }
 
+.crm-smart-archive {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, .9fr);
+  gap: 12px;
+}
+
+.crm-smart-archive h3 {
+  margin: 0 0 10px;
+}
+
+.crm-folder-board,
+.crm-report-history {
+  display: grid;
+  gap: 10px;
+}
+
+.crm-folder-card,
+.crm-report-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  padding: 12px;
+  display: grid;
+  gap: 6px;
+}
+
+.crm-folder-card span,
+.crm-folder-card small,
+.crm-report-card span,
+.crm-report-card p {
+  color: var(--muted);
+}
+
+.crm-report-card {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.crm-report-card p {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
 .crm-pipeline {
   display: grid;
   grid-template-columns: repeat(5, minmax(180px, 1fr));
@@ -1464,7 +1507,7 @@ pre {
     max-width: 100%;
     padding: 12px 13px;
   }
-  .composer, .toolbar, .split, .notes-layout, .tasks-layout, .cal-layout, .cal-hero, .match-grid, .brain-fields, .brain-head, .cloud-grid, .task-form-grid, .note-form-grid, .cal-form-grid, .assistant-controls, .assistant-dashboard, .goal-toolbar, .goal-layout, .goal-columns, .goal-form-grid, .crm-actions, .crm-dashboard, .crm-sections, .crm-template-grid, .crm-panel-head, .crm-toolbar, .crm-quick-form, .crm-file-grid {
+  .composer, .toolbar, .split, .notes-layout, .tasks-layout, .cal-layout, .cal-hero, .match-grid, .brain-fields, .brain-head, .cloud-grid, .task-form-grid, .note-form-grid, .cal-form-grid, .assistant-controls, .assistant-dashboard, .goal-toolbar, .goal-layout, .goal-columns, .goal-form-grid, .crm-actions, .crm-dashboard, .crm-sections, .crm-template-grid, .crm-panel-head, .crm-toolbar, .crm-quick-form, .crm-file-grid, .crm-smart-archive, .crm-report-card {
     grid-template-columns: 1fr;
   }
   .crm-panel-head {

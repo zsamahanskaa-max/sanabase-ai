@@ -119,7 +119,7 @@ async function importFiles(event) {
   for (const file of event.target.files) {
     addMessage("ai", `${file.name} импортталып жатыр...`);
     const result = await extractFile(file);
-    state.docs.unshift({
+    state.docs.unshift(normalizeDoc({
       id: crypto.randomUUID(),
       name: result.name,
       type: result.type,
@@ -128,7 +128,7 @@ async function importFiles(event) {
       tags: inferTags(result.name, result.text || ""),
       links: [],
       createdAt: new Date().toISOString()
-    });
+    }));
     persist();
   }
   event.target.value = "";
@@ -707,7 +707,7 @@ async function buildCrmBusinessReport() {
     for (const [key, file] of Object.entries(files)) {
       if (file) tables[key] = await readTableFile(file);
     }
-    const report = analyzeCrmBusinessTables(tables, $("crmReportType")?.value || "both");
+    const report = analyzeCrmBusinessTables(tables, $("crmReportType")?.value || "both", $("crmReportProject")?.value.trim() || "");
     state.crmReports = Array.isArray(state.crmReports) ? state.crmReports : [];
     state.crmReports.unshift(report);
     state.crmReports = state.crmReports.slice(0, 12);
@@ -719,17 +719,23 @@ async function buildCrmBusinessReport() {
   }
 }
 
-function analyzeCrmBusinessTables(tables, type = "both") {
+function analyzeCrmBusinessTables(tables, type = "both", project = "") {
   const realization = tables.realization ? parseRealizationTable(tables.realization) : [];
   const kaspi = tables.kaspi ? parseKaspiTable(tables.kaspi) : [];
   const counterparties = tables.counterparties ? parseCounterpartyTable(tables.counterparties) : [];
   const nomenclature = tables.nomenclature ? parseNomenclatureTable(tables.nomenclature) : [];
   const b2b = analyzeB2B(realization, kaspi, counterparties);
   const store = analyzeStore(nomenclature, realization);
-  const text = crmBusinessReportText({ b2b, store, type, files: Object.keys(tables) });
+  const business = type === "b2b" ? "school" : type === "store" ? "store" : "mixed";
+  const projectName = project || `${businessLabel(business)} ${isoDate()}`;
+  const text = crmBusinessReportText({ b2b, store, type, files: Object.keys(tables), project: projectName });
   return normalizeCrmReport({
-    title: `CRM толық отчет ${isoDate()}`,
+    title: `${projectName} · CRM толық отчет`,
     type,
+    business,
+    project: projectName,
+    folder: `${businessLabel(business)} / ${projectName}`,
+    sourceTypes: Object.keys(tables),
     createdAt: new Date().toISOString(),
     summary: {
       sales: b2b.totalSales,
@@ -883,9 +889,10 @@ function analyzeStore(nomenclature, realization) {
   return { items, noStock, lowStock, topSold, supplierOrders, recommendations };
 }
 
-function crmBusinessReportText({ b2b, store, type, files }) {
+function crmBusinessReportText({ b2b, store, type, files, project }) {
   const sections = [
     `CRM толық отчет: ${new Date().toLocaleString("kk-KZ")}`,
+    `Жоба: ${project || "Аталмаған жоба"}`,
     `Жүктелген файлдар: ${files.join(", ") || "жоқ"}`,
     "",
     "Бұл отчет толық болуы үшін керек файлдар:",
@@ -952,7 +959,17 @@ function saveCrmBusinessReport() {
     if ($("crmReportOut")) $("crmReportOut").textContent = "Алдымен толық отчет жасаңыз.";
     return;
   }
-  const doc = normalizeDoc({ name: `${report.title}.txt`, type: "crm_report", text: report.text, tags: ["crm", "b2b", "магазин", "отчет"], links: ["CRM", "1С", "Kaspi"] });
+  const doc = normalizeDoc({
+    name: `${report.title}.txt`,
+    type: "crm_report",
+    text: report.text,
+    tags: ["crm", "b2b", "магазин", "отчет"],
+    links: ["CRM", "1С", "Kaspi"],
+    folder: report.folder,
+    category: "crm_report",
+    business: report.business,
+    project: report.project
+  });
   state.docs.unshift(doc);
   state.notes.unshift(normalizeNote({ title: report.title, folder: "CRM", type: "long", body: report.text, tags: ["crm", "отчет"], brain: true }));
   createCrmCalendarDocument(report.title, report.text);
@@ -987,19 +1004,72 @@ function renderCrmReportDashboard() {
     ["Налог шамасы", money(summary.estimatedTax || 0)],
     ["Аз/жоқ товар", (summary.lowStock || 0) + (summary.noStock || 0)]
   ].map(([label, value]) => `<article class="crm-stat"><span>${label}</span><strong>${value}</strong></article>`).join("");
+  renderCrmSmartArchive();
 }
 
 function normalizeCrmReport(report = {}) {
+  const business = report.business || (report.type === "b2b" ? "school" : report.type === "store" ? "store" : "mixed");
+  const project = report.project || report.title || `CRM ${isoDate()}`;
   return {
     id: report.id || crypto.randomUUID(),
     title: report.title || "CRM отчет",
     type: report.type || "both",
+    business,
+    project,
+    folder: report.folder || `${businessLabel(business)} / ${project}`,
+    sourceTypes: Array.isArray(report.sourceTypes) ? report.sourceTypes : [],
     createdAt: report.createdAt || new Date().toISOString(),
     summary: report.summary || {},
     recommendations: Array.isArray(report.recommendations) ? report.recommendations : [],
     whatsapp: Array.isArray(report.whatsapp) ? report.whatsapp : [],
     text: report.text || ""
   };
+}
+
+function renderCrmSmartArchive() {
+  if (!$("crmFolderBoard") || !$("crmReportHistory")) return;
+  const docs = state.docs.map(normalizeDoc);
+  const reports = (state.crmReports || []).map(normalizeCrmReport);
+  const folderMap = new Map();
+  docs.forEach(doc => addCrmFolderItem(folderMap, doc.folder || smartDocMeta(doc.name, doc.text, doc.type).folder, "doc", doc));
+  reports.forEach(report => addCrmFolderItem(folderMap, report.folder, "report", report));
+  const folders = [...folderMap.entries()].sort((a, b) => b[1].updated.localeCompare(a[1].updated));
+  $("crmFolderBoard").innerHTML = folders.map(([folder, data]) => `
+    <article class="crm-folder-card">
+      <strong>${escapeHtml(folder)}</strong>
+      <span>${data.docs} құжат · ${data.reports} отчет</span>
+      <small>${escapeHtml(data.examples.slice(0, 3).join(", ") || "ішінде жазба жоқ")}</small>
+    </article>
+  `).join("") || `<article class="crm-folder-card"><strong>Папка жоқ</strong><span>Құжат немесе CRM отчет жасаңыз.</span></article>`;
+  $("crmReportHistory").innerHTML = reports.slice(0, 10).map(report => `
+    <article class="crm-report-card">
+      <div>
+        <strong>${escapeHtml(report.title)}</strong>
+        <span>${escapeHtml(formatDate(report.createdAt))} · ${escapeHtml(report.folder)}</span>
+      </div>
+      <p>Реализация ${money(report.summary.sales || 0)} · Қарыз ${money(report.summary.debt || 0)} · Маржа ${money(report.summary.margin || 0)}</p>
+      <button type="button" data-crm-report-view="${escapeHtml(report.id)}">Толық көру</button>
+    </article>
+  `).join("") || `<article class="crm-report-card"><strong>CRM отчет жоқ</strong><p>Толық отчет жасағанда осы жерде сақталады.</p></article>`;
+  $("crmReportHistory").querySelectorAll("[data-crm-report-view]").forEach(button => {
+    button.addEventListener("click", () => viewCrmReport(button.dataset.crmReportView));
+  });
+}
+
+function addCrmFolderItem(map, folder, kind, item) {
+  const key = folder || "Жеке құжаттар";
+  if (!map.has(key)) map.set(key, { docs: 0, reports: 0, examples: [], updated: "" });
+  const data = map.get(key);
+  data[kind === "report" ? "reports" : "docs"] += 1;
+  data.examples.push(item.title || item.name || "Жазба");
+  data.updated = [data.updated, item.createdAt || ""].sort().pop() || "";
+}
+
+function viewCrmReport(id) {
+  const report = (state.crmReports || []).map(normalizeCrmReport).find(item => item.id === id);
+  if (!report) return;
+  if ($("crmReportOut")) $("crmReportOut").textContent = report.text;
+  if ($("crmReportProject")) $("crmReportProject").value = report.project || "";
 }
 
 function cell(row, index) {
@@ -3404,6 +3474,7 @@ function inferTags(name, text) {
 
 function normalizeDoc(doc) {
   const text = doc.text || "";
+  const meta = smartDocMeta(doc.name || "", text, doc.type || "unknown");
   return {
     id: doc.id || crypto.randomUUID(),
     name: doc.name || "Imported document",
@@ -3412,8 +3483,65 @@ function normalizeDoc(doc) {
     warning: doc.warning || "",
     tags: Array.isArray(doc.tags) && doc.tags.length ? doc.tags : inferTags(doc.name || "", text),
     links: Array.isArray(doc.links) ? doc.links : [],
+    category: doc.category || meta.category,
+    business: doc.business || meta.business,
+    project: doc.project || meta.project,
+    folder: doc.folder || meta.folder,
     createdAt: doc.createdAt || new Date().toISOString()
   };
+}
+
+function smartDocMeta(name, text = "", type = "unknown") {
+  const source = normalizeText(`${name} ${text.slice(0, 3000)}`);
+  const category = detectDocCategory(source, type);
+  const business = detectDocBusiness(source, category);
+  const project = detectDocProject(name, business);
+  return {
+    category,
+    business,
+    project,
+    folder: `${businessLabel(business)} / ${categoryLabel(category)}`
+  };
+}
+
+function detectDocCategory(source, type) {
+  if (type === "crm_report" || /crm|отчет|есеп|report/.test(source)) return "crm_report";
+  if (/реализац|наклад|продаж|сатылым|сату/.test(source)) return "realization";
+  if (/контрагент|клиент|покупатель|мектеп|школа/.test(source)) return "counterparty";
+  if (/счет|счёт|invoice|шот|счетфактура|эсф|esf/.test(source)) return "invoice";
+  if (/kaspi|каспи|выписк|банк|платеж|төлем|оплата/.test(source)) return "bank_statement";
+  if (/номенклатур|остат|склад|тауар|товар|артикул|stock/.test(source)) return "nomenclature";
+  if (/договор|келісім|contract/.test(source)) return "contract";
+  return "personal";
+}
+
+function detectDocBusiness(source, category) {
+  if (/мектеп|школа|b2b|контрагент|реализац/.test(source)) return "school";
+  if (/магазин|склад|номенклатур|остат|поставщик|тауар|товар/.test(source) || category === "nomenclature") return "store";
+  if (category === "bank_statement" || category === "crm_report") return "mixed";
+  return "personal";
+}
+
+function detectDocProject(name, business) {
+  const clean = String(name || "").replace(/\.[^.]+$/, "").slice(0, 80);
+  return clean || `${businessLabel(business)} ${isoDate()}`;
+}
+
+function businessLabel(value) {
+  return { school: "Мектептер / B2B", store: "Магазин / склад", mixed: "Ортақ CRM", personal: "Жеке құжаттар" }[value] || "Ортақ CRM";
+}
+
+function categoryLabel(value) {
+  return {
+    crm_report: "Дайын CRM отчеттар",
+    realization: "Реализациялар",
+    counterparty: "Контрагенттер",
+    invoice: "Счеттар / ESF",
+    bank_statement: "Kaspi / банк выписка",
+    nomenclature: "Номенклатура / склад",
+    contract: "Договорлар",
+    personal: "Жеке құжаттар"
+  }[value] || "Жеке құжаттар";
 }
 
 function normalizeTask(task) {

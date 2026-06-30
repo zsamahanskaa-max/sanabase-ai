@@ -46,6 +46,9 @@ on("crmDownloadBtn", "click", downloadCrmDocument);
 on("crmQuickForm", "submit", saveCrmQuickDeal);
 on("crmSearch", "input", render);
 on("crmStatusFilter", "change", render);
+on("crmReportBtn", "click", buildCrmBusinessReport);
+on("crmReportSaveBtn", "click", saveCrmBusinessReport);
+on("crmReportTaskBtn", "click", tasksFromCrmBusinessReport);
 on("matchBtn", "click", matchPrices);
 on("onecImportBtn", "click", importOneCExcel);
 on("onecSaveBrainBtn", "click", saveOneCToBrain);
@@ -683,6 +686,355 @@ function closeCrmDeal(orderId) {
   logHistory("crm_deal", order.id, "CRM сделка жабу", null, order, "CRM толық панелі");
   persist();
   render();
+}
+
+async function buildCrmBusinessReport() {
+  const out = $("crmReportOut");
+  if (!out) return;
+  const files = {
+    realization: $("crmRealizationFile")?.files?.[0],
+    kaspi: $("crmKaspiFile")?.files?.[0],
+    counterparties: $("crmCounterpartyFile")?.files?.[0],
+    nomenclature: $("crmNomenclatureFile")?.files?.[0]
+  };
+  if (!files.realization && !files.nomenclature) {
+    out.textContent = "Кемінде 1С реализация немесе номенклатура/остаток файлын жүктеңіз.";
+    return;
+  }
+  out.textContent = "CRM толық отчет жасалып жатыр...";
+  try {
+    const tables = {};
+    for (const [key, file] of Object.entries(files)) {
+      if (file) tables[key] = await readTableFile(file);
+    }
+    const report = analyzeCrmBusinessTables(tables, $("crmReportType")?.value || "both");
+    state.crmReports = Array.isArray(state.crmReports) ? state.crmReports : [];
+    state.crmReports.unshift(report);
+    state.crmReports = state.crmReports.slice(0, 12);
+    persist();
+    render();
+    out.textContent = report.text;
+  } catch (error) {
+    out.textContent = `CRM отчет қатесі: ${shortError(error)}`;
+  }
+}
+
+function analyzeCrmBusinessTables(tables, type = "both") {
+  const realization = tables.realization ? parseRealizationTable(tables.realization) : [];
+  const kaspi = tables.kaspi ? parseKaspiTable(tables.kaspi) : [];
+  const counterparties = tables.counterparties ? parseCounterpartyTable(tables.counterparties) : [];
+  const nomenclature = tables.nomenclature ? parseNomenclatureTable(tables.nomenclature) : [];
+  const b2b = analyzeB2B(realization, kaspi, counterparties);
+  const store = analyzeStore(nomenclature, realization);
+  const text = crmBusinessReportText({ b2b, store, type, files: Object.keys(tables) });
+  return normalizeCrmReport({
+    title: `CRM толық отчет ${isoDate()}`,
+    type,
+    createdAt: new Date().toISOString(),
+    summary: {
+      sales: b2b.totalSales,
+      paid: b2b.totalPaid,
+      debt: b2b.totalDebt,
+      margin: b2b.margin,
+      estimatedTax: b2b.estimatedTax,
+      lowStock: store.lowStock.length,
+      noStock: store.noStock.length
+    },
+    recommendations: [...b2b.recommendations, ...store.recommendations],
+    whatsapp: b2b.whatsapp,
+    text
+  });
+}
+
+function parseRealizationTable(table) {
+  const rows = table.rows || [];
+  if (!rows.length) return [];
+  const headers = normalizeHeader(rows[0]);
+  const cols = {
+    client: findColumn(headers, "", ["контрагент", "клиент", "покупатель", "мектеп", "школа", "сатыпалушы"]),
+    bin: findColumn(headers, "", ["бин", "иин", "бсн", "жсн"]),
+    item: findColumn(headers, "", ["номенклатура", "товар", "тауар", "наименование", "атауы"]),
+    code: findColumn(headers, "", ["код", "артикул", "sku"]),
+    qty: findColumn(headers, "", ["количество", "саны", "qty"]),
+    amount: findColumn(headers, "", ["сумма", "итого", "сомасы", "реализация", "выручка"]),
+    cost: findColumn(headers, "", ["себестоимость", "закуп", "сатып алу", "cost"]),
+    date: findColumn(headers, "", ["дата", "күн", "date"]),
+    doc: findColumn(headers, "", ["документ", "номер", "накладная", "реализация"])
+  };
+  return rows.slice(1).map(row => ({
+    client: cell(row, cols.client),
+    bin: cell(row, cols.bin),
+    item: cell(row, cols.item),
+    code: cell(row, cols.code),
+    qty: parseMoney(cell(row, cols.qty)),
+    amount: parseMoney(cell(row, cols.amount)),
+    cost: parseMoney(cell(row, cols.cost)),
+    date: cell(row, cols.date),
+    doc: cell(row, cols.doc)
+  })).filter(row => row.client || row.item || row.amount);
+}
+
+function parseKaspiTable(table) {
+  const rows = table.rows || [];
+  if (!rows.length) return [];
+  const headers = normalizeHeader(rows[0]);
+  const cols = {
+    name: findColumn(headers, "", ["контрагент", "отправитель", "плательщик", "клиент", "наименование", "атауы"]),
+    amount: findColumn(headers, "", ["сумма", "поступление", "кредит", "amount", "сомасы"]),
+    date: findColumn(headers, "", ["дата", "күн", "date"]),
+    purpose: findColumn(headers, "", ["назначение", "описание", "комментарий", "purpose", "детали"]),
+    bin: findColumn(headers, "", ["бин", "иин", "бсн", "жсн"])
+  };
+  return rows.slice(1).map(row => ({
+    name: cell(row, cols.name) || cell(row, cols.purpose),
+    bin: cell(row, cols.bin),
+    amount: parseMoney(cell(row, cols.amount)),
+    date: cell(row, cols.date),
+    purpose: cell(row, cols.purpose)
+  })).filter(row => row.amount || row.name);
+}
+
+function parseCounterpartyTable(table) {
+  const rows = table.rows || [];
+  if (!rows.length) return [];
+  const headers = normalizeHeader(rows[0]);
+  const cols = {
+    name: findColumn(headers, "", ["контрагент", "клиент", "наименование", "атауы", "школа", "мектеп"]),
+    bin: findColumn(headers, "", ["бин", "иин", "бсн", "жсн"]),
+    phone: findColumn(headers, "", ["телефон", "whatsapp", "ватсап", "phone"]),
+    debt: findColumn(headers, "", ["долг", "қарыз", "карыз", "задолж"])
+  };
+  return rows.slice(1).map(row => ({
+    name: cell(row, cols.name),
+    bin: cell(row, cols.bin),
+    phone: cell(row, cols.phone),
+    debt: parseMoney(cell(row, cols.debt))
+  })).filter(row => row.name || row.bin);
+}
+
+function parseNomenclatureTable(table) {
+  const rows = table.rows || [];
+  if (!rows.length) return [];
+  const headers = normalizeHeader(rows[0]);
+  const cols = {
+    code: findColumn(headers, "", ["код", "артикул", "sku"]),
+    name: findColumn(headers, "", ["номенклатура", "товар", "тауар", "наименование", "атауы"]),
+    stock: findColumn(headers, "", ["остаток", "қалдық", "калдык", "склад", "наличие"]),
+    supplier: findColumn(headers, "", ["поставщик", "жеткізуші", "supplier"]),
+    buyPrice: findColumn(headers, "", ["закуп", "сатып алу", "себестоимость"]),
+    sellPrice: findColumn(headers, "", ["цена", "сату", "баға", "бага", "розница"])
+  };
+  return rows.slice(1).map(row => ({
+    code: cell(row, cols.code),
+    name: cell(row, cols.name),
+    stock: parseMoney(cell(row, cols.stock)),
+    supplier: cell(row, cols.supplier),
+    buyPrice: parseMoney(cell(row, cols.buyPrice)),
+    sellPrice: parseMoney(cell(row, cols.sellPrice))
+  })).filter(row => row.name || row.code);
+}
+
+function analyzeB2B(realization, kaspi, counterparties) {
+  const paidByName = groupSum(kaspi, row => normalizeParty(row.name || row.purpose), row => row.amount);
+  const paidByBin = groupSum(kaspi, row => normalizeParty(row.bin), row => row.amount);
+  const counterpartyMap = new Map(counterparties.map(row => [normalizeParty(row.name), row]));
+  const schools = [...groupRows(realization, row => normalizeParty(row.client || row.bin)).entries()].map(([key, rows]) => {
+    const first = rows[0] || {};
+    const name = first.client || key || "Контрагент жоқ";
+    const sold = rows.reduce((sum, row) => sum + row.amount, 0);
+    const cost = rows.reduce((sum, row) => sum + (row.cost || 0), 0);
+    const paid = paidByBin.get(normalizeParty(first.bin)) || paidByName.get(normalizeParty(name)) || fuzzyPaid(name, kaspi);
+    const cp = counterpartyMap.get(normalizeParty(name)) || {};
+    const debt = Math.max(0, sold - paid) || Math.max(0, cp.debt || 0);
+    const margin = sold - cost;
+    return { name, bin: first.bin, sold, paid, debt, margin, phone: cp.phone || "", rows };
+  }).sort((a, b) => b.debt - a.debt || b.sold - a.sold);
+  const totalSales = schools.reduce((sum, row) => sum + row.sold, 0);
+  const totalPaid = schools.reduce((sum, row) => sum + row.paid, 0);
+  const totalDebt = schools.reduce((sum, row) => sum + row.debt, 0);
+  const margin = schools.reduce((sum, row) => sum + row.margin, 0);
+  const estimatedTax = Math.max(0, totalSales * 0.03);
+  const unpaidSchools = schools.filter(row => row.debt > 0);
+  const whatsapp = unpaidSchools.slice(0, 10).map(row => whatsappDebtText(row));
+  const recommendations = [
+    ...unpaidSchools.slice(0, 5).map(row => `${row.name}: төлем түспеген/қарыз ${money(row.debt)}. WhatsApp follow-up жіберу.`),
+    ...schools.filter(row => row.sold > 0 && row.debt === 0).slice(0, 3).map(row => `${row.name}: төлем тәртібі жақсы, келесі айға повторный ұсыныс жіберу.`)
+  ];
+  return { schools, totalSales, totalPaid, totalDebt, margin, estimatedTax, unpaidSchools, whatsapp, recommendations };
+}
+
+function analyzeStore(nomenclature, realization) {
+  const soldByCode = groupSum(realization, row => normalizeParty(row.code || row.item), row => row.qty || 1);
+  const items = nomenclature.map(item => ({
+    ...item,
+    soldQty: soldByCode.get(normalizeParty(item.code || item.name)) || 0,
+    marginEach: (item.sellPrice || 0) - (item.buyPrice || 0)
+  }));
+  const noStock = items.filter(item => item.stock === 0);
+  const lowStock = items.filter(item => item.stock > 0 && item.stock <= 3);
+  const topSold = [...items].sort((a, b) => b.soldQty - a.soldQty).slice(0, 10);
+  const bySupplier = groupRows(lowStock.concat(noStock), row => row.supplier || "Поставщик жоқ");
+  const supplierOrders = [...bySupplier.entries()].map(([supplier, rows]) => ({ supplier, rows }));
+  const recommendations = [
+    ...noStock.slice(0, 6).map(item => `${item.name || item.code}: складта жоқ, заказ беру керек${item.supplier ? ` (${item.supplier})` : ""}.`),
+    ...lowStock.slice(0, 6).map(item => `${item.name || item.code}: аз қалды (${item.stock}), минимум заказ жоспарына қосу.`),
+    ...topSold.filter(item => item.soldQty > 0).slice(0, 5).map(item => `${item.name || item.code}: жақсы өтіп жатыр (${item.soldQty}), витрина/қорды күшейту.`)
+  ];
+  return { items, noStock, lowStock, topSold, supplierOrders, recommendations };
+}
+
+function crmBusinessReportText({ b2b, store, type, files }) {
+  const sections = [
+    `CRM толық отчет: ${new Date().toLocaleString("kk-KZ")}`,
+    `Жүктелген файлдар: ${files.join(", ") || "жоқ"}`,
+    "",
+    "Бұл отчет толық болуы үшін керек файлдар:",
+    "- 1С Реализациялар: мектеп/контрагент, товар, сумма, себестоимость, дата",
+    "- Kaspi выписка: плательщик/назначение, сумма, дата",
+    "- 1С Контрагенттер: атауы, БИН, телефон/WhatsApp, қарыз",
+    "- 1С Номенклатура/Остаток: код, атауы, қалдық, поставщик, сатып алу/сату бағасы"
+  ];
+  if (type !== "store") {
+    sections.push(
+      "",
+      "B2B мектептер бойынша:",
+      `- Реализация шамасы: ${money(b2b.totalSales)}`,
+      `- Kaspi/банк бойынша түскен төлем: ${money(b2b.totalPaid)}`,
+      `- Шамамен қарыз: ${money(b2b.totalDebt)}`,
+      `- Шамамен маржа: ${money(b2b.margin)}`,
+      `- Шамамен налог (3% есеппен): ${money(b2b.estimatedTax)}`,
+      "",
+      "Төлем түспеген / қарызы бар мектептер:",
+      b2b.unpaidSchools.slice(0, 15).map((row, index) => `${index + 1}. ${row.name}: реализация ${money(row.sold)}, төлем ${money(row.paid)}, қарыз ${money(row.debt)}`).join("\n") || "Қарыз анықталмады.",
+      "",
+      "WhatsApp дайын тексттері:",
+      b2b.whatsapp.join("\n\n---\n\n") || "Қарыз бар мектеп табылса, текст осы жерде шығады."
+    );
+  }
+  if (type !== "b2b") {
+    sections.push(
+      "",
+      "Магазин / склад бойынша:",
+      `- Номенклатура саны: ${store.items.length}`,
+      `- Складта жоқ товар: ${store.noStock.length}`,
+      `- Аз қалған товар: ${store.lowStock.length}`,
+      "",
+      "Заказ беру керек товарлар:",
+      store.noStock.concat(store.lowStock).slice(0, 20).map((item, index) => `${index + 1}. ${item.code || "-"} · ${item.name || "-"} · қалдық ${item.stock} · поставщик ${item.supplier || "-"}`).join("\n") || "Аз/жоқ товар табылмады.",
+      "",
+      "Жақсы өтіп жатқан товарлар:",
+      store.topSold.filter(item => item.soldQty > 0).map((item, index) => `${index + 1}. ${item.name || item.code} · сатылған саны ${item.soldQty} · маржа/дана ${money(item.marginEach)}`).join("\n") || "Сату саны бар номенклатура табылмады.",
+      "",
+      "Поставщик бойынша заказ:",
+      store.supplierOrders.slice(0, 12).map(group => `${group.supplier}: ${group.rows.slice(0, 8).map(item => item.name || item.code).join(", ")}`).join("\n") || "Поставщик бойынша заказ тізімі жоқ."
+    );
+  }
+  sections.push(
+    "",
+    "Ұсыныстар:",
+    b2b.recommendations.concat(store.recommendations).slice(0, 20).map((item, index) => `${index + 1}. ${item}`).join("\n") || "Ұсыныс жасау үшін көбірек 1С/Kaspi дерегін жүктеңіз."
+  );
+  return sections.join("\n");
+}
+
+function whatsappDebtText(row) {
+  return [
+    `${row.name} бойынша WhatsApp текст:`,
+    `Сәлеметсіз бе! Біздің құжат бойынша сіздерде ${money(row.debt)} төлем қалды деп көрініп тұр.`,
+    `Реализация сомасы: ${money(row.sold)}. Түскен төлем: ${money(row.paid)}.`,
+    "Өтінеміз, төлем статусын нақтылап жібересіз бе? Егер төленген болса, платежка/чек жіберіңіз."
+  ].join("\n");
+}
+
+function saveCrmBusinessReport() {
+  const report = state.crmReports?.[0];
+  if (!report?.text) {
+    if ($("crmReportOut")) $("crmReportOut").textContent = "Алдымен толық отчет жасаңыз.";
+    return;
+  }
+  const doc = normalizeDoc({ name: `${report.title}.txt`, type: "crm_report", text: report.text, tags: ["crm", "b2b", "магазин", "отчет"], links: ["CRM", "1С", "Kaspi"] });
+  state.docs.unshift(doc);
+  state.notes.unshift(normalizeNote({ title: report.title, folder: "CRM", type: "long", body: report.text, tags: ["crm", "отчет"], brain: true }));
+  createCrmCalendarDocument(report.title, report.text);
+  persist();
+  render();
+  if ($("crmReportOut")) $("crmReportOut").textContent = `${report.text}\n\n---\nОтчет CRM, Notes, Brain және Күнтізбе құжаттарына сақталды.`;
+}
+
+function tasksFromCrmBusinessReport() {
+  const report = state.crmReports?.[0];
+  if (!report?.recommendations?.length) {
+    if ($("crmReportOut")) $("crmReportOut").textContent = "Task жасау үшін алдымен отчет жасаңыз.";
+    return;
+  }
+  report.recommendations.slice(0, 8).forEach(title => {
+    state.tasks.unshift(normalizeTask({ title, body: report.title, status: "todo", priority: "high", due: addDays(isoDate(), 1), owner: "CRM", link: "CRM отчет" }));
+  });
+  persist();
+  render();
+  if ($("crmReportOut")) $("crmReportOut").textContent = `${report.text}\n\n---\nҰсыныстардан ${Math.min(8, report.recommendations.length)} task жасалды.`;
+}
+
+function renderCrmReportDashboard() {
+  if (!$("crmReportDashboard")) return;
+  const report = state.crmReports?.[0] || {};
+  const summary = report.summary || {};
+  $("crmReportDashboard").innerHTML = [
+    ["Реализация", money(summary.sales || 0)],
+    ["Төлем", money(summary.paid || 0)],
+    ["Қарыз", money(summary.debt || 0)],
+    ["Маржа", money(summary.margin || 0)],
+    ["Налог шамасы", money(summary.estimatedTax || 0)],
+    ["Аз/жоқ товар", (summary.lowStock || 0) + (summary.noStock || 0)]
+  ].map(([label, value]) => `<article class="crm-stat"><span>${label}</span><strong>${value}</strong></article>`).join("");
+}
+
+function normalizeCrmReport(report = {}) {
+  return {
+    id: report.id || crypto.randomUUID(),
+    title: report.title || "CRM отчет",
+    type: report.type || "both",
+    createdAt: report.createdAt || new Date().toISOString(),
+    summary: report.summary || {},
+    recommendations: Array.isArray(report.recommendations) ? report.recommendations : [],
+    whatsapp: Array.isArray(report.whatsapp) ? report.whatsapp : [],
+    text: report.text || ""
+  };
+}
+
+function cell(row, index) {
+  return index >= 0 ? String(row[index] ?? "").trim() : "";
+}
+
+function normalizeParty(value) {
+  return normalizeText(value).replace(/\b(тоо|ип|кгу|кмм|школа|мектеп|гккп|кгкп)\b/g, "").replace(/\s+/g, " ").trim();
+}
+
+function groupRows(rows, keyFn) {
+  return rows.reduce((map, row) => {
+    const key = keyFn(row) || "unknown";
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(row);
+    return map;
+  }, new Map());
+}
+
+function groupSum(rows, keyFn, valueFn) {
+  const map = new Map();
+  rows.forEach(row => {
+    const key = keyFn(row);
+    if (!key) return;
+    map.set(key, (map.get(key) || 0) + Number(valueFn(row) || 0));
+  });
+  return map;
+}
+
+function fuzzyPaid(name, kaspi) {
+  const clean = normalizeParty(name);
+  if (!clean) return 0;
+  return kaspi
+    .filter(row => normalizeParty(`${row.name} ${row.purpose}`).includes(clean) || clean.includes(normalizeParty(row.name)))
+    .reduce((sum, row) => sum + row.amount, 0);
 }
 
 function renderAssistantDashboard() {
@@ -2345,7 +2697,8 @@ function exportBrain() {
     projects: state.projects,
     plans: state.plans,
     challenges: state.challenges,
-    oneC: state.oneC
+    oneC: state.oneC,
+    crmReports: state.crmReports
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
   const link = document.createElement("a");
@@ -2370,6 +2723,7 @@ async function importBrain(event) {
     const incomingProjects = Array.isArray(data.projects) ? data.projects : [];
     const incomingPlans = Array.isArray(data.plans) ? data.plans : [];
     const incomingChallenges = Array.isArray(data.challenges) ? data.challenges : [];
+    const incomingCrmReports = Array.isArray(data.crmReports) ? data.crmReports : [];
     if (data.oneC) state.oneC = normalizeOneC(data.oneC);
     if (data.calendarOS) mergeCalendarBackup(data.calendarOS);
     const existingDocKeys = new Set(state.docs.map(doc => doc.id || doc.name));
@@ -2434,6 +2788,15 @@ async function importBrain(event) {
       if (!existingChallengeKeys.has(key)) {
         state.challenges.unshift(normalizeChallenge(challenge));
         existingChallengeKeys.add(key);
+      }
+    });
+    state.crmReports = Array.isArray(state.crmReports) ? state.crmReports : [];
+    const existingCrmReportKeys = new Set((state.crmReports || []).map(report => report.id || report.title));
+    incomingCrmReports.forEach(report => {
+      const key = report.id || report.title;
+      if (!existingCrmReportKeys.has(key)) {
+        state.crmReports.unshift(normalizeCrmReport(report));
+        existingCrmReportKeys.add(key);
       }
     });
     persist();
@@ -2596,8 +2959,9 @@ async function pushCloud(showStatus = false) {
         plans: state.plans,
         challenges: state.challenges,
         oneC: state.oneC,
+        crmReports: state.crmReports,
         savedAt: new Date().toISOString(),
-        version: 7
+        version: 8
       },
       updated_at: new Date().toISOString()
     };
@@ -2640,6 +3004,7 @@ async function pullCloud(showStatus = false) {
     state.plans = Array.isArray(payload.plans) ? payload.plans.map(normalizePlan) : [];
     state.challenges = Array.isArray(payload.challenges) ? payload.challenges.map(normalizeChallenge) : [];
     state.oneC = normalizeOneC(payload.oneC || {});
+    state.crmReports = Array.isArray(payload.crmReports) ? payload.crmReports.map(normalizeCrmReport) : [];
     persist({ sync: false });
     render();
     setCloudStatus(`Бұлттан алынды: ${rows[0].updated_at || "дайын"}`, true);
@@ -3275,7 +3640,10 @@ function buildContext() {
     .slice(0, 20)
     .map(challenge => `Челлендж: ${challenge.title}\nКүн: ${challengeProgress(challenge).done}/${challenge.totalDays}\nПрогресс: ${challengeProgress(challenge).percent}%\nStreak: ${challengeProgress(challenge).streak}\n${challenge.description}`);
   const oneC = state.oneC?.text ? [`1С Excel:\n${state.oneC.text}`] : [];
-  return docs.concat(images, tasks, notes, goals, projects, plans, challenges, oneC).join("\n\n---\n\n");
+  const crmReports = (state.crmReports || [])
+    .slice(0, 3)
+    .map(report => `CRM отчет: ${report.title}\n${report.text}`);
+  return docs.concat(images, tasks, notes, goals, projects, plans, challenges, oneC, crmReports).join("\n\n---\n\n");
 }
 
 async function api(url, payload) {
@@ -3304,7 +3672,9 @@ function render() {
   if (!Array.isArray(state.projects)) state.projects = [];
   if (!Array.isArray(state.plans)) state.plans = [];
   if (!Array.isArray(state.challenges)) state.challenges = [];
+  if (!Array.isArray(state.crmReports)) state.crmReports = [];
   state.oneC = normalizeOneC(state.oneC || {});
+  state.crmReports = state.crmReports.map(normalizeCrmReport);
   if (!state.calendarOS) state.calendarOS = defaultCalendarOS();
   if ($("docCount")) $("docCount").textContent = `${state.docs.length} құжат`;
   state.notes = state.notes.map(normalizeNote);
@@ -3347,6 +3717,7 @@ function render() {
   renderCalendarOS();
   renderGoals();
   renderCrmWorkspace();
+  renderCrmReportDashboard();
   renderOneC();
   renderAssistantDashboard();
   renderCloudSettings();
@@ -3869,6 +4240,7 @@ function loadState() {
     const savedPlans = JSON.parse(localStorage.getItem("zhadyra_plans") || "null");
     const savedChallenges = JSON.parse(localStorage.getItem("challenges") || localStorage.getItem("zhadyra_challenges") || "null");
     const savedOneC = JSON.parse(localStorage.getItem("zhadyra_1c_excel") || "null");
+    const savedCrmReports = JSON.parse(localStorage.getItem("zhadyra_crm_reports") || "null");
     return {
       docs: Array.isArray(saved.docs) ? saved.docs.map(normalizeDoc) : [],
       tasks: Array.isArray(saved.tasks) ? saved.tasks.map(normalizeTask) : [],
@@ -3879,10 +4251,11 @@ function loadState() {
       projects: Array.isArray(saved.projects) ? saved.projects.map(normalizeProject) : (Array.isArray(savedProjects) ? savedProjects.map(normalizeProject) : []),
       plans: Array.isArray(saved.plans) ? saved.plans.map(normalizePlan) : (Array.isArray(savedPlans) ? savedPlans.map(normalizePlan) : []),
       challenges: Array.isArray(saved.challenges) ? saved.challenges.map(normalizeChallenge) : (Array.isArray(savedChallenges) ? savedChallenges.map(normalizeChallenge) : []),
-      oneC: normalizeOneC(saved.oneC || savedOneC || {})
+      oneC: normalizeOneC(saved.oneC || savedOneC || {}),
+      crmReports: Array.isArray(saved.crmReports) ? saved.crmReports.map(normalizeCrmReport) : (Array.isArray(savedCrmReports) ? savedCrmReports.map(normalizeCrmReport) : [])
     };
   } catch {
-    return { docs: [], tasks: [], images: [], calendarOS: defaultCalendarOS(), notes: [], goals: [], projects: [], plans: [], challenges: [], oneC: normalizeOneC({}) };
+    return { docs: [], tasks: [], images: [], calendarOS: defaultCalendarOS(), notes: [], goals: [], projects: [], plans: [], challenges: [], oneC: normalizeOneC({}), crmReports: [] };
   }
 }
 
@@ -3898,6 +4271,7 @@ function persist(options = {}) {
   localStorage.setItem("zhadyra_habits", JSON.stringify(calendarData().habits || []));
   localStorage.setItem("zhadyra_challenges", JSON.stringify(state.challenges || []));
   localStorage.setItem("zhadyra_1c_excel", JSON.stringify(state.oneC || {}));
+  localStorage.setItem("zhadyra_crm_reports", JSON.stringify(state.crmReports || []));
   if (options.sync !== false) scheduleCloudPush();
 }
 

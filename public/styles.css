@@ -328,6 +328,30 @@ textarea:focus, input:focus, select:focus { border-color: var(--leaf); }
   grid-template-columns: 1.2fr 1fr 130px 170px 150px 1fr 130px;
 }
 
+.crm-report-center {
+  border-left: 4px solid var(--leaf);
+}
+
+.crm-file-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(160px, 1fr));
+  gap: 10px;
+}
+
+.crm-file-grid label {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.crm-file-grid span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .crm-pipeline {
   display: grid;
   grid-template-columns: repeat(5, minmax(180px, 1fr));
@@ -1440,7 +1464,7 @@ pre {
     max-width: 100%;
     padding: 12px 13px;
   }
-  .composer, .toolbar, .split, .notes-layout, .tasks-layout, .cal-layout, .cal-hero, .match-grid, .brain-fields, .brain-head, .cloud-grid, .task-form-grid, .note-form-grid, .cal-form-grid, .assistant-controls, .assistant-dashboard, .goal-toolbar, .goal-layout, .goal-columns, .goal-form-grid, .crm-actions, .crm-dashboard, .crm-sections, .crm-template-grid, .crm-panel-head, .crm-toolbar, .crm-quick-form {
+  .composer, .toolbar, .split, .notes-layout, .tasks-layout, .cal-layout, .cal-hero, .match-grid, .brain-fields, .brain-head, .cloud-grid, .task-form-grid, .note-form-grid, .cal-form-grid, .assistant-controls, .assistant-dashboard, .goal-toolbar, .goal-layout, .goal-columns, .goal-form-grid, .crm-actions, .crm-dashboard, .crm-sections, .crm-template-grid, .crm-panel-head, .crm-toolbar, .crm-quick-form, .crm-file-grid {
     grid-template-columns: 1fr;
   }
   .crm-panel-head {

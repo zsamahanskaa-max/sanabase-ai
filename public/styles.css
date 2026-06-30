@@ -1082,6 +1082,101 @@ pre {
 .task-card.priority-medium { border-left-color: var(--gold); }
 .task-card.priority-low { border-left-color: var(--sky); }
 
+
+.task-body-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  max-height: none;
+}
+
+.task-checklist {
+  display: grid;
+  gap: 7px;
+}
+
+.task-checklist label {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  color: var(--ink);
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.task-checklist input {
+  margin-top: 3px;
+}
+
+.task-checklist input:checked + span {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.task-more,
+.task-detail-btn {
+  justify-self: start;
+  width: auto;
+  padding: 6px 9px;
+  font-size: 13px;
+  background: #f8fbf9;
+  color: var(--sage);
+  border: 1px solid var(--line);
+}
+
+.task-detail-btn {
+  background: var(--ink);
+  color: white;
+}
+
+.task-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  padding: 18px;
+  background: rgba(12, 18, 24, .48);
+  display: grid;
+  place-items: center;
+}
+
+.task-modal {
+  width: min(720px, 100%);
+  max-height: min(82vh, 760px);
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: white;
+  box-shadow: 0 24px 80px rgba(12, 18, 24, .28);
+  padding: 16px;
+  display: grid;
+  gap: 14px;
+}
+
+.task-modal-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+}
+
+.task-modal-head h3 {
+  margin: 0 0 4px;
+  overflow-wrap: anywhere;
+}
+
+.task-modal-head span {
+  color: var(--muted);
+}
+
+.task-modal-head button {
+  width: auto;
+}
+
+.task-checklist.full {
+  gap: 10px;
+}
 .task-card p {
   margin: 0;
   color: var(--muted);

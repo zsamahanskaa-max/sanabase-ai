@@ -1729,10 +1729,12 @@ function saveTask(event) {
   event.preventDefault();
   const title = $("taskTitle").value.trim();
   if (!title) return;
-  state.tasks.unshift({
+  const body = $("taskBody").value.trim();
+  state.tasks.unshift(normalizeTask({
     id: crypto.randomUUID(),
     title,
-    body: $("taskBody").value.trim(),
+    body,
+    checklist: taskChecklistFromBody(body),
     status: $("taskStatus").value || "todo",
     priority: $("taskPriority").value || "medium",
     due: $("taskDue").value || "",
@@ -1740,7 +1742,7 @@ function saveTask(event) {
     link: $("taskLink").value.trim(),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
-  });
+  }));
   ["taskTitle", "taskBody", "taskDue", "taskOwner", "taskLink"].forEach(id => { $(id).value = ""; });
   $("taskPriority").value = "medium";
   $("taskStatus").value = "todo";
@@ -3577,11 +3579,99 @@ function categoryLabel(value) {
   }[value] || "Жеке құжаттар";
 }
 
+function taskChecklistFromBody(body = "") {
+  const lines = String(body || "")
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(Boolean);
+  const listLike = lines.filter(line => /^([-*•]|□|☐|✓|✔|\[[ xх]\]|\d+[.)])\s*/i.test(line));
+  const source = listLike.length ? listLike : (lines.length > 1 ? lines : []);
+  return source.map((line, index) => {
+    const done = /^(✓|✔|\[[xх]\])/i.test(line);
+    const text = line
+      .replace(/^([-*•]|□|☐|✓|✔|\[[ xх]\]|\d+[.)])\s*/i, "")
+      .trim();
+    return { id: `check-${index}-${crypto.randomUUID()}`, text: text || line, done };
+  }).filter(item => item.text);
+}
+
+function taskBodyIntro(task) {
+  const checklist = task.checklist || [];
+  if (!checklist.length) return task.body || "";
+  const checklistTexts = new Set(checklist.map(item => normalizeText(item.text)));
+  return String(task.body || "")
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(line => line && !checklistTexts.has(normalizeText(line.replace(/^([-*•]|□|☐|✓|✔|\[[ xх]\]|\d+[.)])\s*/i, ""))))
+    .filter(line => normalizeText(line) !== normalizeText(task.title))
+    .join("\n");
+}
+
+function toggleTaskChecklist(taskId, itemId) {
+  const task = state.tasks.find(item => item.id === taskId);
+  if (!task) return;
+  task.checklist = Array.isArray(task.checklist) ? task.checklist : taskChecklistFromBody(task.body);
+  const item = task.checklist.find(check => check.id === itemId);
+  if (!item) return;
+  item.done = !item.done;
+  task.updatedAt = new Date().toISOString();
+  persist();
+  render();
+  if (task.checklist.length && task.checklist.every(check => check.done) && task.status !== "done") {
+    task.status = "done";
+    task.updatedAt = new Date().toISOString();
+    persist();
+    render();
+    sanaBotReactToTask(task);
+  }
+}
+
+function openTaskDetail(taskId) {
+  const task = state.tasks.find(item => item.id === taskId);
+  if (!task) return;
+  const checklist = Array.isArray(task.checklist) ? task.checklist : taskChecklistFromBody(task.body);
+  const intro = taskBodyIntro(task);
+  const old = $("taskModalRoot");
+  if (old) old.remove();
+  const root = document.createElement("div");
+  root.id = "taskModalRoot";
+  root.className = "task-modal-backdrop";
+  root.innerHTML = `
+    <section class="task-modal" role="dialog" aria-modal="true" aria-label="${escapeHtml(task.title)}">
+      <div class="task-modal-head">
+        <div>
+          <h3>${escapeHtml(task.title)}</h3>
+          <span>${escapeHtml(priorityLabel(task.priority))}${task.due ? ` · ${escapeHtml(task.due)}` : ""}</span>
+        </div>
+        <button type="button" data-task-modal-close>Жабу</button>
+      </div>
+      ${intro ? `<p class="task-body-full">${escapeHtml(intro)}</p>` : ""}
+      <div class="task-checklist full">
+        ${checklist.map(item => `<label><input type="checkbox" data-task-check="${escapeHtml(task.id)}" data-check-id="${escapeHtml(item.id)}" ${item.done ? "checked" : ""}> <span>${escapeHtml(item.text)}</span></label>`).join("") || `<p class="task-body-full">${escapeHtml(task.body || "Сипаттама жоқ")}</p>`}
+      </div>
+    </section>
+  `;
+  document.body.appendChild(root);
+  root.querySelectorAll("[data-task-modal-close]").forEach(button => button.addEventListener("click", () => root.remove()));
+  root.addEventListener("click", event => { if (event.target === root) root.remove(); });
+  root.querySelectorAll("[data-task-check]").forEach(input => {
+    input.addEventListener("change", () => {
+      toggleTaskChecklist(input.dataset.taskCheck, input.dataset.checkId);
+      openTaskDetail(taskId);
+    });
+  });
+}
 function normalizeTask(task) {
+  const body = task.body || "";
+  const parsedChecklist = taskChecklistFromBody(body);
+  const checklist = Array.isArray(task.checklist) && task.checklist.length
+    ? task.checklist.map((item, index) => ({ id: item.id || `item-${index}-${crypto.randomUUID()}`, text: item.text || item.title || "Пункт", done: Boolean(item.done) }))
+    : parsedChecklist;
   return {
     id: task.id || crypto.randomUUID(),
     title: task.title || "Untitled task",
-    body: task.body || "",
+    body,
+    checklist,
     status: ["todo", "doing", "done"].includes(task.status) ? task.status : "todo",
     priority: ["low", "medium", "high"].includes(task.priority) ? task.priority : "medium",
     due: task.due || "",
@@ -5199,7 +5289,7 @@ function renderTasks() {
   ];
   board.innerHTML = "";
   columns.forEach(([status, label]) => {
-    const items = state.tasks.filter(task => task.status === status && `${task.title} ${task.body} ${task.owner} ${task.link}`.toLowerCase().includes(query));
+    const items = state.tasks.filter(task => task.status === status && `${task.title} ${task.body} ${task.owner} ${task.link} ${(task.checklist || []).map(item => item.text).join(" ")}`.toLowerCase().includes(query));
     const column = document.createElement("section");
     column.className = "kanban-column";
     column.innerHTML = `
@@ -5222,6 +5312,12 @@ function renderTasks() {
   board.querySelectorAll("[data-task-tomorrow]").forEach(button => {
     button.addEventListener("click", () => postponeTaskTomorrow(button.dataset.taskTomorrow));
   });
+  board.querySelectorAll("[data-task-check]").forEach(input => {
+    input.addEventListener("change", () => toggleTaskChecklist(input.dataset.taskCheck, input.dataset.checkId));
+  });
+  board.querySelectorAll("[data-task-detail]").forEach(button => {
+    button.addEventListener("click", () => openTaskDetail(button.dataset.taskDetail));
+  });
 }
 
 function taskCard(task) {
@@ -5230,13 +5326,24 @@ function taskCard(task) {
     ["doing", "Жүру"],
     ["done", "Дайын"]
   ].filter(([status]) => status !== task.status);
+  const checklist = Array.isArray(task.checklist) ? task.checklist : taskChecklistFromBody(task.body);
+  const previewItems = checklist.slice(0, 3);
+  const moreCount = Math.max(0, checklist.length - previewItems.length);
+  const intro = taskBodyIntro(task);
+  const checklistHtml = checklist.length ? `
+    <div class="task-checklist">
+      ${previewItems.map(item => `<label><input type="checkbox" data-task-check="${escapeHtml(task.id)}" data-check-id="${escapeHtml(item.id)}" ${item.done ? "checked" : ""}> <span>${escapeHtml(item.text)}</span></label>`).join("")}
+      ${moreCount ? `<button type="button" class="task-more" data-task-detail="${escapeHtml(task.id)}">+ тағы ${moreCount} пункт</button>` : ""}
+      <button type="button" class="task-detail-btn" data-task-detail="${escapeHtml(task.id)}">Толық көру</button>
+    </div>` : "";
   return `
     <article class="task-card priority-${escapeHtml(task.priority)}">
       <div class="task-top">
         <strong>${escapeHtml(task.title)}</strong>
         <span>${escapeHtml(priorityLabel(task.priority))}</span>
       </div>
-      <p>${escapeHtml(task.body || "Сипаттама жоқ")}</p>
+      ${intro ? `<p class="task-body-text">${escapeHtml(intro)}</p>` : ""}
+      ${checklistHtml || `<p class="task-body-text">${escapeHtml(task.body || "Сипаттама жоқ")}</p>`}
       <div class="task-meta">
         ${task.due ? `<span>Мерзім: ${escapeHtml(task.due)}</span>` : ""}
         ${task.owner ? `<span>Жауапты: ${escapeHtml(task.owner)}</span>` : ""}

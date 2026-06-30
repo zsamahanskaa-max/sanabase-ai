@@ -271,6 +271,95 @@ textarea:focus, input:focus, select:focus { border-color: var(--leaf); }
   color: var(--sage);
 }
 
+.crm-workspace {
+  display: grid;
+  gap: 14px;
+}
+
+.crm-dashboard {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.crm-stat,
+.crm-panel,
+.crm-doc-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  padding: 14px;
+}
+
+.crm-stat {
+  background: #102823;
+  color: white;
+  display: grid;
+  gap: 6px;
+}
+
+.crm-stat span {
+  color: #bfd0ca;
+  font-size: 12px;
+}
+
+.crm-stat strong {
+  font-size: 20px;
+}
+
+.crm-sections {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(280px, .8fr);
+  gap: 14px;
+}
+
+.crm-panel {
+  display: grid;
+  gap: 12px;
+  background: #f8fbf9;
+}
+
+.crm-panel h3,
+.crm-doc-card h4 {
+  margin: 0;
+}
+
+.crm-doc-list,
+.crm-playbook {
+  display: grid;
+  gap: 10px;
+}
+
+.crm-doc-card {
+  display: grid;
+  gap: 8px;
+  border-left: 4px solid var(--leaf);
+}
+
+.crm-doc-card span,
+.crm-doc-card small,
+.crm-doc-card p,
+.crm-playbook p {
+  color: var(--muted);
+}
+
+.crm-doc-card p,
+.crm-playbook p {
+  margin: 0;
+  line-height: 1.45;
+}
+
+.crm-template-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.crm-template-grid button {
+  background: white;
+  color: var(--sage);
+}
+
 pre {
   margin: 0;
   padding: 16px;
@@ -1179,7 +1268,7 @@ pre {
     max-width: 100%;
     padding: 12px 13px;
   }
-  .composer, .toolbar, .split, .notes-layout, .tasks-layout, .cal-layout, .cal-hero, .match-grid, .brain-fields, .brain-head, .cloud-grid, .task-form-grid, .note-form-grid, .cal-form-grid, .assistant-controls, .goal-toolbar, .goal-layout, .goal-columns, .goal-form-grid, .crm-actions {
+  .composer, .toolbar, .split, .notes-layout, .tasks-layout, .cal-layout, .cal-hero, .match-grid, .brain-fields, .brain-head, .cloud-grid, .task-form-grid, .note-form-grid, .cal-form-grid, .assistant-controls, .goal-toolbar, .goal-layout, .goal-columns, .goal-form-grid, .crm-actions, .crm-dashboard, .crm-sections, .crm-template-grid {
     grid-template-columns: 1fr;
   }
   .toolbar {
@@ -1234,7 +1323,7 @@ pre {
   .notify-strip { padding-left: 12px; padding-right: 12px; }
   .nav-item { min-width: 82px; font-size: 12px; }
   textarea, input, select { font-size: 16px; }
-  .doc, .tool-card, .note-form, .note, .brain-card, .task-form, .kanban-column, .cal-form, .cal-column, .cal-history, .goal-form, .goal-card, .goal-stat {
+  .doc, .tool-card, .note-form, .note, .brain-card, .task-form, .kanban-column, .cal-form, .cal-column, .cal-history, .goal-form, .goal-card, .goal-stat, .crm-panel, .crm-doc-card, .crm-stat {
     padding: 13px;
   }
   .conversation {

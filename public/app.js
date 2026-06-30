@@ -86,6 +86,9 @@ document.querySelectorAll("[data-cal-view]").forEach(button => {
 document.querySelectorAll("[data-cal-export]").forEach(button => {
   button.addEventListener("click", () => exportCalendarData(button.dataset.calExport));
 });
+document.querySelectorAll("[data-crm-template]").forEach(button => {
+  button.addEventListener("click", () => useCrmTemplate(button.dataset.crmTemplate));
+});
 
 render();
 renderCloudSettings();
@@ -228,10 +231,11 @@ function createCrmDocument() {
     return;
   }
   const name = `CRM құжат ${isoDate()}`;
+  const documentText = crmDocumentEnvelope(name, text);
   const doc = normalizeDoc({
     name: `${name}.txt`,
     type: "crm_report",
-    text,
+    text: documentText,
     tags: ["crm", "есеп", "құжат"],
     links: ["CRM", "Екінші ми"],
     createdAt: new Date().toISOString()
@@ -241,14 +245,14 @@ function createCrmDocument() {
     title: name,
     folder: "CRM",
     type: "long",
-    body: text,
+    body: documentText,
     tags: ["crm", "есеп"],
     brain: true
   }));
-  createCrmCalendarDocument(name, text);
+  createCrmCalendarDocument(name, documentText);
   persist();
   render();
-  $("crmOut").textContent = `${text}\n\n---\nCRM құжат дайын: Білім базасына, Жазбалар / CRM папкасына және Екінші миға сақталды.`;
+  $("crmOut").textContent = `${documentText}\n\n---\nCRM құжат дайын: Білім базасына, Жазбалар / CRM папкасына, Екінші миға және Күнтізбе / Құжаттар ішіне сақталды.`;
 }
 
 function downloadCrmDocument() {
@@ -258,6 +262,26 @@ function downloadCrmDocument() {
     return;
   }
   downloadText(`crm_report_${isoDate()}.txt`, text);
+}
+
+function crmDocumentEnvelope(name, body) {
+  const summary = crmSourceSummary();
+  return [
+    name,
+    `Жасалған уақыты: ${new Date().toLocaleString("kk-KZ")}`,
+    `Қалай жасалды: сайттағы жүктелген құжаттар, CRM мәтіндері, жазбалар, тапсырмалар және календарь деректері талданып құрастырылды.`,
+    `Дерек көзі: ${summary}`,
+    "",
+    "Нәтиже:",
+    body,
+    "",
+    "Электр дүкені / B2B үшін бақылау:",
+    "- Клиент бойынша келесі байланыс күнін белгілеу",
+    "- Коммерциялық ұсыныс жіберілгенін бақылау",
+    "- Төлем/қарыз мерзімін бақылау",
+    "- Поставщик заказ және жеткізілім мерзімін бақылау",
+    "- Тауар коды, остаток, сатып алу бағасы және сату бағасын бөлек тексеру"
+  ].join("\n");
 }
 
 function createCrmCalendarDocument(title, text) {
@@ -287,6 +311,18 @@ function createCrmCalendarDocument(title, text) {
   return row;
 }
 
+function crmSourceSummary() {
+  const cal = calendarData();
+  return [
+    `${state.docs.length} құжат`,
+    `${state.notes.filter(note => (note.folder || "").toLowerCase() === "crm").length} CRM жазба`,
+    `${activeCalItems(cal.clients).length} клиент`,
+    `${activeCalItems(cal.orders).length} заказ`,
+    `${activeCalItems(cal.payments).length} төлем`,
+    `${activeCalItems(cal.documents).length} календарь-құжат`
+  ].join(", ");
+}
+
 function downloadText(filename, text) {
   const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
   const link = document.createElement("a");
@@ -296,6 +332,110 @@ function downloadText(filename, text) {
   link.click();
   link.remove();
   URL.revokeObjectURL(link.href);
+}
+
+function useCrmTemplate(kind) {
+  const templates = {
+    audit: [
+      "B2B электр дүкені CRM аудиті",
+      "",
+      "1. Клиенттер: тұрақты B2B клиент, жаңа лид, ұйықтап жатқан клиент деп бөл.",
+      "2. Продажа: қай клиенттен қай тауар/категория бойынша табыс бар екенін шығар.",
+      "3. Қарыз: төлем мерзімі өткен клиенттерді бөлек көрсет.",
+      "4. Заказ: поставщикке берілмеген, жолда тұрған, клиентке жеткізілмеген заказдарды тап.",
+      "5. Келесі әрекет: әр клиентке нақты бір қадам жаз."
+    ],
+    quote: [
+      "Коммерциялық ұсыныс шаблоны",
+      "",
+      "Клиент:",
+      "Жоба/объект:",
+      "Тауарлар: кабель, автомат, щит, розетка, жарық, расходник",
+      "Баға:",
+      "Жеткізу мерзімі:",
+      "Төлем шарты:",
+      "Келесі байланыс күні:"
+    ],
+    debt: [
+      "Қарыз бақылау құжаты",
+      "",
+      "Клиент:",
+      "Сома:",
+      "Құжат/счет:",
+      "Мерзім:",
+      "Жауапты адам:",
+      "Соңғы сөйлесу:",
+      "Келесі әрекет:"
+    ],
+    supplier: [
+      "Поставщик заказ бақылауы",
+      "",
+      "Поставщик:",
+      "Заказ номері:",
+      "Тауар коды/атауы:",
+      "Саны:",
+      "Сатып алу бағасы:",
+      "Күтілетін келу күні:",
+      "Клиент заказымен байланыс:"
+    ]
+  };
+  const text = (templates[kind] || templates.audit).join("\n");
+  if ($("crmPrompt")) $("crmPrompt").value = text;
+  $("crmOut").textContent = text;
+}
+
+function renderCrmWorkspace() {
+  if (!$("crmDashboard")) return;
+  const cal = calendarData();
+  const crmDocs = state.docs.filter(doc => doc.type === "crm_report" || (doc.tags || []).includes("crm"));
+  const crmNotes = state.notes.filter(note => (note.folder || "").toLowerCase() === "crm" || (note.tags || []).includes("crm"));
+  const crmCalendarDocs = activeCalItems(cal.documents).filter(doc => doc.documentType === "crm_report" || String(doc.documentNumber || "").toLowerCase().includes("crm"));
+  const openOrders = activeCalItems(cal.orders).filter(order => !["closed", "received"].includes(order.status)).length;
+  const unpaid = activeCalItems(cal.payments).filter(payment => payment.status !== "paid").reduce((sum, payment) => sum + Math.abs(Number(payment.amount || 0)), 0);
+  const esfPending = activeCalItems(cal.documents).filter(doc => doc.esfDeadline && doc.esfStatus !== "sent").length;
+  $("crmDashboard").innerHTML = [
+    ["CRM құжат", crmDocs.length + crmCalendarDocs.length],
+    ["CRM жазба", crmNotes.length],
+    ["Клиент", activeCalItems(cal.clients).length],
+    ["Ашық заказ", openOrders],
+    ["Қарыз/төлем", `${Math.round(unpaid).toLocaleString("kk-KZ")} ₸`],
+    ["ESF бақылау", esfPending]
+  ].map(([label, value]) => `<article class="crm-stat"><span>${label}</span><strong>${value}</strong></article>`).join("");
+
+  const rows = crmDocs.slice(0, 8).map(doc => ({
+    title: doc.name,
+    date: doc.createdAt,
+    where: "Білім базасы + Екінші ми",
+    text: doc.text
+  })).concat(crmNotes.slice(0, 6).map(note => ({
+    title: note.title,
+    date: note.createdAt,
+    where: `Жазбалар / ${note.folder || "CRM"}`,
+    text: note.body
+  }))).concat(crmCalendarDocs.slice(0, 6).map(doc => ({
+    title: doc.documentNumber,
+    date: doc.createdAt,
+    where: "Күнтізбе / Құжаттар",
+    text: doc.comment
+  }))).sort((a, b) => String(b.date || "").localeCompare(String(a.date || ""))).slice(0, 10);
+
+  $("crmDocList").innerHTML = rows.map(row => `
+    <article class="crm-doc-card">
+      <div>
+        <h4>${escapeHtml(row.title)}</h4>
+        <span>${escapeHtml(formatDate(row.date))} · ${escapeHtml(row.where)}</span>
+      </div>
+      <p>${escapeHtml(row.text || "Ішкі мәтін жоқ").slice(0, 280)}</p>
+      <small>Қалай жасалды: CRM талдауынан немесе CRM шаблонынан құрастырылып, сайттың базасына сақталды.</small>
+    </article>
+  `).join("") || `<article class="crm-doc-card"><h4>CRM құжат жоқ</h4><p>Алдымен CRM талдау жасап, “CRM құжат жасау” басыңыз.</p></article>`;
+
+  $("crmPlaybook").innerHTML = [
+    "Күн сайын: жаңа лид, төлем, поставщик заказын тексеру.",
+    "Апта сайын: B2B клиенттерді A/B/C сегментке бөлу.",
+    "Әр ұсыныстан кейін: коммерциялық ұсыныс жіберілді ме, жауап келді ме, келесі қоңырау күні бар ма.",
+    "Қауіпті жер: қарыз, кешіккен жеткізілім, код/баға сәйкес келмеуі, ESF мерзімі."
+  ].map(item => `<p>${item}</p>`).join("");
 }
 
 async function matchPrices() {
@@ -2534,6 +2674,7 @@ function render() {
   renderBrain();
   renderCalendarOS();
   renderGoals();
+  renderCrmWorkspace();
   renderCloudSettings();
 }
 

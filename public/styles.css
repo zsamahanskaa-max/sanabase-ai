@@ -259,6 +259,18 @@ textarea:focus, input:focus, select:focus { border-color: var(--leaf); }
 }
 .split textarea, .tool-card textarea, .note-form textarea { min-height: 260px; resize: vertical; }
 .panel { display: grid; gap: 12px; align-content: start; }
+
+.crm-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.crm-actions button:nth-child(n + 2) {
+  background: white;
+  color: var(--sage);
+}
+
 pre {
   margin: 0;
   padding: 16px;
@@ -1167,7 +1179,7 @@ pre {
     max-width: 100%;
     padding: 12px 13px;
   }
-  .composer, .toolbar, .split, .notes-layout, .tasks-layout, .cal-layout, .cal-hero, .match-grid, .brain-fields, .brain-head, .cloud-grid, .task-form-grid, .note-form-grid, .cal-form-grid, .assistant-controls, .goal-toolbar, .goal-layout, .goal-columns, .goal-form-grid {
+  .composer, .toolbar, .split, .notes-layout, .tasks-layout, .cal-layout, .cal-hero, .match-grid, .brain-fields, .brain-head, .cloud-grid, .task-form-grid, .note-form-grid, .cal-form-grid, .assistant-controls, .goal-toolbar, .goal-layout, .goal-columns, .goal-form-grid, .crm-actions {
     grid-template-columns: 1fr;
   }
   .toolbar {

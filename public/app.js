@@ -38,6 +38,8 @@ on("assistantTaskBtn", "click", taskFromLastAssistantAnswer);
 on("translateBtn", "click", translate);
 on("quizBtn", "click", quiz);
 on("crmBtn", "click", crm);
+on("crmDocBtn", "click", createCrmDocument);
+on("crmDownloadBtn", "click", downloadCrmDocument);
 on("matchBtn", "click", matchPrices);
 on("taskForm", "submit", saveTask);
 on("taskSearch", "input", render);
@@ -209,6 +211,91 @@ async function crm() {
   } catch (error) {
     $("crmOut").textContent = `Қате: ${error.message}`;
   }
+}
+
+function currentCrmDocumentText() {
+  const existing = $("crmOut")?.textContent?.trim() || "";
+  if (existing && !existing.startsWith("Қате:") && existing !== "CRM талдау жасалып жатыр...") return existing;
+  const context = buildContext();
+  if (!context.trim()) return "";
+  return analyzeCrm(context);
+}
+
+function createCrmDocument() {
+  const text = currentCrmDocumentText();
+  if (!text) {
+    $("crmOut").textContent = "CRM құжат жасау үшін алдымен Excel/CSV/PDF/Word жүктеңіз немесе CRM талдау жасаңыз.";
+    return;
+  }
+  const name = `CRM құжат ${isoDate()}`;
+  const doc = normalizeDoc({
+    name: `${name}.txt`,
+    type: "crm_report",
+    text,
+    tags: ["crm", "есеп", "құжат"],
+    links: ["CRM", "Екінші ми"],
+    createdAt: new Date().toISOString()
+  });
+  state.docs.unshift(doc);
+  state.notes.unshift(normalizeNote({
+    title: name,
+    folder: "CRM",
+    type: "long",
+    body: text,
+    tags: ["crm", "есеп"],
+    brain: true
+  }));
+  createCrmCalendarDocument(name, text);
+  persist();
+  render();
+  $("crmOut").textContent = `${text}\n\n---\nCRM құжат дайын: Білім базасына, Жазбалар / CRM папкасына және Екінші миға сақталды.`;
+}
+
+function downloadCrmDocument() {
+  const text = currentCrmDocumentText();
+  if (!text) {
+    $("crmOut").textContent = "Жүктеу үшін алдымен CRM талдау жасаңыз немесе құжат жүктеңіз.";
+    return;
+  }
+  downloadText(`crm_report_${isoDate()}.txt`, text);
+}
+
+function createCrmCalendarDocument(title, text) {
+  const cal = calendarData();
+  const row = {
+    id: crypto.randomUUID(),
+    documentType: "crm_report",
+    documentNumber: title,
+    documentDate: isoDate(),
+    clientId: "",
+    supplierId: "",
+    orderId: "",
+    amount: 0,
+    status: "open",
+    deadline: "",
+    fileUrl: "",
+    esfStatus: "",
+    esfDeadline: "",
+    comment: text.slice(0, 1000),
+    createdAt: nowIso(),
+    updatedAt: nowIso(),
+    archivedAt: ""
+  };
+  cal.documents.unshift(row);
+  addCalendarEvent({ title: `CRM құжат: ${title}`, type: "crm_document", category: "CRM", startDate: isoDate(), relatedDocumentId: row.id, priority: "medium" });
+  logHistory("crm_document", row.id, "құжат жасау", null, row, "CRM бөлімінен жасалды");
+  return row;
+}
+
+function downloadText(filename, text) {
+  const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(link.href);
 }
 
 async function matchPrices() {
@@ -1195,13 +1282,15 @@ function createPayment(input) {
 
 function createDocument(input) {
   const cal = calendarData();
-  const documentType = detectDocumentType(input.title + " " + input.comment);
-  const esfDeadline = documentType === "realization" || documentType === "esf" ? addDays(input.date, 15) : "";
+  const documentDate = input.date || isoDate();
+  const documentTitle = input.title || `Құжат ${documentDate}`;
+  const documentType = detectDocumentType(`${documentTitle} ${input.comment || ""}`);
+  const esfDeadline = documentType === "realization" || documentType === "esf" ? addDays(documentDate, 15) : "";
   const doc = {
     id: crypto.randomUUID(),
     documentType,
-    documentNumber: input.title,
-    documentDate: input.date,
+    documentNumber: documentTitle,
+    documentDate,
     clientId: input.clientName ? upsertClient(input.clientName).id : "",
     supplierId: input.supplierName ? upsertSupplier(input.supplierName).id : "",
     orderId: "",
@@ -1217,7 +1306,7 @@ function createDocument(input) {
     archivedAt: ""
   };
   cal.documents.unshift(doc);
-  addCalendarEvent({ title: `Құжат: ${doc.documentNumber}`, type: "document", category: "Құжаттар", startDate: input.date, relatedDocumentId: doc.id, amount: doc.amount, priority: input.priority });
+  addCalendarEvent({ title: `Құжат: ${doc.documentNumber}`, type: "document", category: "Құжаттар", startDate: documentDate, relatedDocumentId: doc.id, amount: doc.amount, priority: input.priority });
   if (esfDeadline) {
     addCalendarEvent({ title: `ESF мерзімі: ${doc.documentNumber}`, type: "esf_deadline", category: "ESF", startDate: esfDeadline, relatedDocumentId: doc.id, priority: "high" });
     addCalendarEvent({ title: `ESF ескерту 2 күн бұрын: ${doc.documentNumber}`, type: "reminder", category: "ESF", startDate: addDays(esfDeadline, -2), relatedDocumentId: doc.id, priority: "high" });

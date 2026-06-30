@@ -1460,7 +1460,7 @@ pre {
   box-shadow: inset 0 -8px 18px rgba(9, 31, 39, .25);
   position: relative;
   z-index: 1;
-  animation: sanabotFloat 3.8s ease-in-out infinite;
+  animation: sanabotRunBody 2.8s ease-in-out infinite;
 }
 
 .sanabot-avatar.large {
@@ -1553,9 +1553,45 @@ pre {
   opacity: .72;
 }
 
+.sanabot-leg {
+  position: absolute;
+  bottom: -7px;
+  width: 10px;
+  height: 14px;
+  border-radius: 999px 999px 8px 8px;
+  background: linear-gradient(180deg, #68f3d2, #1e7f91);
+  box-shadow: inset 0 -4px 7px rgba(7, 31, 37, .24), 0 5px 10px rgba(96, 245, 210, .14);
+  transform-origin: 50% 0;
+  z-index: 0;
+}
+
+.sanabot-leg.left {
+  left: 13px;
+  animation: sanabotLeftLeg 1s ease-in-out infinite;
+}
+
+.sanabot-leg.right {
+  right: 13px;
+  animation: sanabotRightLeg 1s ease-in-out infinite;
+}
+
+.sanabot-avatar.large .sanabot-leg {
+  bottom: -8px;
+  width: 11px;
+  height: 15px;
+}
+
+.sanabot-avatar.large .sanabot-leg.left {
+  left: 15px;
+}
+
+.sanabot-avatar.large .sanabot-leg.right {
+  right: 15px;
+}
+
 .sanabot.is-waving .sanabot-avatar,
 .sanabot.open .sanabot-avatar {
-  animation: sanabotWave 1.8s ease-in-out infinite;
+  animation: sanabotRunBody 1.65s ease-in-out infinite;
 }
 
 .sanabot[data-mood="happy"] .sanabot-face {
@@ -1750,10 +1786,27 @@ pre {
   50% { transform: translateY(-3px) rotate(1deg); }
 }
 
+@keyframes sanabotRunBody {
+  0%, 100% { transform: translateX(-2px) translateY(0) rotate(-2deg); }
+  22% { transform: translateX(2px) translateY(-5px) rotate(2deg); }
+  48% { transform: translateX(4px) translateY(0) rotate(1deg); }
+  72% { transform: translateX(-1px) translateY(-4px) rotate(-3deg); }
+}
+
 @keyframes sanabotWave {
   0%, 100% { transform: translateY(0) rotate(-2deg) scale(1); }
   30% { transform: translateY(-4px) rotate(4deg) scale(1.02); }
   62% { transform: translateY(-2px) rotate(-5deg) scale(1.01); }
+}
+
+@keyframes sanabotLeftLeg {
+  0%, 100% { transform: rotate(16deg) translateY(0); }
+  50% { transform: rotate(-24deg) translateY(2px); }
+}
+
+@keyframes sanabotRightLeg {
+  0%, 100% { transform: rotate(-22deg) translateY(2px); }
+  50% { transform: rotate(18deg) translateY(0); }
 }
 
 @keyframes sanabotEarWiggle {

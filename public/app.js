@@ -49,6 +49,9 @@ on("crmStatusFilter", "change", render);
 on("crmReportBtn", "click", buildCrmBusinessReport);
 on("crmReportSaveBtn", "click", saveCrmBusinessReport);
 on("crmReportTaskBtn", "click", tasksFromCrmBusinessReport);
+on("sanabotToggle", "click", toggleSanaBot);
+on("sanabotClose", "click", closeSanaBot);
+on("sanabotForm", "submit", sendSanaBotMessage);
 on("matchBtn", "click", matchPrices);
 on("onecImportBtn", "click", importOneCExcel);
 on("onecSaveBrainBtn", "click", saveOneCToBrain);
@@ -102,9 +105,13 @@ document.querySelectorAll("[data-cal-export]").forEach(button => {
 document.querySelectorAll("[data-crm-template]").forEach(button => {
   button.addEventListener("click", () => useCrmTemplate(button.dataset.crmTemplate));
 });
+document.querySelectorAll("[data-sanabot-action]").forEach(button => {
+  button.addEventListener("click", () => runSanaBotAction(button.dataset.sanabotAction));
+});
 
 render();
 renderCloudSettings();
+initSanaBot();
 startReminderEngine();
 addMessage("ai", "Сәлем! Прайс салыстыру бөлімі 1-құжаттың формуласы бар қорап/саны бағандарын сақтап, бағаны almat company price арқылы қояды.");
 
@@ -1722,10 +1729,12 @@ function saveTask(event) {
 function moveTask(id, status) {
   const task = state.tasks.find(item => item.id === id);
   if (!task) return;
+  const wasDone = task.status === "done";
   task.status = status;
   task.updatedAt = new Date().toISOString();
   persist();
   render();
+  if (status === "done" && !wasDone) sanaBotReactToTask(task);
 }
 
 function postponeTaskTomorrow(id) {
@@ -3794,6 +3803,128 @@ function addMessage(kind, text) {
   return node;
 }
 
+function initSanaBot() {
+  if (!$("sanabotMessages")) return;
+  renderSanaBotFocus();
+  if (!$("sanabotMessages").children.length) {
+    addSanaBotMessage("bot", "Сәлем, мен SanaBot-пын. Бүгінгі фокус, заказ, қарыз, склад және күндік отчет бойынша көмектесемін. Әзірге local mock режиміндемін.");
+  }
+}
+
+function toggleSanaBot() {
+  const root = $("sanabot");
+  if (!root) return;
+  root.classList.toggle("open");
+  renderSanaBotFocus();
+}
+
+function closeSanaBot() {
+  $("sanabot")?.classList.remove("open");
+}
+
+function addSanaBotMessage(kind, text) {
+  const box = $("sanabotMessages");
+  if (!box) return;
+  const node = document.createElement("div");
+  node.className = `sanabot-msg ${kind}`;
+  node.textContent = text;
+  box.appendChild(node);
+  box.scrollTop = box.scrollHeight;
+}
+
+function sendSanaBotMessage(event) {
+  event.preventDefault();
+  const input = $("sanabotInput");
+  const text = input?.value.trim();
+  if (!text) return;
+  input.value = "";
+  addSanaBotMessage("user", text);
+  addSanaBotMessage("bot", sanaBotMockReply(text));
+}
+
+function runSanaBotAction(action) {
+  addSanaBotMessage("user", sanaBotActionLabel(action));
+  addSanaBotMessage("bot", sanaBotActionReply(action));
+  renderSanaBotFocus();
+}
+
+function renderSanaBotFocus() {
+  const focus = $("sanabotFocus");
+  if (!focus) return;
+  const metrics = sanaBotMetrics();
+  focus.innerHTML = `
+    <span>Бүгінгі фокус</span>
+    <strong>${escapeHtml(metrics.focus)}</strong>
+    <small>${metrics.todayTasks} task · ${metrics.openOrders} заказ · ${money(metrics.unpaid)} қарыз</small>
+  `;
+}
+
+function sanaBotMetrics() {
+  const cal = calendarData();
+  const today = isoDate();
+  const todayTasks = state.tasks.filter(task => task.status !== "done" && (!task.due || task.due <= today));
+  const plans = (state.plans || []).filter(plan => plan.date === today && plan.status !== "done");
+  const openOrders = activeCalItems(cal.orders).filter(order => !["closed", "received"].includes(order.status));
+  const unpaid = activeCalItems(cal.payments).filter(payment => payment.status !== "paid").reduce((sum, payment) => sum + Math.abs(Number(payment.amount || 0)), 0);
+  const docs = activeCalItems(cal.documents).filter(doc => doc.esfDeadline && doc.esfStatus !== "sent");
+  const stock = state.oneC?.summary || {};
+  const focus = plans[0]?.title || todayTasks[0]?.title || (openOrders.length ? "Заказдарды реттеу" : unpaid ? "Қарыздарды тексеру" : "Күнді жеңіл жоспарлау");
+  return {
+    today,
+    focus,
+    todayTasks: todayTasks.length,
+    openOrders: openOrders.length,
+    unpaid,
+    docs: docs.length,
+    lowStock: Number(stock.lowStock || 0) + Number(stock.noStock || 0)
+  };
+}
+
+function sanaBotActionLabel(action) {
+  return { today: "Бүгінгі жоспар", debt: "Қарыздарды тексер", orders: "Заказдарды тексер", stock: "Складты қара", daily: "Күндік отчет" }[action] || "SanaBot";
+}
+
+function sanaBotActionReply(action) {
+  const metrics = sanaBotMetrics();
+  const cal = calendarData();
+  if (action === "today") {
+    const tasks = state.tasks.filter(task => task.status !== "done" && (!task.due || task.due <= metrics.today)).slice(0, 5);
+    return [`Бүгінгі фокус: ${metrics.focus}.`, `Ашық task: ${metrics.todayTasks}.`, tasks.map((task, index) => `${index + 1}. ${task.title}`).join("\n") || "Бүгінге нақты task жоқ. Бір кішкентай task қосуды ұсынамын."].join("\n");
+  }
+  if (action === "debt") {
+    const debts = activeCalItems(cal.payments).filter(payment => payment.status !== "paid").slice(0, 5);
+    return [`Қарыз/төлем бақылауы: ${money(metrics.unpaid)}.`, debts.map((payment, index) => `${index + 1}. ${payment.title}: ${money(payment.amount)} · ${payment.dueDate || "күні жоқ"}`).join("\n") || "Қарыз жазбасы табылмады."].join("\n");
+  }
+  if (action === "orders") {
+    const orders = activeCalItems(cal.orders).filter(order => !["closed", "received"].includes(order.status)).slice(0, 5);
+    return [`Ашық заказдар: ${metrics.openOrders}.`, orders.map((order, index) => `${index + 1}. ${order.title} · ${crmStatusLabel(order.status)} · ${order.expectedDeliveryDate || "күні жоқ"}`).join("\n") || "Ашық заказ жоқ."].join("\n");
+  }
+  if (action === "stock") {
+    return `Склад сигналы: аз/жоқ товар ${metrics.lowStock}. Толық көру үшін 1С Excel немесе CRM отчет орталығына номенклатура/остаток файлын жүктеңіз.`;
+  }
+  if (action === "daily") {
+    return [`Күндік отчет (${metrics.today})`, `Фокус: ${metrics.focus}`, `Task: ${metrics.todayTasks}`, `Заказ: ${metrics.openOrders}`, `Қарыз: ${money(metrics.unpaid)}`, `Құжат/ESF бақылауы: ${metrics.docs}`, `Склад сигналы: ${metrics.lowStock}`].join("\n");
+  }
+  return "Мен дайынмын. Бүгінгі жоспар, қарыз, заказ, склад немесе күндік отчетты таңдай аласыз.";
+}
+
+function sanaBotMockReply(text) {
+  const query = text.toLowerCase();
+  if (/қарыз|карыз|төлем|оплата|debt/.test(query)) return sanaBotActionReply("debt");
+  if (/заказ|order|поставщик|жеткіз/.test(query)) return sanaBotActionReply("orders");
+  if (/склад|остат|тауар|товар|stock/.test(query)) return sanaBotActionReply("stock");
+  if (/отчет|есеп|күндік|daily/.test(query)) return sanaBotActionReply("daily");
+  if (/жоспар|бүгін|today|focus/.test(query)) return sanaBotActionReply("today");
+  return "Түсіндім. MVP режимінде мен local деректерге қараймын: жоспар, task, заказ, қарыз, склад, күндік отчет. Кейін осы жерге AI API жауап беру қабатын қосамыз.";
+}
+
+function sanaBotReactToTask(task) {
+  if (!$("sanabotMessages")) return;
+  $("sanabot")?.classList.add("open");
+  addSanaBotMessage("bot", `Жарайсыз! “${task.title}” орындалды. Кішкентай жеңіс те жүйені алға жылжытады.`);
+  renderSanaBotFocus();
+}
+
 function render() {
   if (!Array.isArray(state.images)) state.images = [];
   if (!Array.isArray(state.goals)) state.goals = [];
@@ -3849,6 +3980,7 @@ function render() {
   renderOneC();
   renderAssistantDashboard();
   renderCloudSettings();
+  renderSanaBotFocus();
 }
 
 function renderOneC() {

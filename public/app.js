@@ -15,7 +15,7 @@ const titles = {
   library: ["Білім базасы", "PDF, Word, Excel және мәтін материалдары."],
   match: ["Прайс салыстыру", "Формуласы бар қорап/саны бағандарын өзгертпей, бағасын almat company price арқылы қояды."],
   onec: ["1С Excel байланыс", "1С-тен шыққан Excel/CSV арқылы товар, остаток, баға, клиент, қарыз және құжаттарды талдау."],
-  calendaros: ["Жадыра күнтізбе жүйесі", "Клиент, заказ, поставщик, төлем, құжат, ESF, есеп және тарих бір календарь ішінде."],
+  calendaros: ["Жадыра күнтізбе жүйесі", "Клиент, заказ, поставщик, төлем, құжат, ESF, есеп және тарих бір календарь ішінде."],  cfo: ["Sana CFO / AI Бас Бухгалтер", "B2B мектептер, электр дүкені, ОУР режимі, қарыз, cash flow, P&L, склад, құжат, 1С және салық бақылауы."],
   brain: ["Екінші ми", "Құжаттарды сақтап, тегпен байланыстырып, сол базадан CRM жасау."],
   translate: ["Аударма", "Мәтінді қалаған тілге аударыңыз."],
   quiz: ["Тест жасау", "Базаңыздан тест және жауап кілтін жасаңыз."],
@@ -65,6 +65,10 @@ on("matchBtn", "click", matchPrices);
 on("onecImportBtn", "click", importOneCExcel);
 on("onecSaveBrainBtn", "click", saveOneCToBrain);
 on("onecCrmDocBtn", "click", oneCToCrmDocument);
+on("cfoQuickForm", "submit", saveCfoQuickRecord);
+on("cfoSearch", "input", render);
+on("cfoBusinessFilter", "change", render);
+on("cfoChatForm", "submit", askCfoMock);
 on("taskForm", "submit", saveTask);
 on("taskSearch", "input", render);
 on("taskQuickCrmBtn", "click", taskFromCrm);
@@ -116,6 +120,9 @@ document.querySelectorAll("[data-crm-template]").forEach(button => {
 });
 document.querySelectorAll("[data-sanabot-action]").forEach(button => {
   button.addEventListener("click", () => runMimoAction(button.dataset.sanabotAction));
+});
+document.querySelectorAll("[data-cfo-tab]").forEach(button => {
+  button.addEventListener("click", () => setCfoTab(button.dataset.cfoTab));
 });
 
 render();
@@ -4242,6 +4249,222 @@ function sanaBotReactToTask(task) {
   renderMimoFocus();
 }
 
+function defaultCfoState() {
+  return {
+    activeTab: "dashboard",
+    profile: {
+      taxRegime: "ОУР",
+      employees: 0,
+      businesses: [
+        { id: "b2b", name: "B2B мектептер", description: "Канцтовар және хозтовар жеткізу" },
+        { id: "retail", name: "Электр дүкені", description: "Teklet және Viko электр тауарлары" }
+      ]
+    },
+    orders: [], payments: [], clients: [], suppliers: [], products: [], documents: [], taxTasks: [],
+    auditRules: [
+      { id: "delivered-unpaid", title: "Жеткізілді, бірақ толық төленбеді", severity: "high", description: "paidAmount < totalAmount болса дебиторкаға шығару", status: "active" },
+      { id: "missing-esf", title: "Реализация бар, ЭСФ жоқ", severity: "high", description: "ЭСФ бос болса ескерту беру", status: "active" },
+      { id: "unlinked-payment", title: "Төлем заказға байланбаған", severity: "medium", description: "relatedOrderId жоқ төлемдерді тексеру", status: "active" },
+      { id: "low-stock", title: "Склад минимумы", severity: "high", description: "quantity < minQuantity болса заказға ұсыну", status: "active" },
+      { id: "missing-documents", title: "Құжат толық емес", severity: "medium", description: "documentStatus толық емес болса бақылауға алу", status: "active" },
+      { id: "low-margin", title: "Маржа төмен", severity: "medium", description: "Маржа 15%-дан төмен болса profitability warning", status: "active" }
+    ]
+  };
+}
+
+function normalizeCfo(cfo = {}) {
+  const base = defaultCfoState();
+  return {
+    ...base,
+    ...cfo,
+    profile: { ...base.profile, ...(cfo.profile || {}) },
+    orders: Array.isArray(cfo.orders) ? cfo.orders.map(normalizeCfoOrder) : [],
+    payments: Array.isArray(cfo.payments) ? cfo.payments.map(normalizeCfoPayment) : [],
+    clients: Array.isArray(cfo.clients) ? cfo.clients.map(normalizeCfoClient) : [],
+    suppliers: Array.isArray(cfo.suppliers) ? cfo.suppliers.map(normalizeCfoSupplier) : [],
+    products: Array.isArray(cfo.products) ? cfo.products.map(normalizeCfoProduct) : [],
+    documents: Array.isArray(cfo.documents) ? cfo.documents.map(normalizeCfoDocument) : [],
+    taxTasks: Array.isArray(cfo.taxTasks) ? cfo.taxTasks.map(normalizeCfoTaxTask) : [],
+    auditRules: Array.isArray(cfo.auditRules) && cfo.auditRules.length ? cfo.auditRules : base.auditRules
+  };
+}
+
+function normalizeCfoOrder(order = {}) {
+  const total = Number(order.totalAmount || order.amount || 0);
+  const cost = Number(order.costAmount || 0);
+  const paid = Number(order.paidAmount || 0);
+  const margin = Number(order.marginAmount || (total - cost));
+  return { id: order.id || crypto.randomUUID(), business: order.business || "b2b", clientName: order.clientName || order.counterparty || "", schoolName: order.schoolName || order.clientName || "", date: order.date || isoDate(), status: order.status || "open", totalAmount: total, costAmount: cost, marginAmount: margin, paidAmount: paid, debtAmount: Math.max(0, Number(order.debtAmount ?? (total - paid))), paymentStatus: order.paymentStatus || (paid >= total && total > 0 ? "paid" : "payment_waiting"), documentStatus: order.documentStatus || "толық емес", esfStatus: order.esfStatus || "", oneCStatus: order.oneCStatus || "", responsible: order.responsible || "Иесі", comment: order.comment || "" };
+}
+
+function normalizeCfoPayment(payment = {}) {
+  return { id: payment.id || crypto.randomUUID(), business: payment.business || "b2b", date: payment.date || isoDate(), type: payment.type || "income", method: payment.method || "bank", category: payment.category || "", amount: Number(payment.amount || 0), counterparty: payment.counterparty || "", relatedOrderId: payment.relatedOrderId || "", comment: payment.comment || "" };
+}
+
+function normalizeCfoClient(client = {}) {
+  return { id: client.id || crypto.randomUUID(), business: client.business || "b2b", name: client.name || "", bin: client.bin || "", contactPerson: client.contactPerson || "", phone: client.phone || "", debtAmount: Number(client.debtAmount || 0), lastPaymentDate: client.lastPaymentDate || "", comment: client.comment || "" };
+}
+
+function normalizeCfoSupplier(supplier = {}) {
+  return { id: supplier.id || crypto.randomUUID(), business: supplier.business || "retail", name: supplier.name || "", bin: supplier.bin || "", contactPerson: supplier.contactPerson || "", phone: supplier.phone || "", payableAmount: Number(supplier.payableAmount || 0), comment: supplier.comment || "" };
+}
+
+function normalizeCfoProduct(product = {}) {
+  const purchase = Number(product.purchasePrice || 0);
+  const sale = Number(product.salePrice || 0);
+  return { id: product.id || crypto.randomUUID(), business: product.business || "retail", name: product.name || "", oneCName: product.oneCName || product.name || "", category: product.category || "", purchasePrice: purchase, salePrice: sale, quantity: Number(product.quantity || 0), minQuantity: Number(product.minQuantity || 0), marginPercent: Number(product.marginPercent || (sale ? ((sale - purchase) / sale) * 100 : 0)) };
+}
+
+function normalizeCfoDocument(doc = {}) {
+  return { id: doc.id || crypto.randomUUID(), business: doc.business || "b2b", orderId: doc.orderId || "", type: doc.type || "реализация", status: doc.status || "жоқ", date: doc.date || isoDate(), fileUrl: doc.fileUrl || "", comment: doc.comment || "" };
+}
+
+function normalizeCfoTaxTask(task = {}) {
+  return { id: task.id || crypto.randomUUID(), business: task.business || "all", taxType: task.taxType || "ОУР", period: task.period || "", dueDate: task.dueDate || "", paymentDueDate: task.paymentDueDate || "", status: task.status || "open", amount: Number(task.amount || 0), reminderDate: task.reminderDate || "", comment: task.comment || "" };
+}
+
+function setCfoTab(tab) {
+  state.cfo = normalizeCfo(state.cfo || {});
+  state.cfo.activeTab = tab || "dashboard";
+  persist();
+  renderCfo();
+}
+
+function saveCfoQuickRecord(event) {
+  event.preventDefault();
+  state.cfo = normalizeCfo(state.cfo || {});
+  const entity = $("cfoEntity")?.value || "order";
+  const business = $("cfoBusiness")?.value || "b2b";
+  const title = $("cfoTitle")?.value?.trim() || "";
+  const counterparty = $("cfoCounterparty")?.value?.trim() || "";
+  const amount = Number($("cfoAmount")?.value || 0);
+  const cost = Number($("cfoCost")?.value || 0);
+  const paid = Number($("cfoPaid")?.value || 0);
+  const qty = Number($("cfoQty")?.value || 0);
+  const minQty = Number($("cfoMinQty")?.value || 0);
+  const dueDate = $("cfoDueDate")?.value || "";
+  const status = $("cfoStatus")?.value || "open";
+  const method = $("cfoMethod")?.value || "bank";
+  const category = $("cfoCategory")?.value?.trim() || "";
+  const comment = $("cfoComment")?.value?.trim() || "";
+  if (entity === "order") state.cfo.orders.unshift(normalizeCfoOrder({ business, clientName: counterparty || title, schoolName: title, date: dueDate || isoDate(), status, totalAmount: amount, costAmount: cost, paidAmount: paid, documentStatus: status === "closed" ? "толық" : "толық емес", comment }));
+  else if (entity === "payment") state.cfo.payments.unshift(normalizeCfoPayment({ business, date: dueDate || isoDate(), type: amount < 0 ? "expense" : "income", method, category, amount: Math.abs(amount), counterparty, comment }));
+  else if (entity === "client") state.cfo.clients.unshift(normalizeCfoClient({ business, name: title || counterparty, debtAmount: amount, lastPaymentDate: dueDate, comment }));
+  else if (entity === "supplier") state.cfo.suppliers.unshift(normalizeCfoSupplier({ business, name: title || counterparty, payableAmount: amount, comment }));
+  else if (entity === "product") state.cfo.products.unshift(normalizeCfoProduct({ business, name: title, oneCName: counterparty || title, category, purchasePrice: cost, salePrice: amount, quantity: qty, minQuantity: minQty }));
+  else if (entity === "document") state.cfo.documents.unshift(normalizeCfoDocument({ business, type: category || title || "реализация", status, date: dueDate || isoDate(), comment }));
+  else if (entity === "tax") state.cfo.taxTasks.unshift(normalizeCfoTaxTask({ business, taxType: title || "ОУР", period: category, dueDate, paymentDueDate: dueDate, status, amount, comment }));
+  event.target.reset();
+  persist();
+  render();
+}
+
+function cfoFilteredData() {
+  const cfo = normalizeCfo(state.cfo || {});
+  const query = ($("cfoSearch")?.value || "").toLowerCase();
+  const business = $("cfoBusinessFilter")?.value || "all";
+  const matchBusiness = item => business === "all" || item.business === business || item.business === "all";
+  const matchQuery = item => !query || JSON.stringify(item).toLowerCase().includes(query);
+  const filter = rows => rows.filter(item => matchBusiness(item) && matchQuery(item));
+  return { ...cfo, orders: filter(cfo.orders), payments: filter(cfo.payments), clients: filter(cfo.clients), suppliers: filter(cfo.suppliers), products: filter(cfo.products), documents: filter(cfo.documents), taxTasks: filter(cfo.taxTasks) };
+}
+
+function cfoMetrics(cfo = cfoFilteredData()) {
+  const today = isoDate();
+  const month = today.slice(0, 7);
+  const income = cfo.payments.filter(p => p.type === "income");
+  const expenses = cfo.payments.filter(p => p.type === "expense");
+  const todayIncome = income.filter(p => p.date === today).reduce((sum, p) => sum + p.amount, 0);
+  const monthIncome = income.filter(p => String(p.date).startsWith(month)).reduce((sum, p) => sum + p.amount, 0);
+  const totalExpense = expenses.reduce((sum, p) => sum + p.amount, 0) + cfo.orders.reduce((sum, order) => sum + order.costAmount, 0);
+  const revenue = cfo.orders.reduce((sum, order) => sum + order.totalAmount, 0) + income.reduce((sum, p) => sum + p.amount, 0);
+  const debtors = cfo.orders.reduce((sum, order) => sum + order.debtAmount, 0) + cfo.clients.reduce((sum, client) => sum + client.debtAmount, 0);
+  const creditors = cfo.suppliers.reduce((sum, supplier) => sum + supplier.payableAmount, 0);
+  const cash = cfo.payments.filter(p => p.method === "cash").reduce((sum, p) => sum + (p.type === "expense" ? -p.amount : p.amount), 0);
+  const bank = cfo.payments.filter(p => p.method === "bank").reduce((sum, p) => sum + (p.type === "expense" ? -p.amount : p.amount), 0);
+  return { todayIncome, monthIncome, totalExpense, netProfit: revenue - totalExpense, debtors, creditors, cash, bank, missingEsf: cfo.orders.filter(order => order.status === "delivered" && !order.esfStatus).length, openRealizations: cfo.documents.filter(doc => doc.type.includes("реализация") && doc.status !== "жабылды").length, missingDocs: cfo.orders.filter(order => order.documentStatus !== "толық").length, taxSoon: cfo.taxTasks.filter(task => task.status !== "done" && daysUntil(task.dueDate) <= 10).length };
+}
+
+function cfoAuditWarnings(cfo = cfoFilteredData()) {
+  const warnings = [];
+  cfo.orders.forEach(order => {
+    if (["delivered", "closed", "received"].includes(order.status) && order.paidAmount < order.totalAmount) warnings.push({ severity: "high", title: "Жеткізілген заказда қарыз бар", description: `${order.schoolName || order.clientName}: ${money(order.totalAmount - order.paidAmount)}` });
+    if (order.status === "delivered" && !order.esfStatus) warnings.push({ severity: "high", title: "ЭСФ жіберілмеген", description: `${order.schoolName || order.clientName} бойынша реализация бар, ЭСФ бос.` });
+    if (order.documentStatus !== "толық") warnings.push({ severity: "medium", title: "Құжат жетіспейді", description: `${order.schoolName || order.clientName}: documentStatus толық емес.` });
+    if (order.debtAmount > 0 && daysUntil(order.date) < -14) warnings.push({ severity: "high", title: "Мерзімі өткен дебиторка", description: `${order.clientName}: ${money(order.debtAmount)} 14 күннен асты.` });
+    const marginPercent = order.totalAmount ? (order.marginAmount / order.totalAmount) * 100 : 0;
+    if (order.totalAmount > 0 && marginPercent < 15) warnings.push({ severity: "medium", title: "Маржа төмен", description: `${order.clientName}: ${marginPercent.toFixed(1)}% ғана.` });
+    if (!order.oneCStatus) warnings.push({ severity: "low", title: "1С статус бос", description: `${order.clientName}: 1С-ке түсті ме, тексеріңіз.` });
+  });
+  cfo.payments.forEach(payment => {
+    if (!payment.relatedOrderId && payment.type === "income") warnings.push({ severity: "medium", title: "Төлем заказға байланбаған", description: `${payment.counterparty}: ${money(payment.amount)}` });
+    if (!payment.category) warnings.push({ severity: "low", title: "Төлем категориясыз", description: `${payment.counterparty || "Төлем"} категориясын қойыңыз.` });
+  });
+  cfo.products.forEach(product => {
+    if (product.quantity < product.minQuantity) warnings.push({ severity: "high", title: "Складта товар аз", description: `${product.name}: ${product.quantity}/${product.minQuantity}` });
+    if (product.marginPercent < 15 && product.salePrice > 0) warnings.push({ severity: "medium", title: "Товар маржасы төмен", description: `${product.name}: ${product.marginPercent.toFixed(1)}%` });
+  });
+  cfo.taxTasks.forEach(task => {
+    const due = daysUntil(task.dueDate);
+    if (task.status !== "done" && due <= 10) warnings.push({ severity: due < 0 ? "high" : "medium", title: "Салық мерзімі жақын", description: `${task.taxType} ${task.period || ""}: ${task.dueDate || "күні жоқ"}` });
+  });
+  return warnings;
+}
+
+function daysUntil(date) {
+  if (!date) return 9999;
+  const start = new Date(`${isoDate()}T00:00:00`);
+  const end = new Date(`${date}T00:00:00`);
+  return Math.ceil((end - start) / 86400000);
+}
+
+function renderCfo() {
+  if (!$("cfoKpis")) return;
+  state.cfo = normalizeCfo(state.cfo || {});
+  const cfo = cfoFilteredData();
+  const metrics = cfoMetrics(cfo);
+  const warnings = cfoAuditWarnings(cfo);
+  const tab = state.cfo.activeTab || "dashboard";
+  document.querySelectorAll("[data-cfo-tab]").forEach(button => button.classList.toggle("active", button.dataset.cfoTab === tab));
+  $("cfoKpis").innerHTML = [["Бүгінгі түсім", money(metrics.todayIncome)], ["Айлық түсім", money(metrics.monthIncome)], ["Жалпы шығын", money(metrics.totalExpense)], ["Таза пайда", money(metrics.netProfit)], ["Клиенттер қарызы", money(metrics.debtors)], ["Поставщик қарызы", money(metrics.creditors)], ["Касса қалдығы", money(metrics.cash)], ["Банк қалдығы", money(metrics.bank)], ["Жіберілмеген ЭСФ", metrics.missingEsf], ["Жабылмаған реализация", metrics.openRealizations], ["Құжат жетіспейді", metrics.missingDocs], ["Салық жақындады", metrics.taxSoon]].map(([label, value]) => `<article class="cfo-kpi"><span>${label}</span><strong>${value}</strong></article>`).join("");
+  $("cfoWarnings").innerHTML = warnings.slice(0, tab === "audit" ? 50 : 5).map(warning => `<article class="cfo-warning ${escapeHtml(warning.severity)}"><strong>${escapeHtml(warning.title)}</strong><span>${escapeHtml(warning.description)}</span></article>`).join("") || `<article class="cfo-warning ok"><strong>Audit таза</strong><span>Қазір автоматты warning жоқ. Дерек енгізген сайын қайта тексеріледі.</span></article>`;
+  $("cfoList").innerHTML = cfoTabContent(tab, cfo, metrics, warnings);
+}
+
+function cfoTabContent(tab, cfo, metrics, warnings) {
+  if (tab === "dashboard") return cfoDashboardCards(metrics, warnings);
+  if (tab === "debtors") return cfoRows("Клиенттер қарызы / Дебиторка", cfo.orders.filter(o => o.debtAmount > 0).map(o => [`${o.schoolName || o.clientName}`, money(o.debtAmount), o.paymentStatus, o.date]));
+  if (tab === "creditors") return cfoRows("Поставщиктер қарызы / Кредиторка", cfo.suppliers.filter(s => s.payableAmount > 0).map(s => [s.name, money(s.payableAmount), s.phone || "-", s.comment || "-"]));
+  if (tab === "cashflow") return cfoRows("Ақша қозғалысы / Cash Flow", cfo.payments.map(p => [p.date, p.type === "expense" ? "Шығын" : "Түсім", money(p.amount), `${p.method} · ${p.category || "категория жоқ"}`]));
+  if (tab === "pnl") return cfoDashboardCards({ "Түсім": metrics.monthIncome, "Шығын": metrics.totalExpense, "Таза пайда": metrics.netProfit, "Дебиторка": metrics.debtors }, warnings);
+  if (tab === "stock") return cfoRows("Склад бақылау", cfo.products.map(p => [p.name, `${p.quantity}/${p.minQuantity}`, money(p.salePrice), `${p.marginPercent.toFixed(1)}%`]));
+  if (tab === "documents") return cfoRows("Құжаттар бақылауы", cfo.documents.map(d => [d.type, d.status, d.date, d.comment || "-"]).concat(cfo.orders.filter(o => o.documentStatus !== "толық").map(o => [o.clientName, o.documentStatus, o.date, "Заказ құжаты толық емес"])));
+  if (tab === "onec") return cfoRows("1С бақылау", cfo.orders.map(o => [o.clientName, o.oneCStatus || "1С статус бос", money(o.totalAmount), o.comment || "-"]));
+  if (tab === "tax") return cfoRows("Салық календарь", cfo.taxTasks.map(t => [t.taxType, t.period || "-", t.dueDate || "-", `${money(t.amount)} · ${t.status}`]));
+  if (tab === "audit") return cfoRows("Audit Check", warnings.map(w => [w.severity, w.title, w.description, "AI Бас бухгалтер"]));
+  if (tab === "chat") return `<article class="cfo-empty"><strong>AI Бас бухгалтер чат</strong><p>Төмендегі чатқа сұрақ жазыңыз. MVP mock режимде dashboard деректеріне сүйеніп жауап береді.</p></article>`;
+  return "";
+}
+
+function cfoDashboardCards(metrics, warnings) {
+  const entries = Object.entries(metrics).slice(0, 8);
+  return `<div class="cfo-mini-grid">${entries.map(([label, value]) => `<article class="cfo-mini-card"><span>${escapeHtml(label)}</span><strong>${typeof value === "number" ? money(value) : escapeHtml(value)}</strong></article>`).join("")}</div><article class="cfo-empty"><strong>Бас бухгалтер фокусы</strong><p>${warnings[0] ? escapeHtml(warnings[0].title + ": " + warnings[0].description) : "Дерек енгізіңіз: заказ, төлем, товар, құжат және салық мерзімі."}</p></article>`;
+}
+
+function cfoRows(title, rows) {
+  if (!rows.length) return `<article class="cfo-empty"><strong>${escapeHtml(title)}</strong><p>Бұл бөлімде әзірге дерек жоқ. Сол жақтағы форма арқылы енгізіңіз немесе 1С/Excel импортын кейін қосамыз.</p></article>`;
+  return `<section class="cfo-table"><h3>${escapeHtml(title)}</h3>${rows.map(row => `<div class="cfo-row">${row.map(cell => `<span>${escapeHtml(cell)}</span>`).join("")}</div>`).join("")}</section>`;
+}
+
+function askCfoMock(event) {
+  event.preventDefault();
+  const prompt = $("cfoChatPrompt")?.value?.trim() || "";
+  const cfo = cfoFilteredData();
+  const metrics = cfoMetrics(cfo);
+  const warnings = cfoAuditWarnings(cfo);
+  $("cfoChatOut").textContent = ["AI Бас бухгалтер mock жауап:", `Сұрақ: ${prompt || "жалпы жағдай"}`, `Таза пайда: ${money(metrics.netProfit)}. Дебиторка: ${money(metrics.debtors)}. Кредиторка: ${money(metrics.creditors)}.`, warnings[0] ? `Бірінші тәуекел: ${warnings[0].title} — ${warnings[0].description}` : "Қазір үлкен warning жоқ.", "Келесі әрекет: 1С реализация, Kaspi/банк выписка, склад остаток және ЭСФ статусын осы модульге енгізіңіз."].join("\n");
+}
+
 function render() {
   if (!Array.isArray(state.images)) state.images = [];
   if (!Array.isArray(state.goals)) state.goals = [];
@@ -4249,6 +4472,7 @@ function render() {
   if (!Array.isArray(state.plans)) state.plans = [];
   if (!Array.isArray(state.challenges)) state.challenges = [];
   if (!Array.isArray(state.crmReports)) state.crmReports = [];
+  state.cfo = normalizeCfo(state.cfo || {});
   state.oneC = normalizeOneC(state.oneC || {});
   state.crmReports = state.crmReports.map(normalizeCrmReport);
   if (!state.calendarOS) state.calendarOS = defaultCalendarOS();
@@ -4294,6 +4518,7 @@ function render() {
   renderGoals();
   renderCrmWorkspace();
   renderCrmReportDashboard();
+  renderCfo();
   renderOneC();
   renderAssistantDashboard();
   renderCloudSettings();
@@ -4829,10 +5054,11 @@ function loadState() {
       plans: Array.isArray(saved.plans) ? saved.plans.map(normalizePlan) : (Array.isArray(savedPlans) ? savedPlans.map(normalizePlan) : []),
       challenges: Array.isArray(saved.challenges) ? saved.challenges.map(normalizeChallenge) : (Array.isArray(savedChallenges) ? savedChallenges.map(normalizeChallenge) : []),
       oneC: normalizeOneC(saved.oneC || savedOneC || {}),
-      crmReports: Array.isArray(saved.crmReports) ? saved.crmReports.map(normalizeCrmReport) : (Array.isArray(savedCrmReports) ? savedCrmReports.map(normalizeCrmReport) : [])
+      crmReports: Array.isArray(saved.crmReports) ? saved.crmReports.map(normalizeCrmReport) : (Array.isArray(savedCrmReports) ? savedCrmReports.map(normalizeCrmReport) : []),
+      cfo: normalizeCfo(saved.cfo || JSON.parse(localStorage.getItem("zhadyra_cfo") || "null") || {})
     };
   } catch {
-    return { docs: [], tasks: [], images: [], calendarOS: defaultCalendarOS(), notes: [], goals: [], projects: [], plans: [], challenges: [], oneC: normalizeOneC({}), crmReports: [] };
+    return { docs: [], tasks: [], images: [], calendarOS: defaultCalendarOS(), notes: [], goals: [], projects: [], plans: [], challenges: [], oneC: normalizeOneC({}), crmReports: [], cfo: defaultCfoState() };
   }
 }
 
@@ -4849,6 +5075,7 @@ function persist(options = {}) {
   localStorage.setItem("zhadyra_challenges", JSON.stringify(state.challenges || []));
   localStorage.setItem("zhadyra_1c_excel", JSON.stringify(state.oneC || {}));
   localStorage.setItem("zhadyra_crm_reports", JSON.stringify(state.crmReports || []));
+  localStorage.setItem("zhadyra_cfo", JSON.stringify(state.cfo || defaultCfoState()));
   if (options.sync !== false) scheduleCloudPush();
 }
 

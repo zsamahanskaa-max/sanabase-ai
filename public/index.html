@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#28433f">
   <title>SanaBase AI</title>
-  <link rel="manifest" href="manifest.json?v=20260630-25">
-  <link rel="stylesheet" href="styles.css?v=20260630-25">
+  <link rel="manifest" href="manifest.json?v=20260630-26">
+  <link rel="stylesheet" href="styles.css?v=20260630-26">
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs" type="module"></script>
@@ -26,6 +26,7 @@
       <button class="nav-item" data-view="calendaros">Күнтізбе жүйесі</button>
       <button class="nav-item" data-view="match">Прайс салыстыру</button>
       <button class="nav-item" data-view="onec">1С Excel</button>
+      <button class="nav-item" data-view="cfo">Sana CFO</button>
       <button class="nav-item" data-view="brain">Екінші ми</button>
       <button class="nav-item" data-view="translate">Аударма</button>
       <button class="nav-item" data-view="quiz">Тест</button>
@@ -736,6 +737,98 @@ with check (true);</textarea>
       </div>
     </section>
 
+    <section class="view" id="cfo">
+      <div class="cfo-shell">
+        <div class="cfo-hero">
+          <div>
+            <h2>Sana CFO / AI Бас Бухгалтер</h2>
+            <p>B2B мектептерге канцтовар/хозтовар жеткізу және электр тауарлары дүкені үшін ОУР режиміндегі қаржы, қарыз, құжат, склад және салық бақылауы.</p>
+          </div>
+          <div class="cfo-disclaimer">Бұл заңды бухгалтерді толық алмастырмайды. Күнделікті бақылау, анализ, ескерту және 1С тәртібін тексеру үшін.</div>
+        </div>
+        <div class="cfo-kpis" id="cfoKpis"></div>
+        <div class="cfo-tabs" id="cfoTabs">
+          <button type="button" data-cfo-tab="dashboard">Dashboard</button>
+          <button type="button" data-cfo-tab="debtors">Дебиторка</button>
+          <button type="button" data-cfo-tab="creditors">Кредиторка</button>
+          <button type="button" data-cfo-tab="cashflow">Cash Flow</button>
+          <button type="button" data-cfo-tab="pnl">P&amp;L</button>
+          <button type="button" data-cfo-tab="stock">Склад</button>
+          <button type="button" data-cfo-tab="documents">Құжаттар</button>
+          <button type="button" data-cfo-tab="onec">1С</button>
+          <button type="button" data-cfo-tab="tax">Салық календарь</button>
+          <button type="button" data-cfo-tab="audit">Audit Check</button>
+          <button type="button" data-cfo-tab="chat">AI Бас бухгалтер</button>
+        </div>
+        <div class="cfo-toolbar">
+          <input id="cfoSearch" type="search" placeholder="Клиент, мектеп, поставщик, тауар, құжат іздеу">
+          <select id="cfoBusinessFilter">
+            <option value="all">Екі бизнес бірге</option>
+            <option value="b2b">B2B мектептер</option>
+            <option value="retail">Электр дүкені</option>
+          </select>
+        </div>
+        <div class="cfo-layout">
+          <form id="cfoQuickForm" class="cfo-form">
+            <h3>Жылдам дерек енгізу</h3>
+            <select id="cfoEntity">
+              <option value="order">Order / заказ</option>
+              <option value="payment">Payment / төлем</option>
+              <option value="client">Client / клиент</option>
+              <option value="supplier">Supplier / поставщик</option>
+              <option value="product">Product / товар</option>
+              <option value="document">Document / құжат</option>
+              <option value="tax">TaxTask / салық</option>
+            </select>
+            <select id="cfoBusiness">
+              <option value="b2b">B2B мектептер</option>
+              <option value="retail">Электр дүкені</option>
+            </select>
+            <input id="cfoTitle" placeholder="Атауы: мектеп, заказ, товар, құжат">
+            <input id="cfoCounterparty" placeholder="Контрагент / клиент / поставщик">
+            <div class="cfo-form-grid">
+              <input id="cfoAmount" type="number" step="0.01" placeholder="Сома / продажа, шығын болса -">
+              <input id="cfoCost" type="number" step="0.01" placeholder="Себестоимость / шығын">
+            </div>
+            <div class="cfo-form-grid">
+              <input id="cfoPaid" type="number" step="0.01" placeholder="Төленді / paid">
+              <input id="cfoQty" type="number" step="1" placeholder="Саны / остаток">
+            </div>
+            <div class="cfo-form-grid">
+              <input id="cfoMinQty" type="number" step="1" placeholder="Мин. склад">
+              <input id="cfoDueDate" type="date">
+            </div>
+            <div class="cfo-form-grid">
+              <select id="cfoStatus">
+                <option value="open">Ашық</option>
+                <option value="delivered">Жеткізілді</option>
+                <option value="closed">Жабылды</option>
+                <option value="paid">Төленді</option>
+                <option value="missing">Жоқ</option>
+                <option value="ready">Дайын</option>
+                <option value="sent">Жіберілді</option>
+              </select>
+              <select id="cfoMethod">
+                <option value="bank">Банк</option>
+                <option value="cash">Касса</option>
+              </select>
+            </div>
+            <input id="cfoCategory" placeholder="Категория: канцтовар, хозтовар, Teklet, Viko, аренда...">
+            <textarea id="cfoComment" placeholder="Комментарий, БИН, телефон, ЭСФ, 1С статус, құжат ескертпесі..."></textarea>
+            <button type="submit">CFO дерек сақтау</button>
+          </form>
+          <div class="cfo-main">
+            <div id="cfoWarnings" class="cfo-warnings"></div>
+            <div id="cfoList" class="cfo-list"></div>
+            <form id="cfoChatForm" class="cfo-chat">
+              <textarea id="cfoChatPrompt" placeholder="AI Бас бухгалтерге сұрақ: қарыз, салық, маржа, склад, 1С, құжат бойынша..."></textarea>
+              <button type="submit">AI Бас бухгалтерден сұрау</button>
+              <pre id="cfoChatOut">Mock режим: деректерді енгізген соң CFO қысқа анализ береді.</pre>
+            </form>
+          </div>
+        </div>
+      </div>
+    </section>
     <section class="view" id="notes">
       <div class="notes-layout">
         <form id="noteForm" class="note-form">
@@ -814,6 +907,6 @@ with check (true);</textarea>
     </section>
   </div>
 
-  <script src="app.js?v=20260630-25"></script>
+  <script src="app.js?v=20260630-26"></script>
 </body>
 </html>

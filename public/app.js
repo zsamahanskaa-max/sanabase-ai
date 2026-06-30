@@ -3607,29 +3607,34 @@ function taskBodyIntro(task) {
     .join("\n");
 }
 
+function taskChecklistProgress(checklist = []) {
+  const total = checklist.length;
+  const done = checklist.filter(item => item.done).length;
+  const percent = total ? Math.round((done / total) * 100) : 0;
+  return { total, done, percent };
+}
 function toggleTaskChecklist(taskId, itemId) {
   const task = state.tasks.find(item => item.id === taskId);
   if (!task) return;
   task.checklist = Array.isArray(task.checklist) ? task.checklist : taskChecklistFromBody(task.body);
   const item = task.checklist.find(check => check.id === itemId);
   if (!item) return;
+  const wasDone = task.status === "done";
   item.done = !item.done;
+  const progress = taskChecklistProgress(task.checklist);
+  if (progress.total && progress.done === progress.total) task.status = "done";
+  else if (task.status === "done") task.status = "doing";
   task.updatedAt = new Date().toISOString();
   persist();
   render();
-  if (task.checklist.length && task.checklist.every(check => check.done) && task.status !== "done") {
-    task.status = "done";
-    task.updatedAt = new Date().toISOString();
-    persist();
-    render();
-    sanaBotReactToTask(task);
-  }
+  if (task.status === "done" && !wasDone) sanaBotReactToTask(task);
 }
 
 function openTaskDetail(taskId) {
   const task = state.tasks.find(item => item.id === taskId);
   if (!task) return;
   const checklist = Array.isArray(task.checklist) ? task.checklist : taskChecklistFromBody(task.body);
+  const progress = taskChecklistProgress(checklist);
   const intro = taskBodyIntro(task);
   const old = $("taskModalRoot");
   if (old) old.remove();
@@ -3645,6 +3650,7 @@ function openTaskDetail(taskId) {
         </div>
         <button type="button" data-task-modal-close>Жабу</button>
       </div>
+      ${progress.total ? `<div class="task-progress"><div><strong>${progress.done}/${progress.total} орындалды</strong><span>${progress.percent}%</span></div><meter min="0" max="100" value="${progress.percent}"></meter></div>` : ""}
       ${intro ? `<p class="task-body-full">${escapeHtml(intro)}</p>` : ""}
       <div class="task-checklist full">
         ${checklist.map(item => `<label><input type="checkbox" data-task-check="${escapeHtml(task.id)}" data-check-id="${escapeHtml(item.id)}" ${item.done ? "checked" : ""}> <span>${escapeHtml(item.text)}</span></label>`).join("") || `<p class="task-body-full">${escapeHtml(task.body || "Сипаттама жоқ")}</p>`}
@@ -5327,17 +5333,19 @@ function taskCard(task) {
     ["done", "Дайын"]
   ].filter(([status]) => status !== task.status);
   const checklist = Array.isArray(task.checklist) ? task.checklist : taskChecklistFromBody(task.body);
+  const progress = taskChecklistProgress(checklist);
   const previewItems = checklist.slice(0, 3);
   const moreCount = Math.max(0, checklist.length - previewItems.length);
   const intro = taskBodyIntro(task);
   const checklistHtml = checklist.length ? `
     <div class="task-checklist">
+      <div class="task-progress"><div><strong>${progress.done}/${progress.total} орындалды</strong><span>${progress.percent}%</span></div><meter min="0" max="100" value="${progress.percent}"></meter></div>
       ${previewItems.map(item => `<label><input type="checkbox" data-task-check="${escapeHtml(task.id)}" data-check-id="${escapeHtml(item.id)}" ${item.done ? "checked" : ""}> <span>${escapeHtml(item.text)}</span></label>`).join("")}
       ${moreCount ? `<button type="button" class="task-more" data-task-detail="${escapeHtml(task.id)}">+ тағы ${moreCount} пункт</button>` : ""}
       <button type="button" class="task-detail-btn" data-task-detail="${escapeHtml(task.id)}">Толық көру</button>
     </div>` : "";
   return `
-    <article class="task-card priority-${escapeHtml(task.priority)}">
+    <article class="task-card priority-${escapeHtml(task.priority)} ${progress.total && progress.done === progress.total ? "task-complete" : ""}">
       <div class="task-top">
         <strong>${escapeHtml(task.title)}</strong>
         <span>${escapeHtml(priorityLabel(task.priority))}</span>

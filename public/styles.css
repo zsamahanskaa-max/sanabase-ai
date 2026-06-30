@@ -603,7 +603,7 @@ pre {
 .goal-layout,
 .goal-columns {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 14px;
   align-items: start;
 }
@@ -734,6 +734,17 @@ pre {
 .challenge-card > button.done-today {
   background: white;
   color: var(--leaf);
+}
+
+.challenge-card > button.missed-today {
+  background: white;
+  color: var(--rose);
+  border-color: #f0c8c8;
+}
+
+.challenge-card > button.missed-today.is-missed {
+  background: var(--rose);
+  color: white;
 }
 
 .challenge-days {

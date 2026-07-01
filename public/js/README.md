@@ -792,3 +792,136 @@ Risks:
    - `Change log` sheet appears
    - `Not found` sheet appears
    - duplicate mode first/last/min/max still works
+
+## Clients / Schools CRM analysis
+
+This is the safe pre-extraction map for the CRM module. Runtime CRM code should
+not be moved until the data model and browser smoke tests are stable.
+
+### Current CRM storage
+
+CRM quick orders are stored inside the main `state.calendarOS` object, primarily
+under:
+
+- `state.calendarOS.orders`
+- `state.calendarOS.payments`
+- `state.calendarOS.clients`
+- `state.crmReports`
+
+Persistence still goes through the existing `persist()` function and keeps the
+same localStorage keys:
+
+- `sanabase-state`
+- `zhadyra_crm_reports`
+
+### Current CRM functions
+
+- `saveCrmQuickDeal()` in `public/app.js`
+  - reads the CRM quick order form
+  - creates an order through `createOrder()`
+  - creates a payment through `createPayment()` when paid amount is present
+  - calculates total, cost, margin, paid/debt, and payment status
+  - calls `persist()` and `render()`
+- `renderCrmWorkspace()`
+  - renders CRM dashboard cards, CRM document list, playbook, and calls the
+    operating panel render
+- `renderCrmOperatingPanel()`
+  - filters/searches rows, renders pipeline columns and the CRM table
+  - binds task and close buttons after table render
+- `crmDealRows()`
+  - normalizes `calendarOS.orders` into table/pipeline rows
+  - calculates computed total, cost, paid amount, debt, margin, overdue state
+- `crmDealCard()`
+  - renders one small pipeline card
+- `crmStatusLabel()`
+  - maps CRM status values to display labels
+- `createCrmFollowUpTask()`
+  - creates a task linked to an order
+- `closeCrmDeal()`
+  - marks an order as closed and re-renders
+
+### Current CRM order fields
+
+Current quick order rows use fields such as:
+
+- `orderNumber`
+- `date`
+- `clientName`
+- `schoolName`
+- `productName`
+- `quantity`
+- `purchasePrice`
+- `salePrice`
+- `totalAmount`
+- `costAmount`
+- `marginAmount`
+- `paidAmount`
+- `debtAmount`
+- `paymentMethod`
+- `paymentStatus`
+- `documentStatus`
+- `esfStatus`
+- `oneCStatus`
+- `comment`
+- `status`
+- `priority`
+- `relatedPaymentId`
+
+### Proposed Clients / Schools card fields
+
+Add these later only after a safe migration plan:
+
+- `id`
+- `businessType` (`b2b_school`, `retail`, `kaspi`, `other`)
+- `clientName`
+- `schoolName`
+- `bin`
+- `contactPerson`
+- `phone`
+- `whatsapp`
+- `email`
+- `address`
+- `region`
+- `clientSegment` (`A`, `B`, `C`, `new`, `risk`)
+- `paymentTerms`
+- `debtLimit`
+- `currentDebt`
+- `lastOrderDate`
+- `lastPaymentDate`
+- `nextActionDate`
+- `responsible`
+- `tags`
+- `comment`
+- `createdAt`
+- `updatedAt`
+- `archivedAt`
+
+### Safe extraction plan
+
+Safe to extract later into `public/js/crm.js`:
+
+1. Pure label/render helpers:
+   - `crmStatusLabel`
+   - `crmDealCard`
+2. Pure row builder after dependencies are explicit:
+   - `crmDealRows`
+3. UI render functions after smoke tests:
+   - `renderCrmOperatingPanel`
+   - `renderCrmWorkspace`
+
+Keep in `public/app.js` for now:
+
+- `saveCrmQuickDeal`
+- `createCrmFollowUpTask`
+- `closeCrmDeal`
+- CRM report import/build functions
+
+Reason:
+
+- They still depend on global `state`, `calendarData()`, `createOrder()`,
+  `createPayment()`, `persist()`, `render()`, DOM ids, and event bindings.
+
+Next exact step:
+
+Analyze the HTML CRM form and table DOM ids, then create a small client/school
+data model proposal before changing runtime code.

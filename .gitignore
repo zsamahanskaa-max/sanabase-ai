@@ -1,6 +1,9 @@
 .env
 .env.local
 node_modules/
+work/
 work/uploads/
 work/*.log
 work/*.err.log
+*.log
+.DS_Store

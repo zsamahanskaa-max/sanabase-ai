@@ -12,6 +12,41 @@ Open:
 http://localhost:5173/
 ```
 
+## Latest automated smoke result
+
+Date: 2026-07-01
+
+Local asset checks passed:
+
+```text
+local root=200 app=200 utils=200
+```
+
+GitHub Pages cache updated to `20260701-13`. The live HTML now loads the modular helper scripts in this order:
+
+```text
+public/js/utils.js?v=20260701-13
+public/js/storage.js?v=20260701-13
+public/js/api.js?v=20260701-13
+public/js/spreadsheet.js?v=20260701-13
+public/js/documents.js?v=20260701-13
+public/js/priceMatching.js?v=20260701-13
+public/app.js?v=20260701-13
+```
+
+Live GitHub Pages asset URLs returned `200`:
+
+```text
+200 https://zsamahanskaa-max.github.io/sanabase-ai/?smoke=20260701-13c
+200 https://zsamahanskaa-max.github.io/sanabase-ai/public/js/utils.js?v=20260701-13
+200 https://zsamahanskaa-max.github.io/sanabase-ai/public/js/priceMatching.js?v=20260701-13
+200 https://zsamahanskaa-max.github.io/sanabase-ai/public/app.js?v=20260701-13
+```
+
+Important limitation:
+
+GitHub Pages is static hosting. Backend API routes like `/api/ai` and `/api/import` may not work there. Use the local Node server or a Render/Vercel backend for full backend behavior.
+
 ## 1. Utility load check
 
 Open browser DevTools Console and run:
@@ -142,6 +177,15 @@ true
 2. Open AI chat.
 3. Ask a simple question.
 4. Confirm a local fallback answer appears instead of a broken request.
+
+## 7. Manual browser checklist still required
+
+- CRM quick save
+- Tasks add
+- CFO auto report
+- Excel document import
+- Price matching
+- AI chat fallback
 
 ## Pass criteria
 

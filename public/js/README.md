@@ -925,3 +925,138 @@ Next exact step:
 
 Analyze the HTML CRM form and table DOM ids, then create a small client/school
 data model proposal before changing runtime code.
+
+## CRM DOM Mapping and Clients Migration Plan
+
+This section maps the current CRM DOM ids before adding a dedicated
+Clients / Schools card. Runtime code must not change during this analysis step.
+
+### CRM DOM ids found
+
+The CRM DOM exists in both `index.html` and `public/index.html`.
+
+Core CRM view:
+
+| DOM id / selector | File(s) | App function | Access | Data field | Risk |
+| --- | --- | --- | --- | --- | --- |
+| `crm` | both HTML files | navigation / view state | read/show | active view | low |
+| `crmPrompt` | both HTML files | `crm()`, `currentCrmDocumentText()`, `useCrmTemplate()` | read/write | AI CRM prompt text | low |
+| `crmBtn` | both HTML files | `crm()` | event | none | low |
+| `crmDocBtn` | both HTML files | `createCrmDocument()` | event | CRM document text | low |
+| `crmDownloadBtn` | both HTML files | `downloadCrmDocument()` | event | CRM document text | low |
+| `crmOut` | both HTML files | `crm()`, document helpers, quick save message | read/write | CRM analysis output | medium |
+| `crmDashboard` | both HTML files | `renderCrmWorkspace()` | write | CRM stats | low |
+| `crmDocList` | both HTML files | `renderCrmWorkspace()` | write | CRM docs/notes/calendar docs | low |
+| `crmPlaybook` | both HTML files | `renderCrmWorkspace()` | write | static playbook text | low |
+
+Quick deal / operating panel:
+
+| DOM id / selector | File(s) | App function | Access | Data field | Risk |
+| --- | --- | --- | --- | --- | --- |
+| `crmSearch` | both HTML files | event binding, `renderCrmOperatingPanel()` | read | table search query | low |
+| `crmStatusFilter` | both HTML files | event binding, `renderCrmOperatingPanel()` | read | status/debt filter | low |
+| `crmQuickForm` | both HTML files | event binding, `saveCrmQuickDeal()` | event/write reset | CRM order submit | high |
+| `crmOrderNumber` | both HTML files | `saveCrmQuickDeal()` | read | `order.orderNumber` | medium |
+| `crmOrderDate` | both HTML files | `saveCrmQuickDeal()` | read | `order.date`, payment date | medium |
+| `crmClientName` | both HTML files | `saveCrmQuickDeal()` | read | `order.clientName`, payment clientName | high |
+| `crmSchoolName` | both HTML files | `saveCrmQuickDeal()` | read | `order.schoolName`, fallback client display | high |
+| `crmProductName` | both HTML files | `saveCrmQuickDeal()` | read | `order.productName`, `productsJson` | medium |
+| `crmQuantity` | both HTML files | `saveCrmQuickDeal()` | read | `order.quantity`, total/cost/margin calculation | high |
+| `crmPurchasePrice` | both HTML files | `saveCrmQuickDeal()` | read | `order.purchasePrice`, `costAmount`, `marginAmount` | high |
+| `crmSalePrice` | both HTML files | `saveCrmQuickDeal()` | read | `order.salePrice`, `totalAmount`, `marginAmount` | high |
+| `crmPaidAmount` | both HTML files | `saveCrmQuickDeal()` | read | `order.paidAmount`, `payment.amount`, `debtAmount` | high |
+| `crmPaymentMethod` | both HTML files | `saveCrmQuickDeal()` | read | `order.paymentMethod`, `payment.category`, `payment.method` | medium |
+| `crmDocumentStatus` | both HTML files | `saveCrmQuickDeal()` | read | `order.documentStatus` | medium |
+| `crmEsfStatus` | both HTML files | `saveCrmQuickDeal()` | read | `order.esfStatus` | medium |
+| `crmOneCStatus` | both HTML files | `saveCrmQuickDeal()` | read | `order.oneCStatus` | medium |
+| `crmComment` | both HTML files | `saveCrmQuickDeal()` | read | `order.comment`, payment comment context | medium |
+| `crmPipeline` | both HTML files | `renderCrmOperatingPanel()` | write | order pipeline cards | low |
+| `crmTable` | both HTML files | `renderCrmOperatingPanel()` | write/event delegation | CRM table rows and row actions | high |
+| `data-crm-task` | generated in app.js | `createCrmFollowUpTask()` binding | event | linked `order.id` | medium |
+| `data-crm-close` | generated in app.js | `closeCrmDeal()` binding | event | linked `order.id` | high |
+
+CRM report center:
+
+| DOM id / selector | File(s) | App function | Access | Data field | Risk |
+| --- | --- | --- | --- | --- | --- |
+| `crmReportType` | both HTML files | `buildCrmBusinessReport()` | read | report business type | medium |
+| `crmReportProject` | both HTML files | report build/view | read/write | report project name | medium |
+| `crmRealizationFile` | both HTML files | `buildCrmBusinessReport()` | read file | realization import table | high |
+| `crmKaspiFile` | both HTML files | `buildCrmBusinessReport()` | read file | Kaspi/bank import table | high |
+| `crmCounterpartyFile` | both HTML files | `buildCrmBusinessReport()` | read file | counterparty import table | high |
+| `crmNomenclatureFile` | both HTML files | `buildCrmBusinessReport()` | read file | nomenclature/stock import table | high |
+| `crmReportBtn` | both HTML files | `buildCrmBusinessReport()` | event | report generation | medium |
+| `crmReportSaveBtn` | both HTML files | `saveCrmBusinessReport()` | event | saved CRM report | medium |
+| `crmReportTaskBtn` | both HTML files | `tasksFromCrmBusinessReport()` | event | generated tasks | medium |
+| `crmReportDashboard` | both HTML files | `renderCrmReportDashboard()` | write | report KPIs | low |
+| `crmReportOut` | both HTML files | report build/view/save | read/write | report text | medium |
+| `crmFolderBoard` | both HTML files | `renderCrmReportDashboard()` | write | smart folders | low |
+| `crmReportHistory` | both HTML files | `renderCrmReportDashboard()` | write/event delegation | saved report cards | medium |
+| `data-crm-report-view` | generated in app.js | `viewCrmReport()` binding | event | saved report id | medium |
+| `data-crm-template` | both HTML files | `useCrmTemplate()` | event | prompt template kind | low |
+
+### Quick deal field mapping
+
+| Input id | State location | Order field | Payment field |
+| --- | --- | --- | --- |
+| `crmOrderNumber` | `state.calendarOS.orders[]` | `orderNumber`, `title` | payment title/comment context |
+| `crmOrderDate` | `state.calendarOS.orders[]`, `state.calendarOS.payments[]` | `date`, `endDate` | `date` |
+| `crmClientName` | `state.calendarOS.orders[]`, payment row | `clientName` | `clientName` fallback |
+| `crmSchoolName` | `state.calendarOS.orders[]`, payment row | `schoolName`, createOrder `clientName` fallback | `clientName` preferred fallback |
+| `crmProductName` | `state.calendarOS.orders[]` | `productName`, `productsJson`, `title` | payment comment |
+| `crmQuantity` | `state.calendarOS.orders[]` | `quantity`; used for `totalAmount`, `costAmount` | none |
+| `crmPurchasePrice` | `state.calendarOS.orders[]` | `purchasePrice`; used for `costAmount`, `marginAmount` | none |
+| `crmSalePrice` | `state.calendarOS.orders[]` | `salePrice`; used for `totalAmount`, `marginAmount` | none |
+| `crmPaidAmount` | `state.calendarOS.orders[]`, `state.calendarOS.payments[]` | `paidAmount`, `debtAmount`, `paymentStatus` | `amount`, creates payment when > 0 |
+| `crmPaymentMethod` | `state.calendarOS.orders[]`, `state.calendarOS.payments[]` | `paymentMethod` | `category`, `method` |
+| `crmDocumentStatus` | `state.calendarOS.orders[]` | `documentStatus` | none |
+| `crmEsfStatus` | `state.calendarOS.orders[]` | `esfStatus` | none |
+| `crmOneCStatus` | `state.calendarOS.orders[]` | `oneCStatus` | none |
+| `crmComment` | `state.calendarOS.orders[]` | `comment` | payment comment context |
+
+### Proposed new Clients / Schools DOM fields
+
+Do not reuse the quick order ids. Add these later with a separate form, for
+example `crmClientForm`, so the current order form remains stable.
+
+Proposed ids:
+
+- `crmClientCardName` -> `client.clientName`
+- `crmClientSchoolName` -> `client.schoolName`
+- `crmClientBin` -> `client.bin`
+- `crmClientContactPerson` -> `client.contactPerson`
+- `crmClientPhone` -> `client.phone`
+- `crmClientWhatsapp` -> `client.whatsapp`
+- `crmClientAddress` -> `client.address`
+- `crmClientPaymentTerms` -> `client.paymentTerms`
+- `crmClientDebtLimit` -> `client.debtLimit`
+- `crmClientComment` -> `client.comment`
+
+### Migration plan without breaking current CRM form
+
+1. Keep `crmQuickForm` exactly as the order form.
+2. Add a new Clients / Schools section near the CRM operating panel, not inside
+   `crmQuickForm`.
+3. Store new client cards in `state.calendarOS.clients` first, because the app
+   already reads `calendarOS.clients` in CRM row rendering.
+4. Add a normalizer before any UI write:
+   - `normalizeCrmClientCard(client)`
+5. Add save function later:
+   - `saveCrmClientCard(event)`
+6. Add render function later:
+   - `renderCrmClientCards(cal)`
+7. Link quick orders to client cards only after the cards are stable:
+   - by `clientId` when selected
+   - fallback by `schoolName` / `clientName` for old data
+8. Keep old order rows working even when no client card exists.
+9. Add migration only as additive:
+   - never delete or rename existing `clientName` / `schoolName` fields
+   - never change `sanabase-state` localStorage key
+10. After browser smoke tests, consider moving pure CRM client helpers into
+    `public/js/crm.js`.
+
+### Next safe code step
+
+Add no runtime behavior yet. First create a small UI mock section in analysis or
+documentation showing where the Clients / Schools card should appear, then add
+only additive fields with empty state and no existing order mutation.

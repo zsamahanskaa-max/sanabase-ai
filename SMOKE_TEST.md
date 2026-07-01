@@ -47,6 +47,10 @@ Important limitation:
 
 GitHub Pages is static hosting. Backend API routes like `/api/ai` and `/api/import` may not work there. Use the local Node server or a Render/Vercel backend for full backend behavior.
 
+Cache version note:
+
+All frontend asset query versions were unified to `20260701-14` for `manifest.json`, `styles.css`, helper modules, and `app.js`.
+
 ## 1. Utility load check
 
 Open browser DevTools Console and run:

@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#28433f">
   <title>SanaBase AI</title>
-  <link rel="manifest" href="public/manifest.json?v=20260701-14">
-  <link rel="stylesheet" href="public/styles.css?v=20260701-14">
+  <link rel="manifest" href="public/manifest.json?v=20260701-15">
+  <link rel="stylesheet" href="public/styles.css?v=20260701-15">
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs" type="module"></script>
@@ -508,6 +508,29 @@ with check (true);</textarea>
             <div id="crmPipeline" class="crm-pipeline"></div>
             <div id="crmTable" class="crm-table"></div>
           </section>
+          <section class="crm-panel crm-clients-panel">
+            <div class="crm-panel-head">
+              <div>
+                <h3>Clients / Schools</h3>
+                <p>Клиент және мектеп карточкалары order формасын бұзбай бөлек қосылады.</p>
+              </div>
+            </div>
+            <form id="crmClientForm" class="crm-quick-form crm-client-form">
+              <input id="crmClientCardName" placeholder="clientName / клиент атауы">
+              <input id="crmClientSchoolName" placeholder="schoolName / мектеп немесе объект">
+              <input id="crmClientBin" placeholder="BIN / БИН">
+              <input id="crmClientContactPerson" placeholder="contactPerson / жауапты адам">
+              <input id="crmClientPhone" placeholder="phone / телефон">
+              <input id="crmClientWhatsapp" placeholder="whatsapp / WhatsApp">
+              <input id="crmClientAddress" placeholder="address / адрес">
+              <input id="crmClientPaymentTerms" placeholder="paymentTerms / төлем шарты">
+              <input id="crmClientDebtLimit" type="number" step="0.01" placeholder="debtLimit / қарыз лимиті">
+              <textarea id="crmClientComment" placeholder="comment / клиент туралы ескерту"></textarea>
+              <button type="submit">Клиент сақтау</button>
+            </form>
+            <div id="crmClientList" class="crm-doc-list"></div>
+            <pre id="crmClientOut">Клиент карточкалары келесі қадамда қосылады.</pre>
+          </section>
           <section class="crm-panel crm-report-center">
             <div class="crm-panel-head">
               <div>
@@ -958,12 +981,12 @@ with check (true);</textarea>
     </section>
   </div>
 
-  <script src="public/js/utils.js?v=20260701-14"></script>
-  <script src="public/js/storage.js?v=20260701-14"></script>
-  <script src="public/js/api.js?v=20260701-14"></script>
-  <script src="public/js/spreadsheet.js?v=20260701-14"></script>
-  <script src="public/js/documents.js?v=20260701-14"></script>
-  <script src="public/js/priceMatching.js?v=20260701-14"></script>
-  <script src="public/app.js?v=20260701-14"></script>
+  <script src="public/js/utils.js?v=20260701-15"></script>
+  <script src="public/js/storage.js?v=20260701-15"></script>
+  <script src="public/js/api.js?v=20260701-15"></script>
+  <script src="public/js/spreadsheet.js?v=20260701-15"></script>
+  <script src="public/js/documents.js?v=20260701-15"></script>
+  <script src="public/js/priceMatching.js?v=20260701-15"></script>
+  <script src="public/app.js?v=20260701-15"></script>
 </body>
 </html>

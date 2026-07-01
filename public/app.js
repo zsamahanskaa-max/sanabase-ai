@@ -109,6 +109,7 @@ on("quizBtn", "click", quiz);
 on("crmBtn", "click", crm);
 on("crmDocBtn", "click", createCrmDocument);
 on("crmDownloadBtn", "click", downloadCrmDocument);
+on("crmClientForm", "submit", saveCrmClientCard);
 on("crmQuickForm", "submit", saveCrmQuickDeal);
 on("crmSearch", "input", render);
 on("crmStatusFilter", "change", render);
@@ -678,7 +679,77 @@ function renderCrmWorkspace() {
     "Әр ұсыныстан кейін: коммерциялық ұсыныс жіберілді ме, жауап келді ме, келесі қоңырау күні бар ма.",
     "Қауіпті жер: қарыз, кешіккен жеткізілім, код/баға сәйкес келмеуі, ESF мерзімі."
   ].map(item => `<p>${item}</p>`).join("");
+  renderCrmClientPlaceholder();
   renderCrmOperatingPanel(cal);
+}
+
+function renderCrmClientPlaceholder() {
+  const cal = calendarData();
+  const clients = activeCalItems(cal.clients).map(normalizeCrmClientCard);
+  if ($("crmClientList")) {
+    $("crmClientList").innerHTML = clients.slice(0, 12).map(client => `
+      <article class="crm-doc-card">
+        <div>
+          <h4>${escapeHtml(client.schoolName || client.name || "Клиент")}</h4>
+          <span>${escapeHtml(client.bin || "BIN жоқ")} · ${escapeHtml(client.phone || client.whatsapp || "байланыс жоқ")}</span>
+        </div>
+        <p>${escapeHtml(client.contactPerson || client.paymentTerms || client.comment || "Клиент карточкасы сақталды.")}</p>
+        <small>Қарыз лимиті: ${money(client.debtLimit)} · Келесі әрекет: ${escapeHtml(client.nextActionDate || "-")}</small>
+      </article>
+    `).join("") || `<article class="crm-doc-card"><h4>Clients / Schools</h4><p>Клиент карточкалары келесі қадамда қосылады.</p></article>`;
+  }
+  if ($("crmClientOut")) $("crmClientOut").textContent = clients.length
+    ? `Клиент карточкалары: ${clients.length}`
+    : "Клиент карточкалары келесі қадамда қосылады.";
+}
+
+function normalizeCrmClientCard(client = {}) {
+  return {
+    ...client,
+    id: client.id || crypto.randomUUID(),
+    type: client.type || "client",
+    businessType: client.businessType || "b2b_school",
+    name: client.name || client.clientName || client.schoolName || "",
+    clientName: client.clientName || client.name || "",
+    schoolName: client.schoolName || client.name || "",
+    bin: client.bin || "",
+    contactPerson: client.contactPerson || client.contactName || "",
+    phone: client.phone || "",
+    whatsapp: client.whatsapp || "",
+    address: client.address || "",
+    paymentTerms: client.paymentTerms || "",
+    debtLimit: Number(client.debtLimit || 0),
+    currentDebt: Number(client.currentDebt || client.totalDebt || 0),
+    comment: client.comment || client.notes || "",
+    createdAt: client.createdAt || nowIso(),
+    updatedAt: client.updatedAt || nowIso(),
+    archivedAt: client.archivedAt || ""
+  };
+}
+
+function saveCrmClientCard(event) {
+  event.preventDefault();
+  const cal = calendarData();
+  const client = normalizeCrmClientCard({
+    clientName: $("crmClientCardName")?.value?.trim() || "",
+    schoolName: $("crmClientSchoolName")?.value?.trim() || "",
+    bin: $("crmClientBin")?.value?.trim() || "",
+    contactPerson: $("crmClientContactPerson")?.value?.trim() || "",
+    phone: $("crmClientPhone")?.value?.trim() || "",
+    whatsapp: $("crmClientWhatsapp")?.value?.trim() || "",
+    address: $("crmClientAddress")?.value?.trim() || "",
+    paymentTerms: $("crmClientPaymentTerms")?.value?.trim() || "",
+    debtLimit: Number($("crmClientDebtLimit")?.value || 0),
+    comment: $("crmClientComment")?.value?.trim() || ""
+  });
+  if (!client.clientName && !client.schoolName && !client.bin) return;
+  client.name = client.schoolName || client.clientName || client.bin;
+  cal.clients.unshift(client);
+  logHistory("crm_client", client.id, "CRM client card қосу", null, client, "Clients / Schools form");
+  event.target.reset();
+  persist();
+  render();
+  if ($("crmClientOut")) $("crmClientOut").textContent = `Клиент карточкасы сақталды: ${client.name}`;
 }
 
 function renderCrmOperatingPanel(cal = calendarData()) {

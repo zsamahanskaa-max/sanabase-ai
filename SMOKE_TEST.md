@@ -144,6 +144,11 @@ true
 3. Save it.
 4. Confirm the new row appears in the CRM operating panel.
 5. Confirm total, paid, and debt values render without console errors.
+6. Confirm the Clients / Schools section is visible.
+7. Save a simple Clients / Schools card.
+8. Confirm the new client card appears in the Clients / Schools list.
+9. Confirm the existing CRM quick save still works after the new section appears.
+10. Confirm no browser Console error appears.
 
 ## 3. Task add
 
@@ -185,6 +190,8 @@ true
 ## 7. Manual browser checklist still required
 
 - CRM quick save
+- Clients / Schools section visible
+- Clients / Schools card save
 - Tasks add
 - CFO auto report
 - Excel document import

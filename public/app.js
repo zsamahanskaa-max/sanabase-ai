@@ -62,7 +62,7 @@ const {
 } = window.SanaPriceMatching;
 
 const state = loadState();
-const BACKUP_VERSION = "20260702-13";
+const BACKUP_VERSION = "20260702-14";
 const CRM_PIPELINE_STATUSES = [
   ["new", "Жаңа заказ"],
   ["calculating", "На просчете"],
@@ -1463,6 +1463,7 @@ function renderCrmOperatingPanel(cal = calendarData()) {
         <span>${escapeHtml(row.oneCStatus || "-")}</span>
         <span>${escapeHtml(row.comment || "-")}</span>
         <span class="crm-row-actions">
+          <button type="button" data-crm-order-detail="${escapeHtml(row.id)}">Details</button>
           <button type="button" data-crm-action-panel="${escapeHtml(row.id)}">Actions</button>
           <button type="button" data-crm-next-status="${escapeHtml(row.id)}">Next status</button>
           <button type="button" data-crm-task="${escapeHtml(row.id)}">Task</button>
@@ -1477,11 +1478,17 @@ function renderCrmOperatingPanel(cal = calendarData()) {
   $("crmPipeline").querySelectorAll("[data-crm-next-status]").forEach(button => {
     button.addEventListener("click", () => advanceCrmPipelineStatus(button.dataset.crmNextStatus));
   });
+  $("crmPipeline").querySelectorAll("[data-crm-order-detail]").forEach(button => {
+    button.addEventListener("click", () => openCrmOrderDetail(button.dataset.crmOrderDetail));
+  });
   $("crmPipeline").querySelectorAll("[data-crm-action-panel]").forEach(button => {
     button.addEventListener("click", () => openCrmOrderActionPanel(button.dataset.crmActionPanel));
   });
   $("crmTable").querySelectorAll("[data-crm-next-status]").forEach(button => {
     button.addEventListener("click", () => advanceCrmPipelineStatus(button.dataset.crmNextStatus));
+  });
+  $("crmTable").querySelectorAll("[data-crm-order-detail]").forEach(button => {
+    button.addEventListener("click", () => openCrmOrderDetail(button.dataset.crmOrderDetail));
   });
   $("crmTable").querySelectorAll("[data-crm-action-panel]").forEach(button => {
     button.addEventListener("click", () => openCrmOrderActionPanel(button.dataset.crmActionPanel));
@@ -1548,6 +1555,7 @@ function crmDealCard(row) {
       <small>${escapeHtml(row.productName || "Тауар жоқ")}</small>
       <small>Status: ${escapeHtml(row.pipelineStatusLabel || crmPipelineStatusLabel(row.pipelineStatus))}</small>
       <small>Total: ${money(row.amount)} · Debt: ${money(row.debt)}</small>
+      <button type="button" data-crm-order-detail="${escapeHtml(row.id)}">Details</button>
       <button type="button" data-crm-action-panel="${escapeHtml(row.id)}">Status action</button>
       <button type="button" data-crm-next-status="${escapeHtml(row.id)}">Next status</button>
     </article>
@@ -1633,6 +1641,263 @@ function crmOrderActionText(row, action) {
   return [`${label}:`, ...base].join("\n");
 }
 
+function findCrmOrderRow(orderId) {
+  return crmDealRows(calendarData()).find(item => item.id === orderId);
+}
+
+function findCrmRawOrder(orderId) {
+  return (calendarData().orders || []).find(item => item.id === orderId);
+}
+
+function crmOrderDetailTabs(activeTab, orderId) {
+  const tabs = [
+    ["overview", "Overview"],
+    ["pipeline", "Pipeline"],
+    ["client", "Client"],
+    ["payment", "Payment"],
+    ["tasks", "Tasks"],
+    ["whatsapp", "WhatsApp"],
+    ["notes", "Notes"]
+  ];
+  return tabs.map(([id, label]) => `
+    <button type="button" class="${activeTab === id ? "active" : ""}" data-crm-order-detail-tab="${escapeHtml(id)}" data-order-id="${escapeHtml(orderId)}">${label}</button>
+  `).join("");
+}
+
+function crmOrderDetailGrid(items) {
+  return `
+    <div class="crm-client-profile-grid">
+      ${items.map(([label, value]) => `
+        <div>
+          <span>${escapeHtml(label)}</span>
+          <strong>${escapeHtml(String(value ?? "-"))}</strong>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
+function crmOrderDetailOverview(row) {
+  return crmOrderDetailGrid([
+    ["orderNumber", row.orderNumber || row.title || "-"],
+    ["date", String(row.date || "").slice(0, 10) || "-"],
+    ["productName", row.productName || "-"],
+    ["quantity", row.quantity || 0],
+    ["purchasePrice", money(row.purchasePrice)],
+    ["salePrice", money(row.salePrice)],
+    ["totalAmount", money(row.amount)],
+    ["costAmount", money(row.costAmount)],
+    ["marginAmount", money(row.marginAmount)],
+    ["paidAmount", money(row.paidAmount)],
+    ["debtAmount", money(row.debt)],
+    ["paymentStatus", row.debt > 0 ? "debt" : "paid/clear"],
+    ["pipelineStatus", row.pipelineStatusLabel || crmPipelineStatusLabel(row.pipelineStatus)]
+  ]);
+}
+
+function crmOrderDetailPipeline(row, rawOrder = {}) {
+  return `
+    <div class="crm-client-profile-empty">
+      <h4>Pipeline</h4>
+      <p>Current status: <strong>${escapeHtml(row.pipelineStatusLabel || crmPipelineStatusLabel(row.pipelineStatus))}</strong></p>
+      <p>updatedAt: ${escapeHtml(rawOrder.updatedAt || "-")}</p>
+      <div class="crm-order-detail-actions">
+        <button type="button" data-crm-order-detail-next="${escapeHtml(row.id)}">Next status</button>
+        <button type="button" data-crm-order-detail-action-panel="${escapeHtml(row.id)}">Status action</button>
+      </div>
+    </div>
+  `;
+}
+
+function crmOrderDetailClient(row) {
+  const cal = calendarData();
+  const client = row.clientId ? (cal.clients || []).find(item => item.id === row.clientId) : null;
+  if (client) {
+    return `
+      ${crmOrderDetailGrid([
+        ["clientId", client.id],
+        ["clientName", client.name || client.clientName || "-"],
+        ["schoolName", client.schoolName || "-"],
+        ["BIN", client.bin || "-"],
+        ["phone", client.phone || "-"],
+        ["whatsapp", client.whatsapp || "-"],
+        ["address", client.address || "-"]
+      ])}
+      <button type="button" data-crm-order-open-client="${escapeHtml(client.id)}">Open Client Profile</button>
+    `;
+  }
+  return crmOrderDetailGrid([
+    ["clientId", "-"],
+    ["clientName", row.clientName || "-"],
+    ["schoolName", row.schoolName || "-"],
+    ["fallback", "clientName / schoolName"]
+  ]);
+}
+
+function crmOrderDetailPayment(row) {
+  return `
+    ${crmOrderDetailGrid([
+      ["total", money(row.amount)],
+      ["paid", money(row.paidAmount)],
+      ["debt", money(row.debt)],
+      ["paymentMethod", row.paymentMethod || "-"]
+    ])}
+    ${row.debt > 0 ? `<div class="crm-order-detail-warning">Debt warning: ${money(row.debt)} төлемі ашық тұр.</div>` : `<div class="crm-order-detail-ok">Debt жоқ.</div>`}
+  `;
+}
+
+function crmOrderDetailTasks(row) {
+  const tasks = activeCalItems(calendarData().tasks).filter(task => task.orderId === row.id);
+  return `
+    <div class="crm-client-profile-list">
+      ${tasks.map(task => `
+        <article>
+          <strong>${escapeHtml(task.title || "Task")}</strong>
+          <span>${escapeHtml(task.status || "open")} · ${escapeHtml(task.date || task.dueDate || task.due || "-")}</span>
+        </article>
+      `).join("") || `<p class="crm-client-profile-empty">Бұл order бойынша task жоқ.</p>`}
+    </div>
+    <button type="button" data-crm-order-detail-task="${escapeHtml(row.id)}">Create order task</button>
+  `;
+}
+
+function crmOrderWhatsappDrafts(row) {
+  return {
+    followUp: [
+      `Сәлеметсіз бе! ${row.schoolName || row.clientName || "клиент"} бойынша заказ статусын нақтылап жіберейін.`,
+      `Заказ: ${row.orderNumber || row.title || row.id}`,
+      `Тауар: ${row.productName || "-"}`,
+      `Статус: ${row.pipelineStatusLabel || crmPipelineStatusLabel(row.pipelineStatus)}`,
+      `Сумма: ${money(row.amount)}`
+    ].join("\n"),
+    debt: [
+      `Сәлеметсіз бе! ${row.schoolName || row.clientName || "клиент"} бойынша төлемді нақтылап жіберіңізші.`,
+      `Заказ: ${row.orderNumber || row.title || row.id}`,
+      `Қарыз: ${money(row.debt)}`,
+      "Төлем жасалған болса, платежка/чек жіберіңізші."
+    ].join("\n")
+  };
+}
+
+function crmOrderDetailWhatsapp(row) {
+  const drafts = crmOrderWhatsappDrafts(row);
+  return `
+    <div class="crm-client-whatsapp-drafts">
+      <article>
+        <strong>Order follow-up</strong>
+        <pre>${escapeHtml(drafts.followUp)}</pre>
+        <button type="button" data-crm-order-copy="followUp">Copy</button>
+      </article>
+      <article>
+        <strong>Қарыз сұрау</strong>
+        <pre>${escapeHtml(drafts.debt)}</pre>
+        <button type="button" data-crm-order-copy="debt">Copy</button>
+      </article>
+    </div>
+  `;
+}
+
+function crmOrderDetailNotes(row, rawOrder = {}) {
+  return `
+    <div class="crm-client-profile-empty">
+      <h4>Read-only comment</h4>
+      <pre>${escapeHtml(rawOrder.comment || row.comment || "Comment жоқ.")}</pre>
+    </div>
+  `;
+}
+
+function renderCrmOrderDetail(row, activeTab = "overview") {
+  const modal = $("crmOrderDetailModal");
+  const tabs = $("crmOrderDetailTabs");
+  const body = $("crmOrderDetailBody");
+  const title = $("crmOrderDetailTitle");
+  const sub = $("crmOrderDetailSub");
+  if (!modal || !tabs || !body) return;
+  const rawOrder = findCrmRawOrder(row.id) || {};
+  const drafts = crmOrderWhatsappDrafts(row);
+  if (title) title.textContent = row.orderNumber || row.title || "Order Detail";
+  if (sub) sub.textContent = `${row.schoolName || row.clientName || "Client жоқ"} · ${money(row.amount)} · ${row.pipelineStatusLabel || crmPipelineStatusLabel(row.pipelineStatus)}`;
+  tabs.innerHTML = crmOrderDetailTabs(activeTab, row.id);
+  body.dataset.orderId = row.id;
+  body.dataset.activeTab = activeTab;
+  body.dataset.whatsappFollowUp = drafts.followUp;
+  body.dataset.whatsappDebt = drafts.debt;
+  body.innerHTML = {
+    overview: crmOrderDetailOverview(row),
+    pipeline: crmOrderDetailPipeline(row, rawOrder),
+    client: crmOrderDetailClient(row),
+    payment: crmOrderDetailPayment(row),
+    tasks: crmOrderDetailTasks(row),
+    whatsapp: crmOrderDetailWhatsapp(row),
+    notes: crmOrderDetailNotes(row, rawOrder)
+  }[activeTab] || crmOrderDetailOverview(row);
+  bindCrmOrderDetailActions();
+}
+
+function openCrmOrderDetail(orderId, tab = "overview") {
+  const row = findCrmOrderRow(orderId);
+  const modal = $("crmOrderDetailModal");
+  if (!row || !modal) return;
+  modal.hidden = false;
+  modal.dataset.orderId = orderId;
+  renderCrmOrderDetail(row, tab);
+}
+
+function closeCrmOrderDetail() {
+  const modal = $("crmOrderDetailModal");
+  if (modal) modal.hidden = true;
+}
+
+async function copyCrmOrderDetailText(type) {
+  const body = $("crmOrderDetailBody");
+  const text = {
+    followUp: body?.dataset.whatsappFollowUp || "",
+    debt: body?.dataset.whatsappDebt || ""
+  }[type] || "";
+  if (!text) return;
+  try {
+    await copyCrmOrderActionText(text);
+    if ($("crmOut")) $("crmOut").textContent = "Order WhatsApp text copied.";
+  } catch (error) {
+    if ($("crmOut")) $("crmOut").textContent = `Copy error: ${error.message}`;
+  }
+}
+
+function bindCrmOrderDetailActions() {
+  const modal = $("crmOrderDetailModal");
+  const body = $("crmOrderDetailBody");
+  if (!modal || !body) return;
+  modal.querySelectorAll("[data-crm-order-detail-close]").forEach(button => {
+    button.addEventListener("click", closeCrmOrderDetail);
+  });
+  modal.querySelectorAll("[data-crm-order-detail-tab]").forEach(button => {
+    button.addEventListener("click", () => openCrmOrderDetail(button.dataset.orderId, button.dataset.crmOrderDetailTab));
+  });
+  body.querySelectorAll("[data-crm-order-detail-next]").forEach(button => {
+    button.addEventListener("click", () => {
+      advanceCrmPipelineStatus(button.dataset.crmOrderDetailNext);
+      openCrmOrderDetail(button.dataset.crmOrderDetailNext, "pipeline");
+    });
+  });
+  body.querySelectorAll("[data-crm-order-detail-action-panel]").forEach(button => {
+    button.addEventListener("click", () => {
+      closeCrmOrderDetail();
+      openCrmOrderActionPanel(button.dataset.crmOrderDetailActionPanel);
+    });
+  });
+  body.querySelectorAll("[data-crm-order-detail-task]").forEach(button => {
+    button.addEventListener("click", () => {
+      createCrmFollowUpTask(button.dataset.crmOrderDetailTask);
+      openCrmOrderDetail(button.dataset.crmOrderDetailTask, "tasks");
+    });
+  });
+  body.querySelectorAll("[data-crm-order-copy]").forEach(button => {
+    button.addEventListener("click", () => copyCrmOrderDetailText(button.dataset.crmOrderCopy));
+  });
+  body.querySelectorAll("[data-crm-order-open-client]").forEach(button => {
+    button.addEventListener("click", () => openCrmClientProfile(button.dataset.crmOrderOpenClient));
+  });
+}
 function openCrmOrderActionPanel(orderId, message = "") {
   const panel = $("crmOrderActionPanel");
   if (!panel) return;

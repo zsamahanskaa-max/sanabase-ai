@@ -395,6 +395,24 @@ Frontend asset query versions were updated to `20260702-13`. Manual checks to ru
 10. Confirm Backup Center export/import still works.
 11. Confirm no browser Console error appears.
 
+## 16. CRM order detail modal
+
+Frontend asset query versions were updated to `20260702-14`. Manual checks to run:
+
+1. Create a quick order.
+2. Confirm the CRM table row shows `Details`.
+3. Confirm the Kanban card shows `Details`.
+4. Open Details from the table row.
+5. Open Details from the Kanban card.
+6. Switch tabs: Overview, Pipeline, Client, Payment, Tasks, WhatsApp, Notes.
+7. Confirm Pipeline -> `Next status` still updates the order.
+8. Confirm Pipeline -> `Status action` still opens the action panel.
+9. Confirm Tasks -> `Create order task` creates a task.
+10. Confirm WhatsApp copy buttons copy or report a copy fallback.
+11. Confirm Client tab opens Client Profile when `clientId` exists.
+12. Confirm Backup Center export/import still works.
+13. Confirm no browser Console error appears.
+
 ## Pass criteria
 
 - `public/js/utils.js` loads before `public/app.js`.

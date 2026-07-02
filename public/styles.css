@@ -495,6 +495,34 @@ textarea:focus, input:focus, select:focus { border-color: var(--leaf); }
   background: rgba(96, 245, 210, .1);
 }
 
+.crm-order-detail-dialog {
+  width: min(1040px, 100%);
+}
+
+.crm-order-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.crm-order-detail-warning,
+.crm-order-detail-ok {
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.crm-order-detail-warning {
+  background: rgba(217, 119, 6, .18);
+  color: #ffedd5;
+}
+
+.crm-order-detail-ok {
+  background: rgba(96, 245, 210, .1);
+  color: #dff7eb;
+}
+
 .crm-stage {
   border: 1px solid var(--line);
   border-radius: 8px;

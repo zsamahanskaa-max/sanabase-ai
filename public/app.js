@@ -186,6 +186,7 @@ on("cloudSignInBtn", "click", () => handleCloudAuth("signin"));
 on("cloudSignOutBtn", "click", () => runCloudSyncAction("signOut"));
 on("cloudSaveBtn", "click", () => runCloudSyncAction("saveToCloud"));
 on("cloudLoadBtn", "click", () => runCloudSyncAction("loadFromCloud"));
+on("cloudCheckBtn", "click", () => runCloudSyncAction("checkSync"));
 on("clearDocs", "click", () => {
   if (!confirm("Барлық сақталған құжаттарды өшіреміз бе?")) return;
   state.docs = [];

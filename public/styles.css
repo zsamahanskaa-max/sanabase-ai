@@ -2192,6 +2192,27 @@ pre {
   color: #9a3412;
 }
 
+.cloud-diagnostics {
+  border: 1px solid rgba(20, 83, 45, .22);
+  border-radius: 8px;
+  background: #f0fdf4;
+  color: #14532d;
+  padding: 12px;
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.cloud-diagnostics[hidden] {
+  display: none;
+}
+
+.cloud-diagnostics span {
+  color: #166534;
+  overflow-wrap: anywhere;
+}
+
 .cloud-sql summary {
   cursor: pointer;
   color: var(--sage);

@@ -486,6 +486,21 @@ Frontend asset query versions were updated to `20260703-02`. Manual checks to ru
 4. Confirm `Invalid login credentials` is not shown raw to the user.
 5. Confirm no browser Console error appears.
 
+## 22. Cloud Sync diagnostics
+
+Frontend asset query versions were updated to `20260703-03`. Manual checks to run:
+
+1. Open the Brain / Екінші ми section on phone and laptop.
+2. Confirm the Cloud Sync helper text says email confirmation is not enough: after email link, enter the same email/password and tap `Кіру`.
+3. Tap `Sync тексеру` before sign in and confirm diagnostics show account is not signed in.
+4. Sign in with the same email/password.
+5. Tap `Sync тексеру` and confirm it shows local key count and whether cloud data exists.
+6. On the device that already has SanaBase data, tap `Бұлтқа сақтау`.
+7. On the second device, sign in with the same account, tap `Sync тексеру`, then tap `Бұлттан алу`.
+8. Confirm CRM clients/orders/tasks appear after restore.
+9. Confirm Backup Center export/import still works.
+10. Confirm no browser Console error appears.
+
 ## Pass criteria
 
 - `public/js/utils.js` loads before `public/app.js`.

@@ -17,6 +17,10 @@
     return document.getElementById("cloudConflictPanel");
   }
 
+  function diagnosticsNode() {
+    return document.getElementById("cloudDiagnostics");
+  }
+
   function setStatus(message, ok = false) {
     const node = statusNode();
     if (!node) return;
@@ -144,6 +148,54 @@
     return [...keys].sort();
   }
 
+  function nextStepText({ signedIn, cloudFound, localCount }) {
+    if (!signedIn) {
+      return "Email link расталғаннан кейін де осы жерде email/password жазып, Кіру басыңыз.";
+    }
+    if (!cloudFound && localCount > 0) {
+      return "Бұл негізгі құрылғы болса, Бұлтқа сақтау басыңыз. Содан кейін телефонда Кіру және Бұлттан алу басылады.";
+    }
+    if (!cloudFound) {
+      return "Cloud-та дерек жоқ. Алдымен дерек бар құрылғыдан Бұлтқа сақтау басу керек.";
+    }
+    return "Cloud-та дерек бар. Екінші құрылғыда Бұлттан алу бассаңыз, дерек көшеді.";
+  }
+
+  function renderDiagnostics(info = {}) {
+    const node = diagnosticsNode();
+    if (!node) return;
+    const localKeys = Array.isArray(info.localKeys) ? info.localKeys : getLocalKeys();
+    const signedIn = Boolean(info.session?.user?.id);
+    const cloudFound = Boolean(info.cloud?.payload);
+    const cloudKeys = Array.isArray(info.cloud?.local_keys)
+      ? info.cloud.local_keys.length
+      : Object.keys(info.cloud?.payload || {}).filter(key => key !== "_metadata").length;
+    const email = info.session?.user?.email || "Кірмеген";
+    const nextStep = nextStepText({ signedIn, cloudFound, localCount: localKeys.length });
+    node.hidden = false;
+    node.innerHTML = `
+      <strong>Sync диагностика</strong>
+      <span>Аккаунт: ${escapeHtml(email)}</span>
+      <span>Local дерек: ${localKeys.length} key</span>
+      <span>Cloud дерек: ${cloudFound ? `${cloudKeys} key` : "жоқ"}</span>
+      <span>Cloud updated: ${escapeHtml(info.cloud?.updated_at || "жоқ")}</span>
+      <span>Келесі қадам: ${escapeHtml(nextStep)}</span>
+    `;
+  }
+
+  async function fetchCloudStateForSession(session) {
+    const supabase = initSupabase();
+    if (!supabase || !session?.user?.id) return null;
+    const { data, error } = await supabase
+      .from(CLOUD_TABLE)
+      .select("payload, local_keys, updated_at, device_label")
+      .eq("user_id", session.user.id)
+      .eq("workspace_id", WORKSPACE_ID)
+      .maybeSingle();
+    if (error) throw error;
+    return data || null;
+  }
+
   function collectLocalData() {
     const payload = {};
     getLocalKeys().forEach(key => {
@@ -215,14 +267,7 @@
     const supabase = initSupabase();
     if (!supabase) return null;
     const session = await requireSession();
-    const { data, error } = await supabase
-      .from(CLOUD_TABLE)
-      .select("payload, local_keys, updated_at, device_label")
-      .eq("user_id", session.user.id)
-      .eq("workspace_id", WORKSPACE_ID)
-      .maybeSingle();
-    if (error) throw error;
-    lastCloudState = data || null;
+    lastCloudState = await fetchCloudStateForSession(session);
     return lastCloudState;
   }
 
@@ -250,6 +295,35 @@
     const result = compareDates(localUpdatedAt, cloudUpdatedAt);
     renderConflict(cloud, result, localUpdatedAt);
     return { result, localUpdatedAt, cloudUpdatedAt, cloud };
+  }
+
+  async function checkSync() {
+    if (!hasConfig()) {
+      setBadge("Not configured");
+      setActionState(null);
+      setStatus("Cloud Sync: баптау жоқ. Supabase URL және anon key қосылуы керек.", false);
+      renderDiagnostics({ localKeys: getLocalKeys(), session: null, cloud: null });
+      return null;
+    }
+    const session = await getSession();
+    setActionState(session);
+    if (!session?.user?.id) {
+      setBadge("Configured");
+      renderDiagnostics({ localKeys: getLocalKeys(), session: null, cloud: null });
+      setStatus("Cloud Sync: әлі аккаунтқа кірмегенсіз. Email/password жазып, Кіру басыңыз.", false);
+      return null;
+    }
+    const cloud = await fetchCloudStateForSession(session);
+    lastCloudState = cloud;
+    renderDiagnostics({ localKeys: getLocalKeys(), session, cloud });
+    if (cloud?.payload) {
+      setBadge("Cloud ready");
+      setStatus("Cloud Sync: cloud-та дерек бар. Бұлттан алу арқылы екінші құрылғыға көшіруге болады.", true);
+    } else {
+      setBadge("No cloud data");
+      setStatus("Cloud Sync: аккаунтқа кірдіңіз, бірақ cloud-та дерек жоқ. Дерек бар құрылғыдан Бұлтқа сақтау басыңыз.", false);
+    }
+    return { session, cloud };
   }
 
   function compareDates(localUpdatedAt, cloudUpdatedAt) {
@@ -357,6 +431,7 @@
     getCloudState,
     compareLocalCloud,
     renderCloudStatus,
+    checkSync,
     getLocalKeys
   };
 

@@ -257,6 +257,23 @@ true
 - Price matching
 - AI chat fallback
 
+## 8. Backup Center
+
+Frontend asset query versions were updated to `20260702-06`. Manual checks to run:
+
+1. Open Backup Center.
+2. Click `Export all data`.
+3. Confirm `sanabase-backup-YYYY-MM-DD.json` downloads.
+4. Choose that JSON file in `Choose backup JSON`.
+5. Click `Import backup`.
+6. Confirm the restore prompt appears before overwrite.
+7. Confirm import status appears after approval.
+8. Refresh the page after import.
+9. Confirm CRM clients are still saved.
+10. Confirm Tasks are still saved.
+11. Confirm Goals are still saved.
+12. Confirm no browser Console error appears.
+
 ## Pass criteria
 
 - `public/js/utils.js` loads before `public/app.js`.

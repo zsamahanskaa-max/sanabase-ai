@@ -996,6 +996,21 @@ pre {
   line-height: 1.5;
 }
 
+.backup-center {
+  max-width: 900px;
+}
+
+.backup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 14px 0;
+}
+
+#backupOut {
+  min-height: 140px;
+}
+
 .notes-layout {
   display: grid;
   grid-template-columns: 360px 1fr;

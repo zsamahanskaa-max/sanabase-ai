@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#28433f">
   <title>SanaBase AI</title>
-  <link rel="manifest" href="manifest.json?v=20260702-05">
-  <link rel="stylesheet" href="styles.css?v=20260702-05">
+  <link rel="manifest" href="manifest.json?v=20260702-06">
+  <link rel="stylesheet" href="styles.css?v=20260702-06">
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs" type="module"></script>
@@ -34,6 +34,7 @@
       <button class="nav-item" data-view="tasks">Тапсырмалар</button>
       <button class="nav-item" data-view="goals">Фокус орталығы</button>
       <button class="nav-item" data-view="notes">Жазбалар</button>
+      <button class="nav-item" data-view="backupCenter">Backup Center</button>
     </nav>
     <div class="status">
       <span id="docCount">0 құжат</span>
@@ -943,6 +944,24 @@ with check (true);</textarea>
         </div>
       </div>
     </section>
+
+    <section class="view" id="backupCenter">
+      <div class="backup-center">
+        <section class="tool-card">
+          <h2>Backup Center</h2>
+          <p class="muted">Export/import SanaBase localStorage data. GitHub Pages is static, so this backup works inside this browser.</p>
+          <div class="backup-actions">
+            <button id="exportAllDataBtn" type="button">Export all data</button>
+            <label class="upload">
+              <input id="importBackupFile" type="file" accept=".json,application/json">
+              Choose backup JSON
+            </label>
+            <button id="importBackupBtn" type="button">Import backup</button>
+          </div>
+          <pre id="backupOut">Backup Center ready.</pre>
+        </section>
+      </div>
+    </section>
   </main>
 
   <div class="sanabot" id="sanabot">
@@ -991,12 +1010,12 @@ with check (true);</textarea>
     </section>
   </div>
 
-  <script src="js/utils.js?v=20260702-05"></script>
-  <script src="js/storage.js?v=20260702-05"></script>
-  <script src="js/api.js?v=20260702-05"></script>
-  <script src="js/spreadsheet.js?v=20260702-05"></script>
-  <script src="js/documents.js?v=20260702-05"></script>
-  <script src="js/priceMatching.js?v=20260702-05"></script>
-  <script src="app.js?v=20260702-05"></script>
+  <script src="js/utils.js?v=20260702-06"></script>
+  <script src="js/storage.js?v=20260702-06"></script>
+  <script src="js/api.js?v=20260702-06"></script>
+  <script src="js/spreadsheet.js?v=20260702-06"></script>
+  <script src="js/documents.js?v=20260702-06"></script>
+  <script src="js/priceMatching.js?v=20260702-06"></script>
+  <script src="app.js?v=20260702-06"></script>
 </body>
 </html>

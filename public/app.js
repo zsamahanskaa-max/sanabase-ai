@@ -62,6 +62,7 @@ const {
 } = window.SanaPriceMatching;
 
 const state = loadState();
+const BACKUP_VERSION = "20260702-06";
 const DEFAULT_CLOUD_CONFIG = {
   url: "https://koszjmsanlxdakqvdkgc.supabase.co",
   key: "sb_publishable_y7IIJav4n99Z1dbfROh3SA_TtlAn5tO",
@@ -85,7 +86,8 @@ const titles = {
   crm: ["CRM талдау", "Excel/CSV CRM базасын талдаңыз."],
   tasks: ["Тапсырмалар", "Trello сияқты тапсырмалар тақтасы."],
   goals: ["Мақсаттар орталығы / Focus Center", "Мақсат, проект, жоспар, тапсырма және әдет бір жерде байланысып тұрады."],
-  notes: ["Жазбалар", "Ойлар мен конспектілерді сақтаңыз."]
+  notes: ["Жазбалар", "Ойлар мен конспектілерді сақтаңыз."],
+  backupCenter: ["Backup Center", "Export/import SanaBase localStorage data."]
 };
 
 const $ = (id) => document.getElementById(id);
@@ -155,6 +157,8 @@ on("noteForm", "submit", saveNote);
 on("noteSearch", "input", render);
 on("noteFolderFilter", "change", render);
 on("noteQuickFolderBtn", "click", useSelectedNoteFolder);
+on("exportAllDataBtn", "click", exportAllData);
+on("importBackupBtn", "click", importBackupData);
 on("searchDocs", "input", render);
 on("brainSearch", "input", render);
 on("brainCrmBtn", "click", brainCrm);
@@ -2939,6 +2943,123 @@ function downloadJson(filename, data) {
   link.download = filename;
   link.click();
   URL.revokeObjectURL(link.href);
+}
+
+function setBackupStatus(message) {
+  const out = $("backupOut");
+  if (out) out.textContent = message;
+}
+
+function backupKeyList() {
+  const exactKeys = [
+    "sanabase-state",
+    "sanabase-cloud",
+    "sanabase-reminders-enabled",
+    "goals",
+    "projects",
+    "challenges",
+    "zhadyra_goals",
+    "zhadyra_projects",
+    "zhadyra_plans",
+    "zhadyra_tasks",
+    "zhadyra_habits",
+    "zhadyra_challenges",
+    "zhadyra_1c_excel",
+    "zhadyra_crm_reports",
+    "zhadyra_cfo"
+  ];
+  const keys = new Set();
+  exactKeys.forEach(key => {
+    if (localStorage.getItem(key) !== null) keys.add(key);
+  });
+  for (let index = 0; index < localStorage.length; index += 1) {
+    const key = localStorage.key(index);
+    if (!key) continue;
+    if (key.startsWith("sanabase-") || key.startsWith("zhadyra_") || key.startsWith("sanabot-")) keys.add(key);
+  }
+  return [...keys].sort();
+}
+
+function buildBackupPayload() {
+  const keys = backupKeyList();
+  const data = {};
+  keys.forEach(key => {
+    data[key] = localStorage.getItem(key);
+  });
+  return {
+    metadata: {
+      app: "SanaBase",
+      version: BACKUP_VERSION,
+      exportedAt: new Date().toISOString(),
+      keys
+    },
+    data
+  };
+}
+
+function exportAllData() {
+  const backup = buildBackupPayload();
+  downloadJson(`sanabase-backup-${isoDate()}.json`, backup);
+  setBackupStatus(`Export ready.\nVersion: ${backup.metadata.version}\nKeys: ${backup.metadata.keys.length}\nFile: sanabase-backup-${isoDate()}.json`);
+}
+
+function isValidBackupPayload(payload) {
+  if (!payload || typeof payload !== "object") return false;
+  if (!payload.metadata || payload.metadata.app !== "SanaBase") return false;
+  if (!Array.isArray(payload.metadata.keys)) return false;
+  if (!payload.data || typeof payload.data !== "object" || Array.isArray(payload.data)) return false;
+  return payload.metadata.keys.every(key =>
+    typeof key === "string" &&
+    Object.prototype.hasOwnProperty.call(payload.data, key) &&
+    (typeof payload.data[key] === "string" || payload.data[key] === null)
+  );
+}
+
+async function importBackupData() {
+  const input = $("importBackupFile");
+  const file = input?.files?.[0];
+  if (!file) {
+    setBackupStatus("Choose a SanaBase backup JSON file first.");
+    return;
+  }
+
+  let backup;
+  try {
+    backup = JSON.parse(await file.text());
+  } catch {
+    setBackupStatus("Import failed: JSON file could not be read.");
+    return;
+  }
+
+  if (!isValidBackupPayload(backup)) {
+    setBackupStatus("Import failed: this is not a valid SanaBase backup file.");
+    return;
+  }
+
+  const keys = backup.metadata.keys;
+  const exportedAt = backup.metadata.exportedAt || "unknown";
+  const ok = confirm(`Restore SanaBase backup?\n\nFile: ${file.name}\nExported: ${exportedAt}\nKeys: ${keys.length}\n\nThis will overwrite these localStorage values in this browser.`);
+  if (!ok) {
+    setBackupStatus("Import cancelled. No data was changed.");
+    return;
+  }
+
+  keys.forEach(key => {
+    const value = backup.data[key];
+    if (value === null) {
+      localStorage.removeItem(key);
+    } else {
+      localStorage.setItem(key, value);
+    }
+  });
+
+  const restoredState = loadState();
+  Object.keys(state).forEach(key => delete state[key]);
+  Object.assign(state, restoredState);
+  render();
+  renderCloudSettings();
+  updateNotifyUi();
+  setBackupStatus(`Import complete.\nRestored keys: ${keys.length}\nRefresh the page to double-check CRM, Tasks and Goals.`);
 }
 
 function buildReportSummary() {

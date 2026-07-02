@@ -62,7 +62,7 @@ const {
 } = window.SanaPriceMatching;
 
 const state = loadState();
-const BACKUP_VERSION = "20260702-12";
+const BACKUP_VERSION = "20260702-13";
 const CRM_PIPELINE_STATUSES = [
   ["new", "Жаңа заказ"],
   ["calculating", "На просчете"],
@@ -1463,6 +1463,7 @@ function renderCrmOperatingPanel(cal = calendarData()) {
         <span>${escapeHtml(row.oneCStatus || "-")}</span>
         <span>${escapeHtml(row.comment || "-")}</span>
         <span class="crm-row-actions">
+          <button type="button" data-crm-action-panel="${escapeHtml(row.id)}">Actions</button>
           <button type="button" data-crm-next-status="${escapeHtml(row.id)}">Next status</button>
           <button type="button" data-crm-task="${escapeHtml(row.id)}">Task</button>
           <button type="button" data-crm-close="${escapeHtml(row.id)}">Жабу</button>
@@ -1476,8 +1477,14 @@ function renderCrmOperatingPanel(cal = calendarData()) {
   $("crmPipeline").querySelectorAll("[data-crm-next-status]").forEach(button => {
     button.addEventListener("click", () => advanceCrmPipelineStatus(button.dataset.crmNextStatus));
   });
+  $("crmPipeline").querySelectorAll("[data-crm-action-panel]").forEach(button => {
+    button.addEventListener("click", () => openCrmOrderActionPanel(button.dataset.crmActionPanel));
+  });
   $("crmTable").querySelectorAll("[data-crm-next-status]").forEach(button => {
     button.addEventListener("click", () => advanceCrmPipelineStatus(button.dataset.crmNextStatus));
+  });
+  $("crmTable").querySelectorAll("[data-crm-action-panel]").forEach(button => {
+    button.addEventListener("click", () => openCrmOrderActionPanel(button.dataset.crmActionPanel));
   });
   $("crmTable").querySelectorAll("[data-crm-close]").forEach(button => {
     button.addEventListener("click", () => closeCrmDeal(button.dataset.crmClose));
@@ -1541,6 +1548,7 @@ function crmDealCard(row) {
       <small>${escapeHtml(row.productName || "Тауар жоқ")}</small>
       <small>Status: ${escapeHtml(row.pipelineStatusLabel || crmPipelineStatusLabel(row.pipelineStatus))}</small>
       <small>Total: ${money(row.amount)} · Debt: ${money(row.debt)}</small>
+      <button type="button" data-crm-action-panel="${escapeHtml(row.id)}">Status action</button>
       <button type="button" data-crm-next-status="${escapeHtml(row.id)}">Next status</button>
     </article>
   `;
@@ -1569,6 +1577,168 @@ function nextCrmPipelineStatus(status) {
   const index = CRM_PIPELINE_STATUSES.findIndex(([id]) => id === current);
   const nextIndex = index < 0 ? 1 : Math.min(index + 1, CRM_PIPELINE_STATUSES.length - 1);
   return CRM_PIPELINE_STATUSES[nextIndex][0];
+}
+
+function crmOrderActionDefinitions(status) {
+  const actions = {
+    new: [["note", "Заказды тексеру"], ["task", "Поставщикке список дайындау"]],
+    calculating: [["task", "Бағаны есептеу"], ["note", "Маржа тексеру"]],
+    supplier_sent: [["copy", "Поставщикке WhatsApp мәтін көшіру"], ["reminder", "Қабылдау reminder жасау"]],
+    received: [["note", "Товар қабылданды деп белгілеу"], ["copy", "Клиентке дайын хабарлама"]],
+    ready: [["copy", "Клиентке WhatsApp мәтін көшіру"], ["task", "Отгрузка task жасау"]],
+    realized: [["note", "1С реализация тексерілді"], ["reminder", "ESF reminder жасау"]],
+    esf_sent: [["note", "ESF жіберілді деп белгілеу"], ["note", "Төлем күтуде"]],
+    paid: [["note", "Заказды жабу"]],
+    debt: [["copy", "Қарыз сұрау WhatsApp мәтін көшіру"], ["reminder", "Қарыз reminder жасау"]],
+    closed: [["note", "Жабылған заказ"]]
+  };
+  return actions[status || "new"] || actions.new;
+}
+
+function crmOrderActionText(row, action) {
+  const label = action?.[1] || "CRM action";
+  const client = row.schoolName || row.clientName || "клиент";
+  const base = [
+    `Order: ${row.orderNumber || row.title || row.id}`,
+    `Client: ${client}`,
+    `Product: ${row.productName || "-"}`,
+    `Status: ${row.pipelineStatusLabel || crmPipelineStatusLabel(row.pipelineStatus)}`,
+    `Total: ${money(row.amount)}`,
+    `Debt: ${money(row.debt)}`
+  ];
+  if (label.toLowerCase().includes("қарыз")) {
+    return [
+      `Сәлеметсіз бе! ${client} бойынша төлемді нақтылап жіберіңізші.`,
+      `Заказ: ${row.orderNumber || row.title || row.id}`,
+      `Қалған қарыз: ${money(row.debt)}.`,
+      "Төлем жасалған болса, чек/платежка жіберіңізші."
+    ].join("\n");
+  }
+  if (label.toLowerCase().includes("клиентке")) {
+    return [
+      `Сәлеметсіз бе! ${client} бойынша заказ дайын.`,
+      `Заказ: ${row.orderNumber || row.title || row.id}`,
+      `Тауар: ${row.productName || "-"}`,
+      "Қабылдау/жеткізу уақытын нақтылап жіберіңізші."
+    ].join("\n");
+  }
+  if (label.toLowerCase().includes("поставщик")) {
+    return [
+      "Сәлеметсіз бе! Осы заказ бойынша списокты қарап беріңізші.",
+      `Заказ: ${row.orderNumber || row.title || row.id}`,
+      `Тауар: ${row.productName || "-"}`,
+      `Саны: ${row.quantity || "-"}`
+    ].join("\n");
+  }
+  return [`${label}:`, ...base].join("\n");
+}
+
+function openCrmOrderActionPanel(orderId, message = "") {
+  const panel = $("crmOrderActionPanel");
+  if (!panel) return;
+  const row = crmDealRows(calendarData()).find(item => item.id === orderId);
+  if (!row) {
+    panel.hidden = false;
+    panel.innerHTML = `<p>Order табылмады.</p>`;
+    return;
+  }
+  const actions = crmOrderActionDefinitions(row.pipelineStatus);
+  const preview = crmOrderActionText(row, actions[0]);
+  panel.hidden = false;
+  panel.innerHTML = `
+    <div class="crm-order-action-head">
+      <div>
+        <strong>${escapeHtml(row.orderNumber || row.title || "CRM order")}</strong>
+        <span>${escapeHtml(row.pipelineStatusLabel || crmPipelineStatusLabel(row.pipelineStatus))}</span>
+      </div>
+      <button type="button" data-crm-action-close>Close</button>
+    </div>
+    <p>${escapeHtml(row.schoolName || row.clientName || "Клиент жоқ")} · ${money(row.amount)} · Debt: ${money(row.debt)}</p>
+    ${message ? `<p class="crm-order-action-note">${escapeHtml(message)}</p>` : ""}
+    <div class="crm-order-action-buttons">
+      ${actions.map((action, index) => `
+        <button type="button" data-crm-order-action="${escapeHtml(row.id)}" data-crm-order-action-index="${index}">
+          ${escapeHtml(action[1])}
+        </button>
+      `).join("")}
+    </div>
+    <pre>${escapeHtml(preview)}</pre>
+  `;
+  panel.querySelector("[data-crm-action-close]")?.addEventListener("click", () => {
+    panel.hidden = true;
+  });
+  panel.querySelectorAll("[data-crm-order-action]").forEach(button => {
+    button.addEventListener("click", () => runCrmOrderAction(button.dataset.crmOrderAction, Number(button.dataset.crmOrderActionIndex || 0)));
+  });
+}
+
+async function copyCrmOrderActionText(text) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return true;
+  }
+  const area = document.createElement("textarea");
+  area.value = text;
+  area.setAttribute("readonly", "readonly");
+  area.style.position = "fixed";
+  area.style.left = "-9999px";
+  document.body.appendChild(area);
+  area.select();
+  const ok = document.execCommand("copy");
+  area.remove();
+  return ok;
+}
+
+async function runCrmOrderAction(orderId, actionIndex) {
+  const row = crmDealRows(calendarData()).find(item => item.id === orderId);
+  if (!row) return;
+  const action = crmOrderActionDefinitions(row.pipelineStatus)[actionIndex] || crmOrderActionDefinitions(row.pipelineStatus)[0];
+  const [kind, label] = action;
+  const text = crmOrderActionText(row, action);
+  if (kind === "copy") {
+    try {
+      await copyCrmOrderActionText(text);
+      if ($("crmOut")) $("crmOut").textContent = `${label}: WhatsApp мәтіні clipboard-қа көшірілді.`;
+      openCrmOrderActionPanel(orderId, "WhatsApp мәтіні көшірілді.");
+    } catch (error) {
+      if ($("crmOut")) $("crmOut").textContent = `Copy error: ${error.message}`;
+      openCrmOrderActionPanel(orderId, "Copy error. Мәтінді panel ішінен қолмен көшіріңіз.");
+    }
+    return;
+  }
+  if (kind === "task") {
+    createCalendarTask({
+      title: `${label}: ${row.orderNumber || row.title || row.id}`,
+      date: addDays(isoDate(), 1),
+      category: "CRM",
+      priority: row.debt > 0 ? "high" : "medium",
+      status: "open",
+      orderId: row.id,
+      comment: text
+    });
+    persist();
+    render();
+    openCrmOrderActionPanel(orderId, "Task қосылды.");
+    return;
+  }
+  if (kind === "reminder") {
+    addCalendarEvent({
+      title: `${label}: ${row.orderNumber || row.title || row.id}`,
+      startDate: addDays(isoDate(), 1),
+      type: "reminder",
+      category: "CRM",
+      priority: row.debt > 0 ? "high" : "medium",
+      status: "open",
+      relatedOrderId: row.id,
+      description: text
+    });
+    persist();
+    render();
+    openCrmOrderActionPanel(orderId, "Reminder қосылды.");
+    return;
+  }
+  if ($("crmOut")) $("crmOut").textContent = `${label}\n${text}`;
+  openCrmOrderActionPanel(orderId, `${label}: status note көрсетілді.`);
 }
 
 function advanceCrmPipelineStatus(orderId) {

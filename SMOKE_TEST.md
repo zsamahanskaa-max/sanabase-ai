@@ -379,6 +379,22 @@ Frontend asset query versions were updated to `20260702-12`. Manual checks to ru
 10. Confirm Backup Center export/import still works.
 11. Confirm no browser Console error appears.
 
+## 15. CRM order status action panel
+
+Frontend asset query versions were updated to `20260702-13`. Manual checks to run:
+
+1. Create a quick order.
+2. Confirm the Kanban order card shows `Status action`.
+3. Confirm the CRM table row shows `Actions`.
+4. Open the action panel and confirm status-specific actions appear.
+5. Use a WhatsApp copy action and confirm text is copied or visible in the panel.
+6. Use a task action and confirm a CRM task is created.
+7. Use a reminder action and confirm a CRM reminder/calendar event is created.
+8. Click `Next status` and confirm the order still moves to the next column.
+9. Confirm Client Profile -> Orders still opens and shows the order.
+10. Confirm Backup Center export/import still works.
+11. Confirm no browser Console error appears.
+
 ## Pass criteria
 
 - `public/js/utils.js` loads before `public/app.js`.

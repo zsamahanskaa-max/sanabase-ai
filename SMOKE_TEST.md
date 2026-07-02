@@ -458,6 +458,12 @@ Frontend asset query versions were updated to `20260702-17`. Supabase frontend c
 9. Confirm Backup Center export/import still works.
 10. Confirm no browser Console error appears.
 
+GitHub Pages deploy note:
+
+- A dedicated Pages workflow publishes only `index.html` and `public/`.
+- Local files such as `.env.local`, `work/`, and backend server files are not included in the Pages artifact.
+- `.nojekyll` is included so GitHub Pages serves static files exactly as uploaded.
+
 ## Pass criteria
 
 - `public/js/utils.js` loads before `public/app.js`.

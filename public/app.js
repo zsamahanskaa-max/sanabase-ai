@@ -110,6 +110,9 @@ on("crmBtn", "click", crm);
 on("crmDocBtn", "click", createCrmDocument);
 on("crmDownloadBtn", "click", downloadCrmDocument);
 on("crmClientForm", "submit", saveCrmClientCard);
+on("crmClientSearch", "input", render);
+on("crmClientStatusFilter", "change", render);
+document.addEventListener("click", handleCrmClientCardAction);
 on("crmQuickForm", "submit", saveCrmQuickDeal);
 on("crmSearch", "input", render);
 on("crmStatusFilter", "change", render);
@@ -685,24 +688,48 @@ function renderCrmWorkspace() {
 
 function renderCrmClientPlaceholder() {
   const cal = calendarData();
-  const clients = activeCalItems(cal.clients).map(normalizeCrmClientCard);
+  const query = ($("crmClientSearch")?.value || "").trim().toLowerCase();
+  const filter = $("crmClientStatusFilter")?.value || "active";
+  const clients = (cal.clients || []).map(normalizeCrmClientCard).filter(client => {
+    const archived = Boolean(client.archivedAt);
+    if (filter === "active" && archived) return false;
+    if (filter === "archived" && !archived) return false;
+    const haystack = [
+      client.clientName,
+      client.schoolName,
+      client.name,
+      client.bin,
+      client.phone,
+      client.whatsapp,
+      client.address
+    ].join(" ").toLowerCase();
+    return !query || haystack.includes(query);
+  });
   if ($("crmClientList")) {
     $("crmClientList").innerHTML = clients.slice(0, 12).map(client => `
       <article class="crm-doc-card">
         <div>
-          <h4>${escapeHtml(client.schoolName || client.name || "Клиент")}</h4>
-          <span>${escapeHtml(client.bin || "BIN жоқ")} · ${escapeHtml(client.phone || client.whatsapp || "байланыс жоқ")}</span>
+          <h4>${escapeHtml(client.schoolName || client.name || "\u041a\u043b\u0438\u0435\u043d\u0442")}</h4>
+          <span>${escapeHtml(client.bin || "BIN \u0436\u043e\u049b")} · ${escapeHtml(client.phone || client.whatsapp || "\u0431\u0430\u0439\u043b\u0430\u043d\u044b\u0441 \u0436\u043e\u049b")}</span>
         </div>
-        <p>${escapeHtml(client.contactPerson || client.paymentTerms || client.comment || "Клиент карточкасы сақталды.")}</p>
-        <small>Қарыз лимиті: ${money(client.debtLimit)} · Келесі әрекет: ${escapeHtml(client.nextActionDate || "-")}</small>
+        <p>${escapeHtml(client.contactPerson || client.paymentTerms || client.comment || "\u041a\u043b\u0438\u0435\u043d\u0442 \u043a\u0430\u0440\u0442\u043e\u0447\u043a\u0430\u0441\u044b \u0441\u0430\u049b\u0442\u0430\u043b\u0434\u044b.")}</p>
+        <small>\u049a\u0430\u0440\u044b\u0437 \u043b\u0438\u043c\u0438\u0442\u0456: ${money(client.debtLimit)} · Status: ${client.archivedAt ? "archived" : "active"}</small>
+        <div class="crm-client-actions">
+          <button type="button" data-crm-client-edit="${escapeHtml(client.id)}">Edit</button>
+          <button type="button" data-crm-client-orders="${escapeHtml(client.id)}">Orders</button>
+          <button type="button" data-crm-client-debts="${escapeHtml(client.id)}">Debts</button>
+          <button type="button" data-crm-client-whatsapp="${escapeHtml(client.id)}">WhatsApp</button>
+          ${client.archivedAt
+            ? `<button type="button" data-crm-client-restore="${escapeHtml(client.id)}">Restore</button>`
+            : `<button type="button" data-crm-client-archive="${escapeHtml(client.id)}">Archive</button>`}
+        </div>
       </article>
-    `).join("") || `<article class="crm-doc-card"><h4>Clients / Schools</h4><p>Клиент карточкалары келесі қадамда қосылады.</p></article>`;
+    `).join("") || `<article class="crm-doc-card"><h4>Clients / Schools</h4><p>\u041a\u043b\u0438\u0435\u043d\u0442 \u043a\u0430\u0440\u0442\u043e\u0447\u043a\u0430\u043b\u0430\u0440\u044b \u043a\u0435\u043b\u0435\u0441\u0456 \u049b\u0430\u0434\u0430\u043c\u0434\u0430 \u049b\u043e\u0441\u044b\u043b\u0430\u0434\u044b.</p></article>`;
   }
   if ($("crmClientOut")) $("crmClientOut").textContent = clients.length
-    ? `Клиент карточкалары: ${clients.length}`
-    : "Клиент карточкалары келесі қадамда қосылады.";
+    ? `\u041a\u043b\u0438\u0435\u043d\u0442 \u043a\u0430\u0440\u0442\u043e\u0447\u043a\u0430\u043b\u0430\u0440\u044b: ${clients.length}`
+    : "\u041a\u043b\u0438\u0435\u043d\u0442 \u0442\u0430\u0431\u044b\u043b\u043c\u0430\u0434\u044b \u043d\u0435\u043c\u0435\u0441\u0435 \u04d9\u043b\u0456 \u0441\u0430\u049b\u0442\u0430\u043b\u043c\u0430\u0493\u0430\u043d.";
 }
-
 function normalizeCrmClientCard(client = {}) {
   return {
     ...client,
@@ -727,9 +754,306 @@ function normalizeCrmClientCard(client = {}) {
   };
 }
 
+function crmClientDuplicateWarning(client, clients = []) {
+  const normalized = normalizeCrmClientCard(client);
+  const normalizedBin = normalized.bin.trim().toLowerCase();
+  const normalizedName = `${normalized.schoolName || ""} ${normalized.clientName || ""} ${normalized.name || ""}`.trim().toLowerCase();
+  const existingClients = clients.map(normalizeCrmClientCard);
+  if (normalizedBin) {
+    const match = existingClients.find(existing => existing.bin.trim().toLowerCase() === normalizedBin);
+    if (match) return `\u0415\u0441\u043a\u0435\u0440\u0442\u0443: \u043e\u0441\u044b\u043d\u0434\u0430\u0439 BIN \u0431\u0430\u0440 \u043a\u043b\u0438\u0435\u043d\u0442 \u0431\u04b1\u0440\u044b\u043d \u0441\u0430\u049b\u0442\u0430\u043b\u0493\u0430\u043d: ${match.schoolName || match.name || match.clientName || match.bin}.`;
+  }
+  if (normalizedName) {
+    const match = existingClients.find(existing => {
+      const existingName = `${existing.schoolName || ""} ${existing.clientName || ""} ${existing.name || ""}`.trim().toLowerCase();
+      return existingName && (existingName.includes(normalizedName) || normalizedName.includes(existingName));
+    });
+    if (match) return `\u0415\u0441\u043a\u0435\u0440\u0442\u0443: \u0430\u0442\u0430\u0443\u044b \u04b1\u049b\u0441\u0430\u0441 \u043a\u043b\u0438\u0435\u043d\u0442 \u0431\u0430\u0440: ${match.schoolName || match.name || match.clientName}.`;
+  }
+  return "";
+}
+
+function setCrmClientForm(client) {
+  const normalized = normalizeCrmClientCard(client);
+  if ($("crmClientEditingId")) $("crmClientEditingId").value = normalized.id;
+  if ($("crmClientCardName")) $("crmClientCardName").value = normalized.clientName || "";
+  if ($("crmClientSchoolName")) $("crmClientSchoolName").value = normalized.schoolName || "";
+  if ($("crmClientBin")) $("crmClientBin").value = normalized.bin || "";
+  if ($("crmClientContactPerson")) $("crmClientContactPerson").value = normalized.contactPerson || "";
+  if ($("crmClientPhone")) $("crmClientPhone").value = normalized.phone || "";
+  if ($("crmClientWhatsapp")) $("crmClientWhatsapp").value = normalized.whatsapp || "";
+  if ($("crmClientAddress")) $("crmClientAddress").value = normalized.address || "";
+  if ($("crmClientPaymentTerms")) $("crmClientPaymentTerms").value = normalized.paymentTerms || "";
+  if ($("crmClientDebtLimit")) $("crmClientDebtLimit").value = normalized.debtLimit || "";
+  if ($("crmClientComment")) $("crmClientComment").value = normalized.comment || "";
+  if ($("crmClientOut")) $("crmClientOut").textContent = `Edit \u0440\u0435\u0436\u0438\u043c\u0456: ${normalized.schoolName || normalized.name || normalized.clientName || normalized.bin}`;
+}
+
+function editCrmClientCard(id) {
+  const client = (calendarData().clients || []).find(item => item.id === id);
+  if (!client) return;
+  setCrmClientForm(client);
+  $("crmClientForm")?.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+function setCrmClientArchived(id, archived) {
+  const cal = calendarData();
+  const index = (cal.clients || []).findIndex(item => item.id === id);
+  if (index < 0) return;
+  const oldValue = { ...cal.clients[index] };
+  cal.clients[index] = {
+    ...cal.clients[index],
+    archivedAt: archived ? nowIso() : null,
+    updatedAt: nowIso()
+  };
+  logHistory("crm_client", id, archived ? "CRM client archive" : "CRM client restore", oldValue, cal.clients[index], "Clients / Schools action");
+  persist();
+  render();
+  if ($("crmClientOut")) $("crmClientOut").textContent = archived
+    ? "\u041a\u043b\u0438\u0435\u043d\u0442 \u0430\u0440\u0445\u0438\u0432\u043a\u0435 \u0436\u0456\u0431\u0435\u0440\u0456\u043b\u0434\u0456."
+    : "\u041a\u043b\u0438\u0435\u043d\u0442 \u0430\u0440\u0445\u0438\u0432\u0442\u0435\u043d \u049b\u0430\u0439\u0442\u0430\u0440\u044b\u043b\u0434\u044b.";
+}
+
+function findCrmClientById(id) {
+  return (calendarData().clients || []).map(normalizeCrmClientCard).find(client => client.id === id);
+}
+
+function crmClientMatchValues(client) {
+  return [
+    client.clientName,
+    client.schoolName,
+    client.name,
+    client.bin
+  ].map(value => String(value || "").trim().toLowerCase()).filter(Boolean);
+}
+
+function crmClientRelatedOrders(client) {
+  const values = crmClientMatchValues(client);
+  if (!values.length) return [];
+  return crmDealRows(calendarData()).filter(row => {
+    const haystack = [
+      row.clientName,
+      row.schoolName,
+      row.orderNumber,
+      row.comment
+    ].join(" ").toLowerCase();
+    return values.some(value => haystack.includes(value) || value.includes(String(row.clientName || "").toLowerCase()) || value.includes(String(row.schoolName || "").toLowerCase()));
+  });
+}
+
+function showCrmClientMiniPanel({ title, kpis = [], body = "", copyText = "" }) {
+  const panel = $("crmClientMiniPanel");
+  if (!panel) return;
+  panel.hidden = false;
+  panel.dataset.title = title || "CRM client follow-up";
+  panel.dataset.copyText = copyText || body || "";
+  panel.innerHTML = `
+    <div class="crm-panel-head">
+      <div>
+        <h4>${escapeHtml(title)}</h4>
+        <p>Mini CRM profile</p>
+      </div>
+      <div class="crm-client-mini-actions">
+        ${copyText ? `<button type="button" data-crm-client-copy>Copy text</button>` : ""}
+        <button type="button" data-crm-client-task>Task жасау</button>
+        <button type="button" data-crm-client-reminder>Reminder жасау</button>
+        <button type="button" data-crm-client-open-view="tasks">Tasks \u0430\u0448\u0443</button>
+        <button type="button" data-crm-client-open-view="calendaros">Calendar \u0430\u0448\u0443</button>
+      </div>
+    </div>
+    <div class="crm-client-mini-kpis">
+      ${kpis.map(item => `<span><strong>${escapeHtml(item[0])}</strong><br>${escapeHtml(String(item[1]))}</span>`).join("")}
+    </div>
+    <pre>${escapeHtml(body)}</pre>
+  `;
+}
+
+async function copyCrmClientMiniPanelText() {
+  const panel = $("crmClientMiniPanel");
+  const text = panel?.dataset.copyText || "";
+  if (!text) return;
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      const area = document.createElement("textarea");
+      area.value = text;
+      area.style.position = "fixed";
+      area.style.left = "-9999px";
+      document.body.appendChild(area);
+      area.select();
+      document.execCommand("copy");
+      area.remove();
+    }
+    if ($("crmClientOut")) $("crmClientOut").textContent = "Text copied.";
+  } catch (error) {
+    if ($("crmClientOut")) $("crmClientOut").textContent = `Copy error: ${error.message}`;
+  }
+}
+
+function createTaskFromCrmClientMiniPanel() {
+  const panel = $("crmClientMiniPanel");
+  const title = panel?.dataset.title || "CRM client follow-up";
+  const body = panel?.dataset.copyText || panel?.innerText || "";
+  state.tasks.unshift(normalizeTask({
+    title: `CRM: ${title}`.slice(0, 120),
+    body,
+    status: "todo",
+    priority: body.toLowerCase().includes("debt") || body.includes("қарыз") ? "high" : "medium",
+    due: addDays(isoDate(), 1),
+    owner: "CRM",
+    link: "Clients / Schools"
+  }));
+  persist();
+  renderTasks();
+  if ($("crmClientOut")) $("crmClientOut").textContent = `Task \u0434\u0430\u0439\u044b\u043d: CRM: ${title}. Tasks \u0430\u0448\u0443 \u0431\u0430\u0442\u044b\u0440\u043c\u0430\u0441\u044b\u043d \u0431\u0430\u0441\u044b\u043f \u043a\u04e9\u0440\u0456\u04a3\u0456\u0437.`;
+}
+
+function createReminderFromCrmClientMiniPanel() {
+  const panel = $("crmClientMiniPanel");
+  const title = panel?.dataset.title || "CRM client follow-up";
+  const body = panel?.dataset.copyText || panel?.innerText || "";
+  addCalendarEvent({
+    title: `CRM reminder: ${title}`.slice(0, 140),
+    description: body,
+    type: "reminder",
+    category: "CRM",
+    startDate: addDays(isoDate(), 1),
+    priority: body.toLowerCase().includes("debt") || body.includes("қарыз") ? "high" : "medium",
+    status: "open"
+  });
+  persist();
+  renderCalendarOS();
+  if ($("crmClientOut")) $("crmClientOut").textContent = `Reminder \u0434\u0430\u0439\u044b\u043d: ${addDays(isoDate(), 1)} · ${title}. Calendar \u0430\u0448\u0443 \u0431\u0430\u0442\u044b\u0440\u043c\u0430\u0441\u044b\u043d \u0431\u0430\u0441\u044b\u043f \u043a\u04e9\u0440\u0456\u04a3\u0456\u0437.`;
+}
+
+function showCrmClientOrders(id) {
+  const client = findCrmClientById(id);
+  if (!client || !$("crmClientOut")) return;
+  const rows = crmClientRelatedOrders(client);
+  const total = rows.reduce((sum, row) => sum + Number(row.amount || 0), 0);
+  const debt = rows.reduce((sum, row) => sum + Number(row.debt || 0), 0);
+  const body = [
+    `Orders: ${client.schoolName || client.name || client.clientName}`,
+    `Count: ${rows.length}`,
+    `Total: ${money(total)}`,
+    `Debt: ${money(debt)}`,
+    "",
+    rows.slice(0, 8).map((row, index) => `${index + 1}. ${row.orderNumber || "-"} · ${row.date || "-"} · ${row.productName || "-"} · ${money(row.amount)} · debt ${money(row.debt)}`).join("\n") || "Order \u0442\u0430\u0431\u044b\u043b\u043c\u0430\u0434\u044b."
+  ].join("\n");
+  $("crmClientOut").textContent = body;
+  showCrmClientMiniPanel({
+    title: `Orders ? ${client.schoolName || client.name || client.clientName}`,
+    kpis: [["Orders", rows.length], ["Total", money(total)], ["Debt", money(debt)]],
+    body
+  });
+}
+
+function showCrmClientDebts(id) {
+  const client = findCrmClientById(id);
+  if (!client || !$("crmClientOut")) return;
+  const rows = crmClientRelatedOrders(client).filter(row => Number(row.debt || 0) > 0);
+  const debt = rows.reduce((sum, row) => sum + Number(row.debt || 0), 0);
+  const body = [
+    `Debts: ${client.schoolName || client.name || client.clientName}`,
+    `Open debt: ${money(debt)}`,
+    "",
+    rows.slice(0, 8).map((row, index) => `${index + 1}. ${row.orderNumber || "-"} · ${money(row.debt)} · ${row.paymentStatus || "-"}`).join("\n") || "\u0410\u0448\u044b\u049b \u049b\u0430\u0440\u044b\u0437 \u0442\u0430\u0431\u044b\u043b\u043c\u0430\u0434\u044b."
+  ].join("\n");
+  $("crmClientOut").textContent = body;
+  showCrmClientMiniPanel({
+    title: `Debts ? ${client.schoolName || client.name || client.clientName}`,
+    kpis: [["Open rows", rows.length], ["Open debt", money(debt)], ["Limit", money(client.debtLimit)]],
+    body
+  });
+}
+
+function showCrmClientWhatsapp(id) {
+  const client = findCrmClientById(id);
+  if (!client || !$("crmClientOut")) return;
+  const rows = crmClientRelatedOrders(client).filter(row => Number(row.debt || 0) > 0);
+  const debt = rows.reduce((sum, row) => sum + Number(row.debt || 0), 0);
+  const name = client.schoolName || client.name || client.clientName || "\u043a\u043b\u0438\u0435\u043d\u0442";
+  const body = debt > 0
+    ? [
+      `WhatsApp draft: ${name}`,
+      "",
+      `\u0421\u04d9\u043b\u0435\u043c\u0435\u0442\u0441\u0456\u0437 \u0431\u0435! ${name} \u0431\u043e\u0439\u044b\u043d\u0448\u0430 \u0431\u0456\u0437\u0434\u0456\u04a3 \u0435\u0441\u0435\u043f\u0442\u0435 ${money(debt)} \u0442\u04e9\u043b\u0435\u043c \u049b\u0430\u043b\u0434\u044b \u0434\u0435\u043f \u043a\u04e9\u0440\u0456\u043d\u0456\u043f \u0442\u04b1\u0440.`,
+      `\u049a\u04b1\u0436\u0430\u0442/\u0437\u0430\u043a\u0430\u0437 \u0441\u0430\u043d\u044b: ${rows.length}.`,
+      "\u041c\u04af\u043c\u043a\u0456\u043d \u0431\u043e\u043b\u0441\u0430, \u0442\u04e9\u043b\u0435\u043c \u0441\u0442\u0430\u0442\u0443\u0441\u044b\u043d \u043d\u0430\u049b\u0442\u044b\u043b\u0430\u043f \u0436\u0456\u0431\u0435\u0440\u0435\u0441\u0456\u0437 \u0431\u0435?",
+      "\u0415\u0433\u0435\u0440 \u0442\u04e9\u043b\u0435\u043c \u0436\u0430\u0441\u0430\u043b\u0493\u0430\u043d \u0431\u043e\u043b\u0441\u0430, \u043f\u043b\u0430\u0442\u0435\u0436\u043a\u0430/\u0447\u0435\u043a \u0436\u0456\u0431\u0435\u0440\u0441\u0435\u04a3\u0456\u0437, 1\u0421/CRM \u0456\u0448\u0456\u043d\u0434\u0435 \u0431\u0435\u043b\u0433\u0456\u043b\u0435\u043f \u049b\u043e\u044f\u043c\u044b\u0437."
+    ].join("\n")
+    : [
+      `WhatsApp draft: ${name}`,
+      "",
+      `\u0421\u04d9\u043b\u0435\u043c\u0435\u0442\u0441\u0456\u0437 \u0431\u0435! ${name} \u0431\u043e\u0439\u044b\u043d\u0448\u0430 \u0430\u0448\u044b\u049b \u049b\u0430\u0440\u044b\u0437 \u043a\u04e9\u0440\u0456\u043d\u0431\u0435\u0439 \u0442\u04b1\u0440.`,
+      "\u041a\u0435\u043b\u0435\u0441\u0456 \u0437\u0430\u043a\u0430\u0437/\u049b\u0430\u0436\u0435\u0442\u0442\u0456 \u0442\u0430\u0443\u0430\u0440\u043b\u0430\u0440 \u0431\u043e\u043b\u0441\u0430, \u0430\u043b\u0434\u044b\u043d \u0430\u043b\u0430 \u0442\u0456\u0437\u0456\u043c \u0436\u0456\u0431\u0435\u0440\u0441\u0435\u04a3\u0456\u0437 \u0431\u043e\u043b\u0430\u0434\u044b."
+    ].join("\n");
+  $("crmClientOut").textContent = body;
+  showCrmClientMiniPanel({
+    title: `WhatsApp ? ${name}`,
+    kpis: [["Open rows", rows.length], ["Open debt", money(debt)], ["Copy", "ready"]],
+    body,
+    copyText: body
+  });
+}
+
+function handleCrmClientCardAction(event) {
+  const copyButton = event.target.closest("[data-crm-client-copy]");
+  if (copyButton) {
+    copyCrmClientMiniPanelText();
+    return;
+  }
+  const taskButton = event.target.closest("[data-crm-client-task]");
+  if (taskButton) {
+    createTaskFromCrmClientMiniPanel();
+    return;
+  }
+  const reminderButton = event.target.closest("[data-crm-client-reminder]");
+  if (reminderButton) {
+    createReminderFromCrmClientMiniPanel();
+    return;
+  }
+  const openViewButton = event.target.closest("[data-crm-client-open-view]");
+  if (openViewButton) {
+    setView(openViewButton.dataset.crmClientOpenView);
+    return;
+  }
+  const editButton = event.target.closest("[data-crm-client-edit]");
+  if (editButton) {
+    editCrmClientCard(editButton.dataset.crmClientEdit);
+    return;
+  }
+  const ordersButton = event.target.closest("[data-crm-client-orders]");
+  if (ordersButton) {
+    showCrmClientOrders(ordersButton.dataset.crmClientOrders);
+    return;
+  }
+  const debtsButton = event.target.closest("[data-crm-client-debts]");
+  if (debtsButton) {
+    showCrmClientDebts(debtsButton.dataset.crmClientDebts);
+    return;
+  }
+  const whatsappButton = event.target.closest("[data-crm-client-whatsapp]");
+  if (whatsappButton) {
+    showCrmClientWhatsapp(whatsappButton.dataset.crmClientWhatsapp);
+    return;
+  }
+  const archiveButton = event.target.closest("[data-crm-client-archive]");
+  if (archiveButton) {
+    setCrmClientArchived(archiveButton.dataset.crmClientArchive, true);
+    return;
+  }
+  const restoreButton = event.target.closest("[data-crm-client-restore]");
+  if (restoreButton) {
+    setCrmClientArchived(restoreButton.dataset.crmClientRestore, false);
+  }
+}
+
 function saveCrmClientCard(event) {
   event.preventDefault();
   const cal = calendarData();
+  const editingId = $("crmClientEditingId")?.value || "";
   const client = normalizeCrmClientCard({
     clientName: $("crmClientCardName")?.value?.trim() || "",
     schoolName: $("crmClientSchoolName")?.value?.trim() || "",
@@ -744,14 +1068,32 @@ function saveCrmClientCard(event) {
   });
   if (!client.clientName && !client.schoolName && !client.bin) return;
   client.name = client.schoolName || client.clientName || client.bin;
-  cal.clients.unshift(client);
-  logHistory("crm_client", client.id, "CRM client card қосу", null, client, "Clients / Schools form");
+  const warning = crmClientDuplicateWarning(client, (cal.clients || []).filter(item => item.id !== editingId));
+  const existingIndex = editingId ? (cal.clients || []).findIndex(item => item.id === editingId) : -1;
+  if (existingIndex >= 0) {
+    const oldValue = { ...cal.clients[existingIndex] };
+    cal.clients[existingIndex] = {
+      ...oldValue,
+      ...client,
+      id: editingId,
+      createdAt: oldValue.createdAt || client.createdAt,
+      updatedAt: nowIso(),
+      archivedAt: oldValue.archivedAt || ""
+    };
+    logHistory("crm_client", editingId, "CRM client card update", oldValue, cal.clients[existingIndex], "Clients / Schools form");
+  } else {
+    cal.clients.unshift(client);
+    logHistory("crm_client", client.id, "CRM client card add", null, client, "Clients / Schools form");
+  }
   event.target.reset();
+  if ($("crmClientEditingId")) $("crmClientEditingId").value = "";
   persist();
   render();
-  if ($("crmClientOut")) $("crmClientOut").textContent = `Клиент карточкасы сақталды: ${client.name}`;
+  if ($("crmClientOut")) $("crmClientOut").textContent = [
+    existingIndex >= 0 ? `\u041a\u043b\u0438\u0435\u043d\u0442 \u043a\u0430\u0440\u0442\u043e\u0447\u043a\u0430\u0441\u044b \u0436\u0430\u04a3\u0430\u0440\u0442\u044b\u043b\u0434\u044b: ${client.name}` : `\u041a\u043b\u0438\u0435\u043d\u0442 \u043a\u0430\u0440\u0442\u043e\u0447\u043a\u0430\u0441\u044b \u0441\u0430\u049b\u0442\u0430\u043b\u0434\u044b: ${client.name}`,
+    warning
+  ].filter(Boolean).join("\n");
 }
-
 function renderCrmOperatingPanel(cal = calendarData()) {
   if (!$("crmPipeline") || !$("crmTable")) return;
   const query = $("crmSearch")?.value?.toLowerCase() || "";

@@ -51,6 +51,65 @@ Cache version note:
 
 All frontend asset query versions were unified to `20260701-14` for `manifest.json`, `styles.css`, helper modules, and `app.js`.
 
+Clients / Schools CRM note:
+
+Frontend asset query versions were updated to `20260701-16`. Manual checks to run:
+
+- Clients / Schools section is visible.
+- `crmClientSearch` filters by client, school, BIN, phone, WhatsApp, and address.
+- `crmClientStatusFilter` switches between active, archived, and all.
+- Duplicate BIN warning appears in `crmClientOut` but does not block save.
+- Existing CRM quick order save still works.
+
+Clients / Schools edit/archive note:
+
+Frontend asset query versions were updated to `20260702-01`. Manual checks to run:
+
+- Create a client card.
+- Edit the same client card and confirm it updates instead of creating a duplicate.
+- Archive the card and confirm it disappears from active.
+- Switch filter to archived and confirm the card appears.
+- Restore the card and confirm it returns to active.
+- Refresh the browser and confirm the saved client state remains.
+- Existing CRM quick order save still works.
+
+Clients / Schools mini CRM note:
+
+Frontend asset query versions were updated to `20260702-02`. Manual checks to run:
+
+- Click `Orders` on a client card and confirm related CRM orders appear in `crmClientOut`.
+- Click `Debts` and confirm open debt total appears.
+- Click `WhatsApp` and confirm a ready debt/follow-up message appears.
+- Confirm these actions do not create, edit, archive, or delete client records.
+- Existing CRM quick order save still works.
+
+Clients / Schools mini CRM panel note:
+
+Frontend asset query versions were updated to `20260702-03`. Manual checks to run:
+
+- `Orders`, `Debts`, and `WhatsApp` open the mini CRM panel under the client cards.
+- The mini panel shows KPI chips and wrapped text.
+- `WhatsApp` shows `Copy text`.
+- Clicking `Copy text` copies the prepared WhatsApp message and shows `Text copied.`
+- Existing edit/archive/restore and CRM quick order save still work.
+
+Clients / Schools task/reminder note:
+
+Frontend asset query versions were updated to `20260702-04`. Manual checks to run:
+
+- Open `Orders`, `Debts`, or `WhatsApp` from a client card.
+- Click `Task жасау` and confirm a new CRM task appears in Tasks.
+- Click `Reminder жасау` and confirm a calendar reminder is created for tomorrow.
+- Confirm these actions do not archive, restore, or hard-delete client records.
+
+Clients / Schools open saved items note:
+
+Frontend asset query versions were updated to `20260702-05`. Manual checks to run:
+
+- After `Task жасау`, click `Tasks ашу` and confirm the app opens Tasks.
+- After `Reminder жасау`, click `Calendar ашу` and confirm the app opens Zhadyra Calendar OS.
+- Confirm task/reminder status text explains where the item was saved.
+
 ## 1. Utility load check
 
 Open browser DevTools Console and run:

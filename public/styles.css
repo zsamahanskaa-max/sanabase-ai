@@ -569,6 +569,61 @@ textarea:focus, input:focus, select:focus { border-color: var(--leaf); }
   line-height: 1.45;
 }
 
+.crm-client-actions,
+.crm-client-mini-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.crm-client-actions button,
+.crm-client-mini-actions button {
+  min-height: 34px;
+  padding: 7px 10px;
+  font-size: 12px;
+}
+
+.crm-client-mini-panel {
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--leaf);
+  border-radius: 8px;
+  background: #102823;
+  color: white;
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.crm-client-mini-panel[hidden] {
+  display: none;
+}
+
+.crm-client-mini-panel h4,
+.crm-client-mini-panel p {
+  margin: 0;
+}
+
+.crm-client-mini-kpis {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.crm-client-mini-kpis span,
+.crm-client-mini-panel pre {
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: 8px;
+  background: rgba(255,255,255,.08);
+  padding: 10px;
+}
+
+.crm-client-mini-panel pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #eef8f4;
+}
+
 .crm-template-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

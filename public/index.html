@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#28433f">
   <title>SanaBase AI</title>
-  <link rel="manifest" href="manifest.json?v=20260701-15">
-  <link rel="stylesheet" href="styles.css?v=20260701-15">
+  <link rel="manifest" href="manifest.json?v=20260702-05">
+  <link rel="stylesheet" href="styles.css?v=20260702-05">
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs" type="module"></script>
@@ -516,6 +516,7 @@ with check (true);</textarea>
               </div>
             </div>
             <form id="crmClientForm" class="crm-quick-form crm-client-form">
+              <input id="crmClientEditingId" type="hidden">
               <input id="crmClientCardName" placeholder="clientName / клиент атауы">
               <input id="crmClientSchoolName" placeholder="schoolName / мектеп немесе объект">
               <input id="crmClientBin" placeholder="BIN / БИН">
@@ -528,7 +529,16 @@ with check (true);</textarea>
               <textarea id="crmClientComment" placeholder="comment / клиент туралы ескерту"></textarea>
               <button type="submit">Клиент сақтау</button>
             </form>
+            <div class="crm-toolbar">
+              <input id="crmClientSearch" placeholder="&#1050;&#1083;&#1080;&#1077;&#1085;&#1090;, &#1084;&#1077;&#1082;&#1090;&#1077;&#1087;, &#1041;&#1048;&#1053;, &#1090;&#1077;&#1083;&#1077;&#1092;&#1086;&#1085; &#1073;&#1086;&#1081;&#1099;&#1085;&#1096;&#1072; &#1110;&#1079;&#1076;&#1077;&#1091;">
+              <select id="crmClientStatusFilter">
+                <option value="active">active</option>
+                <option value="archived">archived</option>
+                <option value="all">all</option>
+              </select>
+            </div>
             <div id="crmClientList" class="crm-doc-list"></div>
+            <div id="crmClientMiniPanel" class="crm-client-mini-panel" hidden></div>
             <pre id="crmClientOut">Клиент карточкалары келесі қадамда қосылады.</pre>
           </section>
           <section class="crm-panel crm-report-center">
@@ -981,12 +991,12 @@ with check (true);</textarea>
     </section>
   </div>
 
-  <script src="js/utils.js?v=20260701-15"></script>
-  <script src="js/storage.js?v=20260701-15"></script>
-  <script src="js/api.js?v=20260701-15"></script>
-  <script src="js/spreadsheet.js?v=20260701-15"></script>
-  <script src="js/documents.js?v=20260701-15"></script>
-  <script src="js/priceMatching.js?v=20260701-15"></script>
-  <script src="app.js?v=20260701-15"></script>
+  <script src="js/utils.js?v=20260702-05"></script>
+  <script src="js/storage.js?v=20260702-05"></script>
+  <script src="js/api.js?v=20260702-05"></script>
+  <script src="js/spreadsheet.js?v=20260702-05"></script>
+  <script src="js/documents.js?v=20260702-05"></script>
+  <script src="js/priceMatching.js?v=20260702-05"></script>
+  <script src="app.js?v=20260702-05"></script>
 </body>
 </html>

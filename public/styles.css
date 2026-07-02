@@ -412,6 +412,29 @@ textarea:focus, input:focus, select:focus { border-color: var(--leaf); }
   overflow-x: auto;
 }
 
+.crm-pipeline-summary {
+  display: grid;
+  grid-template-columns: repeat(10, minmax(150px, 1fr));
+  gap: 10px;
+  overflow-x: auto;
+}
+
+.crm-pipeline-summary-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #102823;
+  color: white;
+  padding: 12px;
+  display: grid;
+  gap: 5px;
+  min-width: 150px;
+}
+
+.crm-pipeline-summary-card span,
+.crm-pipeline-summary-card small {
+  color: #bfd0ca;
+}
+
 .crm-stage {
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -445,6 +468,12 @@ textarea:focus, input:focus, select:focus { border-color: var(--leaf); }
   padding: 10px;
   display: grid;
   gap: 4px;
+}
+
+.crm-deal-card button {
+  min-height: 32px;
+  padding: 6px 8px;
+  font-size: 12px;
 }
 
 .crm-deal-card.overdue,

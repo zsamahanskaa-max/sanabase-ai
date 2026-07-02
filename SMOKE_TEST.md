@@ -363,6 +363,22 @@ Frontend asset query versions were updated to `20260702-11`. Manual checks to ru
 10. Confirm Backup Center export/import still opens.
 11. Confirm no browser Console error appears.
 
+## 14. CRM pipeline summary and Kanban
+
+Frontend asset query versions were updated to `20260702-12`. Manual checks to run:
+
+1. Create a quick order.
+2. Confirm `crmPipelineSummary` shows count, totalAmount, and debtAmount by status.
+3. Confirm the order card appears in the correct Kanban column.
+4. Confirm the card shows orderNumber, client/school, productName, totalAmount, debtAmount, and pipeline status.
+5. Click `Next status` inside the Kanban card.
+6. Confirm the card moves to the next status column.
+7. Confirm the summary count/total/debt updates.
+8. Confirm CRM table is still visible.
+9. Confirm Client Profile -> Orders status updates.
+10. Confirm Backup Center export/import still works.
+11. Confirm no browser Console error appears.
+
 ## Pass criteria
 
 - `public/js/utils.js` loads before `public/app.js`.

@@ -62,7 +62,7 @@ const {
 } = window.SanaPriceMatching;
 
 const state = loadState();
-const BACKUP_VERSION = "20260702-11";
+const BACKUP_VERSION = "20260702-12";
 const CRM_PIPELINE_STATUSES = [
   ["new", "Жаңа заказ"],
   ["calculating", "На просчете"],
@@ -1415,6 +1415,21 @@ function renderCrmOperatingPanel(cal = calendarData()) {
     return true;
   });
   const stages = CRM_PIPELINE_STATUSES;
+  if ($("crmPipelineSummary")) {
+    $("crmPipelineSummary").innerHTML = stages.map(([status, label]) => {
+      const stageRows = rows.filter(row => (row.pipelineStatus || "new") === status);
+      const total = stageRows.reduce((sum, row) => sum + Number(row.amount || 0), 0);
+      const debt = stageRows.reduce((sum, row) => sum + Number(row.debt || 0), 0);
+      return `
+        <article class="crm-pipeline-summary-card">
+          <span>${escapeHtml(label)}</span>
+          <strong>${stageRows.length}</strong>
+          <small>Total: ${money(total)}</small>
+          <small>Debt: ${money(debt)}</small>
+        </article>
+      `;
+    }).join("");
+  }
   $("crmPipeline").innerHTML = stages.map(([status, label]) => {
     const stageRows = rows.filter(row => (row.pipelineStatus || "new") === status);
     const total = stageRows.reduce((sum, row) => sum + row.amount, 0);
@@ -1457,6 +1472,9 @@ function renderCrmOperatingPanel(cal = calendarData()) {
   `;
   $("crmTable").querySelectorAll("[data-crm-task]").forEach(button => {
     button.addEventListener("click", () => createCrmFollowUpTask(button.dataset.crmTask));
+  });
+  $("crmPipeline").querySelectorAll("[data-crm-next-status]").forEach(button => {
+    button.addEventListener("click", () => advanceCrmPipelineStatus(button.dataset.crmNextStatus));
   });
   $("crmTable").querySelectorAll("[data-crm-next-status]").forEach(button => {
     button.addEventListener("click", () => advanceCrmPipelineStatus(button.dataset.crmNextStatus));
@@ -1520,7 +1538,10 @@ function crmDealCard(row) {
     <article class="crm-deal-card ${row.overdue ? "overdue" : ""}">
       <b>${escapeHtml(row.orderNumber || row.title)}</b>
       <span>${escapeHtml(row.schoolName || row.clientName || "Клиент жоқ")} · ${money(row.amount)}</span>
-      <small>${escapeHtml(row.productName || "Тауар жоқ")} · ${row.quantity || 0} дана · ${escapeHtml(row.pipelineStatusLabel || crmPipelineStatusLabel(row.pipelineStatus))} · debt ${money(row.debt)}</small>
+      <small>${escapeHtml(row.productName || "Тауар жоқ")}</small>
+      <small>Status: ${escapeHtml(row.pipelineStatusLabel || crmPipelineStatusLabel(row.pipelineStatus))}</small>
+      <small>Total: ${money(row.amount)} · Debt: ${money(row.debt)}</small>
+      <button type="button" data-crm-next-status="${escapeHtml(row.id)}">Next status</button>
     </article>
   `;
 }

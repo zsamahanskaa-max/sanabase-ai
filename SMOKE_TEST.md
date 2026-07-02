@@ -476,6 +476,16 @@ Frontend asset query versions were updated to `20260703-01`. Manual checks to ru
 6. Confirm Mimo stays at the mobile bottom corner and does not cover Cloud Sync buttons.
 7. Confirm no browser Console error appears.
 
+## 21. Mobile Cloud Sync login error guidance
+
+Frontend asset query versions were updated to `20260703-02`. Manual checks to run:
+
+1. Open the Brain / Екінші ми section on phone.
+2. Enter a wrong email/password and tap `Кіру`.
+3. Confirm the error explains in Kazakh that email/password is wrong or the user should use `Тіркелу` first.
+4. Confirm `Invalid login credentials` is not shown raw to the user.
+5. Confirm no browser Console error appears.
+
 ## Pass criteria
 
 - `public/js/utils.js` loads before `public/app.js`.

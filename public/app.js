@@ -4387,7 +4387,17 @@ function setCloudStatus(message, good) {
 }
 
 function shortError(error) {
-  return String(error?.message || error).slice(0, 280);
+  const message = String(error?.message || error);
+  if (/invalid login credentials/i.test(message)) {
+    return "Email немесе password дұрыс емес. Телефонда бірінші рет болса, алдымен Тіркелу басыңыз. Бұрын тіркелген болсаңыз, email/password-ты дәл тексеріңіз.";
+  }
+  if (/email not confirmed/i.test(message)) {
+    return "Email әлі расталмаған. Почтаңыздағы confirmation хатты растаңыз, содан кейін Кіру басыңыз.";
+  }
+  if (/signup.*disabled/i.test(message)) {
+    return "Тіркелу Supabase-та өшірулі. Бұрын тіркелген аккаунтпен Кіру керек.";
+  }
+  return message.slice(0, 280);
 }
 
 async function ai(mode, prompt, language = "Kazakh", assistantMode = "auto") {

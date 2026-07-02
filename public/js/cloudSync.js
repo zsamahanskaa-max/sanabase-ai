@@ -318,7 +318,17 @@
   }
 
   function shortError(error) {
-    return String(error?.message || error).slice(0, 280);
+    const message = String(error?.message || error);
+    if (/invalid login credentials/i.test(message)) {
+      return "Email немесе password дұрыс емес. Егер бұл телефонда бірінші рет кіріп тұрсаңыз, алдымен дәл осы email/password-пен Тіркелу басыңыз. Егер бұрын тіркелген болсаңыз, password-ты қайта тексеріңіз.";
+    }
+    if (/email not confirmed/i.test(message)) {
+      return "Email әлі расталмаған. Почтаңызды ашып, Supabase жіберген confirmation хатты растаңыз, содан кейін Кіру басыңыз.";
+    }
+    if (/signup.*disabled/i.test(message)) {
+      return "Тіркелу Supabase баптауында өшірулі. Бұл жағдайда бұрын тіркелген email/password-пен Кіру керек.";
+    }
+    return message.slice(0, 280);
   }
 
   function escapeHtml(value) {

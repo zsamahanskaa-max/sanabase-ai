@@ -443,6 +443,21 @@ Frontend asset query versions were updated to `20260702-16`. Manual checks to ru
 12. Confirm Backup Center export/import still works.
 13. Confirm no browser Console error appears.
 
+## 19. Supabase Cloud Sync configured
+
+Frontend asset query versions were updated to `20260702-17`. Supabase frontend config was added with the project URL and publishable public key. Manual checks to run:
+
+1. Open the app locally or on GitHub Pages.
+2. Confirm Cloud Sync no longer says `Not configured`.
+3. Sign up or sign in with email/password.
+4. Create or edit one CRM client/order locally.
+5. Click `Save to cloud`.
+6. Open the app on phone or another browser.
+7. Sign in with the same account and click `Load from cloud`.
+8. Confirm before restore, then confirm CRM client/order appears.
+9. Confirm Backup Center export/import still works.
+10. Confirm no browser Console error appears.
+
 ## Pass criteria
 
 - `public/js/utils.js` loads before `public/app.js`.

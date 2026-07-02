@@ -62,7 +62,7 @@ const {
 } = window.SanaPriceMatching;
 
 const state = loadState();
-const BACKUP_VERSION = "20260702-09";
+const BACKUP_VERSION = "20260702-10";
 const DEFAULT_CLOUD_CONFIG = {
   url: "https://koszjmsanlxdakqvdkgc.supabase.co",
   key: "sb_publishable_y7IIJav4n99Z1dbfROh3SA_TtlAn5tO",
@@ -116,6 +116,7 @@ on("crmClientSearch", "input", render);
 on("crmClientStatusFilter", "change", render);
 document.addEventListener("click", handleCrmClientCardAction);
 on("crmQuickForm", "submit", saveCrmQuickDeal);
+on("crmOrderClientSelect", "change", fillCrmOrderClientFromSelect);
 on("crmSearch", "input", render);
 on("crmStatusFilter", "change", render);
 on("crmReportBtn", "click", buildCrmBusinessReport);
@@ -484,8 +485,10 @@ function saveCrmQuickDeal(event) {
   event.preventDefault();
   const orderNumber = $("crmOrderNumber")?.value?.trim() || `ORD-${Date.now().toString().slice(-6)}`;
   const date = $("crmOrderDate")?.value || isoDate();
-  const clientName = $("crmClientName")?.value?.trim() || "";
-  const schoolName = $("crmSchoolName")?.value?.trim() || clientName;
+  const selectedClientId = $("crmOrderClientSelect")?.value || "";
+  const selectedClient = selectedClientId ? findCrmClientById(selectedClientId) : null;
+  const clientName = $("crmClientName")?.value?.trim() || selectedClient?.clientName || selectedClient?.name || "";
+  const schoolName = $("crmSchoolName")?.value?.trim() || selectedClient?.schoolName || selectedClient?.name || clientName;
   const productName = $("crmProductName")?.value?.trim() || "";
   const quantity = Number($("crmQuantity")?.value || 0);
   const purchasePrice = Number($("crmPurchasePrice")?.value || 0);
@@ -520,6 +523,7 @@ function saveCrmQuickDeal(event) {
     date,
     clientName,
     schoolName,
+    clientId: selectedClient?.id || "",
     productName,
     quantity,
     purchasePrice,
@@ -551,6 +555,7 @@ function saveCrmQuickDeal(event) {
       comment: `CRM order ${orderNumber}: ${productName}`
     });
     payment.orderId = order.id;
+    payment.clientId = selectedClient?.id || "";
     payment.method = paymentMethod;
     order.relatedPaymentId = payment.id;
   }
@@ -692,6 +697,7 @@ function renderCrmWorkspace() {
 
 function renderCrmClientPlaceholder() {
   const cal = calendarData();
+  renderCrmOrderClientSelect(cal);
   const query = ($("crmClientSearch")?.value || "").trim().toLowerCase();
   const filter = $("crmClientStatusFilter")?.value || "active";
   const clients = (cal.clients || []).map(normalizeCrmClientCard).filter(client => {
@@ -734,6 +740,25 @@ function renderCrmClientPlaceholder() {
   if ($("crmClientOut")) $("crmClientOut").textContent = clients.length
     ? `\u041a\u043b\u0438\u0435\u043d\u0442 \u043a\u0430\u0440\u0442\u043e\u0447\u043a\u0430\u043b\u0430\u0440\u044b: ${clients.length}`
     : "\u041a\u043b\u0438\u0435\u043d\u0442 \u0442\u0430\u0431\u044b\u043b\u043c\u0430\u0434\u044b \u043d\u0435\u043c\u0435\u0441\u0435 \u04d9\u043b\u0456 \u0441\u0430\u049b\u0442\u0430\u043b\u043c\u0430\u0493\u0430\u043d.";
+}
+
+function renderCrmOrderClientSelect(cal = calendarData()) {
+  const select = $("crmOrderClientSelect");
+  if (!select) return;
+  const selected = select.value || "";
+  const clients = (cal.clients || []).map(normalizeCrmClientCard).filter(client => !client.archivedAt);
+  select.innerHTML = [
+    `<option value="">Клиент таңдамау / қолмен енгізу</option>`,
+    ...clients.map(client => `<option value="${escapeHtml(client.id)}">${escapeHtml(crmClientProfileName(client))}${client.bin ? ` · ${escapeHtml(client.bin)}` : ""}</option>`)
+  ].join("");
+  if (selected && clients.some(client => client.id === selected)) select.value = selected;
+}
+
+function fillCrmOrderClientFromSelect() {
+  const client = findCrmClientById($("crmOrderClientSelect")?.value || "");
+  if (!client) return;
+  if ($("crmClientName")) $("crmClientName").value = client.clientName || client.name || client.schoolName || "";
+  if ($("crmSchoolName")) $("crmSchoolName").value = client.schoolName || client.name || client.clientName || "";
 }
 function normalizeCrmClientCard(client = {}) {
   return {
@@ -855,8 +880,11 @@ function crmClientMatchValues(client) {
 
 function crmClientRelatedOrders(client) {
   const values = crmClientMatchValues(client);
+  const rows = crmDealRows(calendarData());
+  const linked = rows.filter(row => row.clientId && row.clientId === client.id);
+  if (linked.length) return linked;
   if (!values.length) return [];
-  return crmDealRows(calendarData()).filter(row => {
+  return rows.filter(row => {
     const haystack = [
       row.clientName,
       row.schoolName,
@@ -1445,6 +1473,7 @@ function crmDealRows(cal = calendarData()) {
     const nextAction = nextTask?.dueDate || order.expectedDeliveryDate || client?.nextActionDate || order.date || "";
     return {
       id: order.id,
+      clientId: order.clientId || "",
       orderNumber: order.orderNumber || "",
       date: order.date || order.clientOrderDate || order.createdAt || "",
       clientName: order.clientName || client?.name || "",

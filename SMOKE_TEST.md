@@ -329,6 +329,24 @@ Frontend asset query versions were updated to `20260702-09`. Manual checks to ru
 13. Confirm Backup Center export/import still opens.
 14. Confirm CRM quick order save still works.
 
+## 12. CRM quick order optional client linking
+
+Frontend asset query versions were updated to `20260702-10`. Manual checks to run:
+
+1. Open CRM -> Clients / Schools.
+2. Create an active client card.
+3. In CRM quick order form, open `crmOrderClientSelect`.
+4. Confirm active clients appear and archived clients do not appear by default.
+5. Select a client and confirm `crmClientName` and `crmSchoolName` auto-fill.
+6. Save a quick order with selected client.
+7. Open that client's `Profile`.
+8. Confirm Orders tab shows the linked order by `clientId`.
+9. Confirm Debts tab totals update.
+10. Save another quick order without selected client using manual clientName/schoolName.
+11. Confirm old/manual orders still appear by fallback matching.
+12. Confirm Backup Center export/import still works.
+13. Confirm no browser Console error appears.
+
 ## Pass criteria
 
 - `public/js/utils.js` loads before `public/app.js`.

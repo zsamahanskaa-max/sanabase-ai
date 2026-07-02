@@ -310,6 +310,25 @@ Frontend asset query versions were updated to `20260702-08`. Manual checks to ru
 12. Confirm saved images are still visible in Brain.
 13. If browser storage is full, confirm skipped image names appear instead of breaking the app.
 
+## 11. Clients edit, archive, restore, duplicate warning
+
+Frontend asset query versions were updated to `20260702-09`. Manual checks to run:
+
+1. Open CRM -> Clients / Schools.
+2. Create a client card.
+3. Click `Edit` and confirm the form is filled with that client data.
+4. Change phone or comment and save.
+5. Refresh the page and confirm the edited data stays saved.
+6. Click `Archive` and confirm the card disappears from active filter.
+7. Switch filter to `archived` and confirm the card appears.
+8. Click `Restore` and confirm the card returns to active filter.
+9. Create another client with the same BIN and confirm duplicate warning appears.
+10. Create another client without BIN but with similar school/client name and confirm warning appears.
+11. Confirm warning does not block save.
+12. Open `Profile` and confirm Client Profile Modal still works.
+13. Confirm Backup Center export/import still opens.
+14. Confirm CRM quick order save still works.
+
 ## Pass criteria
 
 - `public/js/utils.js` loads before `public/app.js`.

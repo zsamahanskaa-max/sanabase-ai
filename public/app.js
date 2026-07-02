@@ -62,7 +62,7 @@ const {
 } = window.SanaPriceMatching;
 
 const state = loadState();
-const BACKUP_VERSION = "20260702-08";
+const BACKUP_VERSION = "20260702-09";
 const DEFAULT_CLOUD_CONFIG = {
   url: "https://koszjmsanlxdakqvdkgc.supabase.co",
   key: "sb_publishable_y7IIJav4n99Z1dbfROh3SA_TtlAn5tO",
@@ -771,11 +771,19 @@ function crmClientDuplicateWarning(client, clients = []) {
   if (normalizedName) {
     const match = existingClients.find(existing => {
       const existingName = `${existing.schoolName || ""} ${existing.clientName || ""} ${existing.name || ""}`.trim().toLowerCase();
-      return existingName && (existingName.includes(normalizedName) || normalizedName.includes(existingName));
+      return existingName && (existingName.includes(normalizedName) || normalizedName.includes(existingName) || crmClientNameSimilarity(existingName, normalizedName) >= 0.6);
     });
     if (match) return `\u0415\u0441\u043a\u0435\u0440\u0442\u0443: \u0430\u0442\u0430\u0443\u044b \u04b1\u049b\u0441\u0430\u0441 \u043a\u043b\u0438\u0435\u043d\u0442 \u0431\u0430\u0440: ${match.schoolName || match.name || match.clientName}.`;
   }
   return "";
+}
+
+function crmClientNameSimilarity(left, right) {
+  const leftWords = new Set(String(left || "").split(/\s+/).filter(word => word.length > 2));
+  const rightWords = new Set(String(right || "").split(/\s+/).filter(word => word.length > 2));
+  if (!leftWords.size || !rightWords.size) return 0;
+  const common = [...leftWords].filter(word => rightWords.has(word)).length;
+  return common / Math.max(leftWords.size, rightWords.size);
 }
 
 function setCrmClientForm(client) {

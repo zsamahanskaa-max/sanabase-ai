@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#28433f">
   <title>SanaBase AI</title>
-  <link rel="manifest" href="manifest.json?v=20260702-17">
-  <link rel="stylesheet" href="styles.css?v=20260702-17">
+  <link rel="manifest" href="manifest.json?v=20260703-01">
+  <link rel="stylesheet" href="styles.css?v=20260703-01">
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs" type="module"></script>
@@ -297,12 +297,13 @@
               <input id="cloudPassword" type="password" autocomplete="current-password" placeholder="password">
             </label>
           </div>
+          <p class="muted">Қолдану реті: email/password жазыңыз -> жаңа аккаунт болса Тіркелу, бар аккаунт болса Кіру -> содан кейін Бұлтқа сақтау немесе Бұлттан алу.</p>
           <div class="cloud-actions">
-            <button id="cloudSignUpBtn" type="button">Sign up</button>
-            <button id="cloudSignInBtn" type="button">Sign in</button>
-            <button id="cloudSignOutBtn" type="button">Sign out</button>
-            <button id="cloudSaveBtn" type="button">Save to cloud</button>
-            <button id="cloudLoadBtn" type="button">Load from cloud</button>
+            <button id="cloudSignUpBtn" type="button">Тіркелу</button>
+            <button id="cloudSignInBtn" type="button">Кіру</button>
+            <button id="cloudSignOutBtn" type="button">Шығу</button>
+            <button id="cloudSaveBtn" type="button" disabled>Бұлтқа сақтау</button>
+            <button id="cloudLoadBtn" type="button" disabled>Бұлттан алу</button>
           </div>
           <div id="cloudConflictPanel" class="cloud-conflict-panel" hidden></div>
           <div class="cloud-help">
@@ -1017,18 +1018,18 @@
     </section>
   </div>
 
-  <script src="js/utils.js?v=20260702-17"></script>
-  <script src="js/storage.js?v=20260702-17"></script>
-  <script src="js/api.js?v=20260702-17"></script>
-  <script src="js/spreadsheet.js?v=20260702-17"></script>
-  <script src="js/documents.js?v=20260702-17"></script>
-  <script src="js/priceMatching.js?v=20260702-17"></script>
+  <script src="js/utils.js?v=20260703-01"></script>
+  <script src="js/storage.js?v=20260703-01"></script>
+  <script src="js/api.js?v=20260703-01"></script>
+  <script src="js/spreadsheet.js?v=20260703-01"></script>
+  <script src="js/documents.js?v=20260703-01"></script>
+  <script src="js/priceMatching.js?v=20260703-01"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     window.SANABASE_SUPABASE_URL = window.SANABASE_SUPABASE_URL || "https://koszjmsanlxdakqvdkgc.supabase.co";
     window.SANABASE_SUPABASE_ANON_KEY = window.SANABASE_SUPABASE_ANON_KEY || "sb_publishable_y7IIJav4n99Z1dbfROh3SA_TtlAn5tO";
   </script>
-  <script src="js/cloudSync.js?v=20260702-17"></script>
-  <script src="app.js?v=20260702-17"></script>
+  <script src="js/cloudSync.js?v=20260703-01"></script>
+  <script src="app.js?v=20260703-01"></script>
 </body>
 </html>

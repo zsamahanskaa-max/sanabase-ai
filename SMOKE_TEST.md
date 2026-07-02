@@ -464,6 +464,18 @@ GitHub Pages deploy note:
 - Local files such as `.env.local`, `work/`, and backend server files are not included in the Pages artifact.
 - `.nojekyll` is included so GitHub Pages serves static files exactly as uploaded.
 
+## 20. Mobile Cloud Sync usability fix
+
+Frontend asset query versions were updated to `20260703-01`. Manual checks to run:
+
+1. Open the Brain / Екінші ми section on phone.
+2. Confirm Cloud Sync shows Kazakh step-by-step text.
+3. Confirm `Бұлтқа сақтау` and `Бұлттан алу` are disabled before sign in.
+4. Enter email/password and sign in.
+5. Confirm save/load buttons become enabled.
+6. Confirm Mimo stays at the mobile bottom corner and does not cover Cloud Sync buttons.
+7. Confirm no browser Console error appears.
+
 ## Pass criteria
 
 - `public/js/utils.js` loads before `public/app.js`.

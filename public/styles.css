@@ -2780,6 +2780,11 @@ pre {
     display: grid;
     grid-template-columns: 1fr;
   }
+  .cloud-actions button:disabled {
+    opacity: .46;
+    cursor: not-allowed;
+    filter: grayscale(.25);
+  }
   .sanabot {
     left: var(--sanabot-x, calc(100vw - 74px));
     top: var(--sanabot-y, calc(100dvh - 74px));

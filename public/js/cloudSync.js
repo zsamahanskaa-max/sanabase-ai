@@ -30,6 +30,22 @@
     if (node) node.textContent = message;
   }
 
+  function setActionState(session) {
+    const signedIn = Boolean(session?.user?.id);
+    const saveButton = document.getElementById("cloudSaveBtn");
+    const loadButton = document.getElementById("cloudLoadBtn");
+    const signOutButton = document.getElementById("cloudSignOutBtn");
+    [saveButton, loadButton].forEach(button => {
+      if (!button) return;
+      button.disabled = !signedIn;
+      button.title = signedIn ? "" : "Алдымен email/password енгізіп, Кіру батырмасын басыңыз.";
+    });
+    if (signOutButton) {
+      signOutButton.disabled = !signedIn;
+      signOutButton.title = signedIn ? "" : "Әлі аккаунтқа кірмегенсіз.";
+    }
+  }
+
   function config() {
     return {
       url: String(window.SANABASE_SUPABASE_URL || "").trim().replace(/\/+$/, ""),
@@ -47,12 +63,14 @@
     const cfg = config();
     if (!cfg.url || !cfg.anonKey) {
       setBadge("Not configured");
-      setStatus("Cloud Sync: Not configured. Set window.SANABASE_SUPABASE_URL and window.SANABASE_SUPABASE_ANON_KEY.", false);
+      setActionState(null);
+      setStatus("Cloud Sync: баптау жоқ. Supabase URL және public key қосылуы керек.", false);
       return null;
     }
     if (!window.supabase?.createClient) {
       setBadge("Not ready");
-      setStatus("Cloud Sync: Supabase JS CDN did not load.", false);
+      setActionState(null);
+      setStatus("Cloud Sync: Supabase library жүктелмеді. Интернетті тексеріп, бетті жаңартыңыз.", false);
       return null;
     }
     client = window.supabase.createClient(cfg.url, cfg.anonKey);
@@ -74,7 +92,7 @@
     const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) throw error;
     await renderCloudStatus();
-    setStatus("Cloud Sync: sign up sent. Email confirmation may be required.", true);
+    setStatus("Cloud Sync: тіркелу сұранысы жіберілді. Егер Supabase email confirmation сұраса, почтаңызды растаңыз, содан кейін Кіру басыңыз.", true);
     return data;
   }
 
@@ -84,7 +102,7 @@
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
     await renderCloudStatus();
-    setStatus("Cloud Sync: signed in.", true);
+    setStatus("Cloud Sync: кірдіңіз. Енді Бұлтқа сақтау немесе Бұлттан алу батырмасын басуға болады.", true);
     return data;
   }
 
@@ -96,7 +114,7 @@
     lastCloudState = null;
     renderConflict(null);
     await renderCloudStatus();
-    setStatus("Cloud Sync: signed out. Local data is still saved in this browser.", false);
+    setStatus("Cloud Sync: аккаунттан шықтыңыз. Осы браузердегі localStorage деректері орнында қалды.", false);
   }
 
   function getLocalKeys() {
@@ -161,7 +179,8 @@
   async function requireSession() {
     const session = await getSession();
     if (!session?.user?.id) {
-      throw new Error("Please sign in first.");
+      setActionState(null);
+      throw new Error("Алдымен email/password енгізіп, Кіру батырмасын басыңыз. Содан кейін ғана Save to cloud немесе Load from cloud жұмыс істейді.");
     }
     return session;
   }
@@ -179,7 +198,7 @@
       device_label: navigator.userAgent.slice(0, 180),
       updated_at: nowIso()
     };
-    setStatus("Cloud Sync: saving local data to cloud...", true);
+    setStatus("Cloud Sync: localStorage деректері бұлтқа сақталып жатыр...", true);
     const { data, error } = await supabase
       .from(CLOUD_TABLE)
       .upsert(row, { onConflict: "user_id,workspace_id" })
@@ -188,7 +207,7 @@
     if (error) throw error;
     lastCloudState = { payload, updated_at: data?.updated_at || row.updated_at };
     renderConflict(null);
-    setStatus(`Cloud Sync: saved to cloud at ${lastCloudState.updated_at}.`, true);
+    setStatus(`Cloud Sync: бұлтқа сақталды. Уақыты: ${lastCloudState.updated_at}.`, true);
     return lastCloudState;
   }
 
@@ -210,13 +229,13 @@
   async function loadFromCloud() {
     const cloud = await getCloudState();
     if (!cloud?.payload) {
-      setStatus("Cloud Sync: no cloud data found yet. Save to cloud first.", false);
+      setStatus("Cloud Sync: бұлтта дерек әлі жоқ. Алдымен негізгі құрылғыдан Бұлтқа сақтау басыңыз.", false);
       return null;
     }
     renderConflict(cloud);
-    const ok = confirm(`Download cloud data?\n\nCloud updated: ${cloud.updated_at || "unknown"}\n\nThis will overwrite SanaBase localStorage in this browser.`);
+    const ok = confirm(`Бұлттағы деректі осы құрылғыға жүктейміз бе?\n\nCloud updated: ${cloud.updated_at || "unknown"}\n\nБұл осы браузердегі SanaBase localStorage дерегін ауыстырады.`);
     if (!ok) {
-      setStatus("Cloud Sync: download cancelled. Local data was not changed.", false);
+      setStatus("Cloud Sync: жүктеу тоқтатылды. Local дерек өзгерген жоқ.", false);
       return null;
     }
     restoreLocalData(cloud.payload);
@@ -276,20 +295,24 @@
   async function renderCloudStatus() {
     if (!hasConfig()) {
       setBadge("Not configured");
-      setStatus("Cloud Sync: Not configured. Add window.SANABASE_SUPABASE_URL and window.SANABASE_SUPABASE_ANON_KEY before cloud sync.", false);
+      setActionState(null);
+      setStatus("Cloud Sync: баптау жоқ. Supabase URL және public key қосылуы керек.", false);
       return;
     }
     try {
       const session = await getSession();
       if (session?.user?.email) {
         setBadge("Signed in");
-        setStatus(`Cloud Sync: signed in as ${session.user.email}.`, true);
+        setActionState(session);
+        setStatus(`Cloud Sync: ${session.user.email} аккаунтымен кірдіңіз. Енді сақтау/жүктеу дайын.`, true);
       } else {
         setBadge("Configured");
-        setStatus("Cloud Sync: configured. Sign in to sync laptop and phone.", false);
+        setActionState(null);
+        setStatus("Cloud Sync: дайын. 1) Email/password жазыңыз. 2) Егер жаңа аккаунт болса Тіркелу басыңыз. 3) Бар аккаунт болса Кіру басыңыз. 4) Содан кейін Бұлтқа сақтау/Бұлттан алу қолданыңыз.", false);
       }
     } catch (error) {
       setBadge("Error");
+      setActionState(null);
       setStatus(`Cloud Sync error: ${shortError(error)}`, false);
     }
   }

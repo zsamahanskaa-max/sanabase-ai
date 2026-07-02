@@ -5119,6 +5119,10 @@ function moveMimoHome() {
 function moveMimoRandom() {
   const root = $("sanabot");
   if (!root) return;
+  if (window.innerWidth < 700) {
+    moveMimoHome();
+    return;
+  }
   const margin = window.innerWidth < 700 ? 14 : 22;
   const maxX = Math.max(margin, window.innerWidth - 92);
   const maxY = Math.max(margin + 72, window.innerHeight - 98);

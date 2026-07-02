@@ -62,7 +62,19 @@ const {
 } = window.SanaPriceMatching;
 
 const state = loadState();
-const BACKUP_VERSION = "20260702-10";
+const BACKUP_VERSION = "20260702-11";
+const CRM_PIPELINE_STATUSES = [
+  ["new", "Жаңа заказ"],
+  ["calculating", "На просчете"],
+  ["supplier_sent", "Поставщикке жіберілді"],
+  ["received", "Товар қабылданды"],
+  ["ready", "Клиентке дайын"],
+  ["realized", "Реализация жасалды"],
+  ["esf_sent", "ESF жіберілді"],
+  ["paid", "Төленді"],
+  ["debt", "Қарыз қалды"],
+  ["closed", "Жабылды"]
+];
 const DEFAULT_CLOUD_CONFIG = {
   url: "https://koszjmsanlxdakqvdkgc.supabase.co",
   key: "sb_publishable_y7IIJav4n99Z1dbfROh3SA_TtlAn5tO",
@@ -535,6 +547,7 @@ function saveCrmQuickDeal(event) {
     debtAmount,
     paymentMethod,
     paymentStatus: debtAmount <= 0 ? "paid" : paidAmount > 0 ? "partial" : "unpaid",
+    pipelineStatus: "new",
     documentStatus,
     esfStatus,
     oneCStatus,
@@ -970,7 +983,7 @@ function crmClientProfileOrders(client) {
         <article>
           <strong>${escapeHtml(row.orderNumber || row.title || "Order")}</strong>
           <span>${escapeHtml(row.date || "-")} · ${escapeHtml(row.productName || "-")}</span>
-          <small>Total: ${money(row.amount)} · Paid: ${money(row.paidAmount)} · Debt: ${money(row.debt)}</small>
+          <small>Status: ${escapeHtml(row.pipelineStatusLabel || crmPipelineStatusLabel(row.pipelineStatus))} · Total: ${money(row.amount)} · Paid: ${money(row.paidAmount)} · Debt: ${money(row.debt)}</small>
         </article>
       `).join("") || `<p class="crm-empty">Order табылмады. Matching clientName немесе schoolName арқылы жасалады.</p>`}
     </div>
@@ -1395,21 +1408,15 @@ function renderCrmOperatingPanel(cal = calendarData()) {
   const query = $("crmSearch")?.value?.toLowerCase() || "";
   const filter = $("crmStatusFilter")?.value || "all";
   const rows = crmDealRows(cal).filter(row => {
-    const haystack = `${row.orderNumber} ${row.date} ${row.clientName} ${row.schoolName} ${row.productName} ${row.paymentMethod} ${row.documentStatus} ${row.esfStatus} ${row.oneCStatus} ${row.comment}`.toLowerCase();
+    const haystack = `${row.orderNumber} ${row.date} ${row.clientName} ${row.schoolName} ${row.productName} ${row.paymentMethod} ${row.pipelineStatusLabel} ${row.documentStatus} ${row.esfStatus} ${row.oneCStatus} ${row.comment}`.toLowerCase();
     if (query && !haystack.includes(query)) return false;
     if (filter === "debt") return row.debt > 0;
     if (filter !== "all") return row.status === filter;
     return true;
   });
-  const stages = [
-    ["client_order_received", "Жаңа заказ"],
-    ["need_to_order", "Поставщик керек"],
-    ["sent_to_supplier", "Жіберілді"],
-    ["received", "Келді"],
-    ["closed", "Жабылды"]
-  ];
+  const stages = CRM_PIPELINE_STATUSES;
   $("crmPipeline").innerHTML = stages.map(([status, label]) => {
-    const stageRows = rows.filter(row => row.status === status);
+    const stageRows = rows.filter(row => (row.pipelineStatus || "new") === status);
     const total = stageRows.reduce((sum, row) => sum + row.amount, 0);
     return `
       <section class="crm-stage">
@@ -1421,7 +1428,7 @@ function renderCrmOperatingPanel(cal = calendarData()) {
   }).join("");
   $("crmTable").innerHTML = `
     <div class="crm-row crm-row-head crm-order-row">
-      <span>orderNumber</span><span>date</span><span>clientName</span><span>schoolName</span><span>productName</span><span>quantity</span><span>purchasePrice</span><span>salePrice</span><span>paidAmount</span><span>paymentMethod</span><span>documentStatus</span><span>esfStatus</span><span>oneCStatus</span><span>comment</span><span></span>
+      <span>orderNumber</span><span>date</span><span>clientName</span><span>schoolName</span><span>productName</span><span>quantity</span><span>purchasePrice</span><span>salePrice</span><span>paidAmount</span><span>paymentMethod</span><span>pipelineStatus</span><span>documentStatus</span><span>esfStatus</span><span>oneCStatus</span><span>comment</span><span></span>
     </div>
     ${rows.map(row => `
       <div class="crm-row crm-order-row ${row.overdue ? "overdue" : ""}">
@@ -1435,11 +1442,13 @@ function renderCrmOperatingPanel(cal = calendarData()) {
         <span>${money(row.salePrice)}</span>
         <span>${money(row.paidAmount)}</span>
         <span>${escapeHtml(row.paymentMethod || "-")}</span>
+        <span>${escapeHtml(row.pipelineStatusLabel || crmPipelineStatusLabel(row.pipelineStatus))}</span>
         <span>${escapeHtml(row.documentStatus || "-")}</span>
         <span>${escapeHtml(row.esfStatus || "-")}</span>
         <span>${escapeHtml(row.oneCStatus || "-")}</span>
         <span>${escapeHtml(row.comment || "-")}</span>
         <span class="crm-row-actions">
+          <button type="button" data-crm-next-status="${escapeHtml(row.id)}">Next status</button>
           <button type="button" data-crm-task="${escapeHtml(row.id)}">Task</button>
           <button type="button" data-crm-close="${escapeHtml(row.id)}">Жабу</button>
         </span>
@@ -1448,6 +1457,9 @@ function renderCrmOperatingPanel(cal = calendarData()) {
   `;
   $("crmTable").querySelectorAll("[data-crm-task]").forEach(button => {
     button.addEventListener("click", () => createCrmFollowUpTask(button.dataset.crmTask));
+  });
+  $("crmTable").querySelectorAll("[data-crm-next-status]").forEach(button => {
+    button.addEventListener("click", () => advanceCrmPipelineStatus(button.dataset.crmNextStatus));
   });
   $("crmTable").querySelectorAll("[data-crm-close]").forEach(button => {
     button.addEventListener("click", () => closeCrmDeal(button.dataset.crmClose));
@@ -1484,6 +1496,8 @@ function crmDealRows(cal = calendarData()) {
       salePrice,
       paidAmount,
       paymentMethod: order.paymentMethod || "",
+      pipelineStatus: order.pipelineStatus || "new",
+      pipelineStatusLabel: crmPipelineStatusLabel(order.pipelineStatus || "new"),
       documentStatus: order.documentStatus || "жоқ",
       esfStatus: order.esfStatus || "жоқ",
       oneCStatus: order.oneCStatus || "енгізілмеді",
@@ -1506,7 +1520,7 @@ function crmDealCard(row) {
     <article class="crm-deal-card ${row.overdue ? "overdue" : ""}">
       <b>${escapeHtml(row.orderNumber || row.title)}</b>
       <span>${escapeHtml(row.schoolName || row.clientName || "Клиент жоқ")} · ${money(row.amount)}</span>
-      <small>${escapeHtml(row.productName || "Тауар жоқ")} · ${row.quantity || 0} дана · debt ${money(row.debt)}</small>
+      <small>${escapeHtml(row.productName || "Тауар жоқ")} · ${row.quantity || 0} дана · ${escapeHtml(row.pipelineStatusLabel || crmPipelineStatusLabel(row.pipelineStatus))} · debt ${money(row.debt)}</small>
     </article>
   `;
 }
@@ -1522,6 +1536,32 @@ function crmStatusLabel(status) {
     closed: "Жабылды",
     overdue_delivery: "Кешіккен"
   }[status] || status || "Ашық";
+}
+
+function crmPipelineStatusLabel(status) {
+  const normalized = status || "new";
+  return (CRM_PIPELINE_STATUSES.find(([id]) => id === normalized) || CRM_PIPELINE_STATUSES[0])[1];
+}
+
+function nextCrmPipelineStatus(status) {
+  const current = status || "new";
+  const index = CRM_PIPELINE_STATUSES.findIndex(([id]) => id === current);
+  const nextIndex = index < 0 ? 1 : Math.min(index + 1, CRM_PIPELINE_STATUSES.length - 1);
+  return CRM_PIPELINE_STATUSES[nextIndex][0];
+}
+
+function advanceCrmPipelineStatus(orderId) {
+  const cal = calendarData();
+  const order = (cal.orders || []).find(item => item.id === orderId);
+  if (!order) return;
+  const oldValue = { ...order };
+  order.pipelineStatus = nextCrmPipelineStatus(order.pipelineStatus || "new");
+  order.updatedAt = nowIso();
+  if (order.pipelineStatus === "paid") order.paymentStatus = "paid";
+  if (order.pipelineStatus === "closed") order.status = "closed";
+  logHistory("crm_order", order.id, "CRM pipeline next status", oldValue, order, "CRM order pipeline");
+  persist();
+  render();
 }
 
 function createCrmFollowUpTask(orderId) {
@@ -1547,6 +1587,7 @@ function closeCrmDeal(orderId) {
   const order = cal.orders.find(item => item.id === orderId);
   if (!order) return;
   order.status = "closed";
+  order.pipelineStatus = "closed";
   order.closedDate = isoDate();
   order.updatedAt = nowIso();
   logHistory("crm_deal", order.id, "CRM сделка жабу", null, order, "CRM толық панелі");

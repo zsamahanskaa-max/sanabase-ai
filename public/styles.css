@@ -335,8 +335,8 @@ textarea:focus, input:focus, select:focus { border-color: var(--leaf); }
 }
 
 .crm-order-row {
-  grid-template-columns: 120px 100px 150px 160px 190px 80px 120px 120px 120px 120px 140px 110px 130px minmax(180px, 1fr) 110px;
-  min-width: 1780px;
+  grid-template-columns: 120px 100px 150px 160px 190px 80px 120px 120px 120px 120px 150px 140px 110px 130px minmax(180px, 1fr) 140px;
+  min-width: 1940px;
 }
 .crm-report-center {
   border-left: 4px solid var(--leaf);
@@ -407,7 +407,7 @@ textarea:focus, input:focus, select:focus { border-color: var(--leaf); }
 
 .crm-pipeline {
   display: grid;
-  grid-template-columns: repeat(5, minmax(180px, 1fr));
+  grid-template-columns: repeat(10, minmax(180px, 1fr));
   gap: 10px;
   overflow-x: auto;
 }

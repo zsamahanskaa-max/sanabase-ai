@@ -347,6 +347,22 @@ Frontend asset query versions were updated to `20260702-10`. Manual checks to ru
 12. Confirm Backup Center export/import still works.
 13. Confirm no browser Console error appears.
 
+## 13. CRM quick order pipeline
+
+Frontend asset query versions were updated to `20260702-11`. Manual checks to run:
+
+1. Create a quick order with selected client.
+2. Create a quick order without selected client.
+3. Confirm new orders show pipeline status `Жаңа заказ`.
+4. Click `Next status`.
+5. Confirm the status moves to the next stage.
+6. Refresh the page and confirm the new pipeline status stays saved.
+7. Open Client Profile -> Orders and confirm pipeline status is visible.
+8. Open Client Profile -> Debts and confirm debt calculation is unchanged.
+9. Confirm old orders without `pipelineStatus` show default `Жаңа заказ`.
+10. Confirm Backup Center export/import still opens.
+11. Confirm no browser Console error appears.
+
 ## Pass criteria
 
 - `public/js/utils.js` loads before `public/app.js`.

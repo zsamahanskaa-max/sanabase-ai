@@ -292,6 +292,24 @@ Frontend asset query versions were updated to `20260702-07`. Manual checks to ru
 12. Confirm existing CRM quick order save still works.
 13. Confirm Backup Center still opens.
 
+## 10. Client persistence and Brain image batch save
+
+Frontend asset query versions were updated to `20260702-08`. Manual checks to run:
+
+1. Open CRM -> Clients / Schools.
+2. Add a new client card.
+3. Confirm `localStorage saved clients` appears in `crmClientOut`.
+4. Press Ctrl+R / refresh the browser.
+5. Confirm the client card is still visible.
+6. Edit the client, refresh again, and confirm changes stay saved.
+7. Open Brain / Екінші ми.
+8. Select a folder and tags for images.
+9. Upload many images at once.
+10. Confirm progress text appears.
+11. Refresh the page.
+12. Confirm saved images are still visible in Brain.
+13. If browser storage is full, confirm skipped image names appear instead of breaking the app.
+
 ## Pass criteria
 
 - `public/js/utils.js` loads before `public/app.js`.

@@ -62,7 +62,7 @@ const {
 } = window.SanaPriceMatching;
 
 const state = loadState();
-const BACKUP_VERSION = "20260702-07";
+const BACKUP_VERSION = "20260702-08";
 const DEFAULT_CLOUD_CONFIG = {
   url: "https://koszjmsanlxdakqvdkgc.supabase.co",
   key: "sb_publishable_y7IIJav4n99Z1dbfROh3SA_TtlAn5tO",
@@ -164,7 +164,7 @@ on("brainSearch", "input", render);
 on("brainCrmBtn", "click", brainCrm);
 on("brainExportBtn", "click", exportBrain);
 on("brainImportFile", "change", importBrain);
-on("brainImageFiles", "change", importBrainImages);
+on("brainImageFiles", "change", importBrainImagesEnhanced);
 on("calForm", "submit", saveCalendarRecord);
 on("calSearch", "input", render);
 on("calFilter", "change", render);
@@ -812,11 +812,24 @@ function setCrmClientArchived(id, archived) {
     updatedAt: nowIso()
   };
   logHistory("crm_client", id, archived ? "CRM client archive" : "CRM client restore", oldValue, cal.clients[index], "Clients / Schools action");
-  persist();
+  persistCrmClientsSafely();
   render();
   if ($("crmClientOut")) $("crmClientOut").textContent = archived
     ? "\u041a\u043b\u0438\u0435\u043d\u0442 \u0430\u0440\u0445\u0438\u0432\u043a\u0435 \u0436\u0456\u0431\u0435\u0440\u0456\u043b\u0434\u0456."
     : "\u041a\u043b\u0438\u0435\u043d\u0442 \u0430\u0440\u0445\u0438\u0432\u0442\u0435\u043d \u049b\u0430\u0439\u0442\u0430\u0440\u044b\u043b\u0434\u044b.";
+}
+
+function persistCrmClientsSafely() {
+  const cal = calendarData();
+  cal.clients = (cal.clients || []).map(normalizeCrmClientCard);
+  state.calendarOS = cal;
+  persist({ sync: false });
+  const saved = storageReadJson("sanabase-state", {}) || {};
+  const savedClients = saved?.calendarOS?.clients;
+  if (!Array.isArray(savedClients) || savedClients.length < cal.clients.length) {
+    storageWriteJson("sanabase-state", state);
+  }
+  scheduleCloudPush();
 }
 
 function findCrmClientById(id) {
@@ -1332,10 +1345,12 @@ function saveCrmClientCard(event) {
   }
   event.target.reset();
   if ($("crmClientEditingId")) $("crmClientEditingId").value = "";
-  persist();
+  persistCrmClientsSafely();
   render();
+  const savedCount = (storageReadJson("sanabase-state", {})?.calendarOS?.clients || []).length;
   if ($("crmClientOut")) $("crmClientOut").textContent = [
     existingIndex >= 0 ? `\u041a\u043b\u0438\u0435\u043d\u0442 \u043a\u0430\u0440\u0442\u043e\u0447\u043a\u0430\u0441\u044b \u0436\u0430\u04a3\u0430\u0440\u0442\u044b\u043b\u0434\u044b: ${client.name}` : `\u041a\u043b\u0438\u0435\u043d\u0442 \u043a\u0430\u0440\u0442\u043e\u0447\u043a\u0430\u0441\u044b \u0441\u0430\u049b\u0442\u0430\u043b\u0434\u044b: ${client.name}`,
+    `localStorage saved clients: ${savedCount}`,
     warning
   ].filter(Boolean).join("\n");
 }
@@ -3536,6 +3551,65 @@ function resizeImage(file, maxSize, quality) {
       img.src = reader.result;
     };
     reader.readAsDataURL(file);
+  });
+}
+
+async function importBrainImagesEnhanced(event) {
+  const files = [...event.target.files].filter(file => file.type.startsWith("image/"));
+  if (!files.length) return;
+  const folder = $("brainImageFolder")?.value.trim() || "Суреттер";
+  const tags = splitList($("brainImageTags")?.value || "");
+  let saved = 0;
+  const skipped = [];
+  if ($("brainOut")) $("brainOut").textContent = `Images saving to Brain: 0/${files.length}`;
+  try {
+    for (const file of files) {
+      if ($("brainOut")) $("brainOut").textContent = `Images saving to Brain: ${saved}/${files.length}\nNow: ${file.name}`;
+      let item = await imageFileToBrainItemCompact(file, folder, tags, 1200, 0.72);
+      state.images.unshift(item);
+      try {
+        persist({ sync: false });
+        saved += 1;
+        continue;
+      } catch {
+        state.images = state.images.filter(image => image.id !== item.id);
+      }
+
+      item = await imageFileToBrainItemCompact(file, folder, tags, 760, 0.56);
+      state.images.unshift(item);
+      try {
+        persist({ sync: false });
+        saved += 1;
+      } catch (error) {
+        state.images = state.images.filter(image => image.id !== item.id);
+        skipped.push(`${file.name}: ${shortError(error)}`);
+      }
+    }
+    scheduleCloudPush();
+    render();
+    if ($("brainOut")) $("brainOut").textContent = [
+      `Saved images: ${saved}/${files.length}`,
+      `Folder: ${folder}`,
+      skipped.length ? `Skipped:\n${skipped.join("\n")}` : "",
+      "Tip: if many images do not fit, export Backup Center and move old images to cloud later."
+    ].filter(Boolean).join("\n");
+  } catch (error) {
+    if ($("brainOut")) $("brainOut").textContent = `Image save error: ${shortError(error)}`;
+  } finally {
+    event.target.value = "";
+  }
+}
+
+async function imageFileToBrainItemCompact(file, folder, tags, maxSize, quality) {
+  const src = await resizeImage(file, maxSize, quality);
+  return normalizeImage({
+    id: crypto.randomUUID(),
+    name: file.name,
+    type: file.type || "image",
+    src,
+    folder,
+    tags: [...new Set([folder, "сурет", ...tags, ...keywords(file.name).slice(0, 4)])],
+    createdAt: new Date().toISOString()
   });
 }
 

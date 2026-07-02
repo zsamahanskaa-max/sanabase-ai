@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#28433f">
   <title>SanaBase AI</title>
-  <link rel="manifest" href="public/manifest.json?v=20260702-15">
-  <link rel="stylesheet" href="public/styles.css?v=20260702-15">
+  <link rel="manifest" href="public/manifest.json?v=20260702-16">
+  <link rel="stylesheet" href="public/styles.css?v=20260702-16">
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs" type="module"></script>
@@ -279,62 +279,37 @@
           </label>
           <p class="muted">Бірден көп сурет таңдауға болады. Жүйе суреттерді кішірейтіп, Екінші ми ішінде сақтайды.</p>
         </div>
-        <div class="cloud-panel">
+        <div class="cloud-panel" id="cloudSyncPanel">
           <div class="brain-head">
             <div>
-              <h3>Бұлтқа сақтау</h3>
-              <p>Бұлт автоматты дайын. Енді URL/key енгізудің қажеті жоқ.</p>
+              <h3>Cloud Sync</h3>
+              <p>Ноутбук пен телефон арасында SanaBase деректерін Supabase арқылы синхрондау.</p>
             </div>
-            <span class="brain-type" id="cloudBadge">Жергілікті</span>
+            <span class="brain-type" id="cloudBadge">Not configured</span>
           </div>
           <div class="cloud-grid">
             <label>
-              <span>Supabase URL</span>
-              <input id="cloudUrl" placeholder="https://xxxx.supabase.co">
+              <span>Email</span>
+              <input id="cloudEmail" type="email" autocomplete="email" placeholder="you@example.com">
             </label>
             <label>
-              <span>Anon key</span>
-              <input id="cloudKey" type="password" placeholder="eyJ...">
-            </label>
-            <label>
-              <span>Workspace коды</span>
-              <input id="cloudWorkspace" placeholder="my-company-brain">
+              <span>Password</span>
+              <input id="cloudPassword" type="password" autocomplete="current-password" placeholder="password">
             </label>
           </div>
           <div class="cloud-actions">
-            <button id="cloudSaveBtn" type="button">Бұлт қосу</button>
-            <button id="cloudPushBtn" type="button">Бұлтқа сақтау</button>
-            <button id="cloudPullBtn" type="button">Бұлттан алу</button>
-            <button id="cloudConfigExportBtn" type="button">Бұлт баптауын жүктеу</button>
-            <label class="upload cloud-config-upload">
-              <input id="cloudConfigImportFile" type="file" accept=".json">
-              Бұлт баптауын енгізу
-            </label>
-            <button id="cloudClearBtn" type="button">Бұлтты өшіру</button>
+            <button id="cloudSignUpBtn" type="button">Sign up</button>
+            <button id="cloudSignInBtn" type="button">Sign in</button>
+            <button id="cloudSignOutBtn" type="button">Sign out</button>
+            <button id="cloudSaveBtn" type="button">Save to cloud</button>
+            <button id="cloudLoadBtn" type="button">Load from cloud</button>
           </div>
+          <div id="cloudConflictPanel" class="cloud-conflict-panel" hidden></div>
           <div class="cloud-help">
-            <strong>Бұлт енді дайын</strong>
-            <span>Құжат, Жазбалар, Тапсырмалар және Екінші ми бір жұмыс кеңістігінде сақталады. Тек керек кезде Бұлтқа сақтау немесе Бұлттан алу басыңыз.</span>
+            <strong>Қауіпсіз режим</strong>
+            <span>LocalStorage бұрынғыдай сақталады. Cloud Sync қосымша ғана жұмыс істейді. service_role key қолданылмайды.</span>
           </div>
-          <details class="cloud-sql">
-            <summary>Supabase SQL</summary>
-            <textarea readonly>create table if not exists sanabase_brain (
-  id text primary key,
-  workspace_id text not null,
-  payload jsonb not null,
-  updated_at timestamptz not null default now()
-);
-
-alter table sanabase_brain enable row level security;
-
-create policy "sanabase brain public sync"
-on sanabase_brain
-for all
-to anon
-using (true)
-with check (true);</textarea>
-          </details>
-          <p id="cloudStatus">Бұлт автоматты дайындалып жатыр...</p>
+          <p id="cloudStatus">Cloud Sync: checking configuration...</p>
         </div>
         <pre id="brainOut">Құжаттарды Жүктеу арқылы жүктеңіз. Бұл бөлім құжаттарды сақтайды, тегпен байланыстырады және сол базадан CRM қорытынды жасайды.</pre>
         <div class="brain-list" id="brainList"></div>
@@ -1042,13 +1017,18 @@ with check (true);</textarea>
     </section>
   </div>
 
-  <script src="public/js/utils.js?v=20260702-15"></script>
-  <script src="public/js/storage.js?v=20260702-15"></script>
-  <script src="public/js/api.js?v=20260702-15"></script>
-  <script src="public/js/spreadsheet.js?v=20260702-15"></script>
-  <script src="public/js/documents.js?v=20260702-15"></script>
-  <script src="public/js/priceMatching.js?v=20260702-15"></script>
-  <script src="public/js/cloudSync.js?v=20260702-15"></script>
-  <script src="public/app.js?v=20260702-15"></script>
+  <script src="public/js/utils.js?v=20260702-16"></script>
+  <script src="public/js/storage.js?v=20260702-16"></script>
+  <script src="public/js/api.js?v=20260702-16"></script>
+  <script src="public/js/spreadsheet.js?v=20260702-16"></script>
+  <script src="public/js/documents.js?v=20260702-16"></script>
+  <script src="public/js/priceMatching.js?v=20260702-16"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    window.SANABASE_SUPABASE_URL = window.SANABASE_SUPABASE_URL || "";
+    window.SANABASE_SUPABASE_ANON_KEY = window.SANABASE_SUPABASE_ANON_KEY || "";
+  </script>
+  <script src="public/js/cloudSync.js?v=20260702-16"></script>
+  <script src="public/app.js?v=20260702-16"></script>
 </body>
 </html>

@@ -425,6 +425,24 @@ Frontend asset query versions were updated to `20260702-15`. Manual checks to ru
 6. Confirm existing Cloud panel buttons still render.
 7. Confirm no browser Console error appears.
 
+## 18. Supabase Cloud Sync MVP
+
+Frontend asset query versions were updated to `20260702-16`. Manual checks to run:
+
+1. Confirm Supabase JS CDN loads before `cloudSync.js`.
+2. Confirm `window.SanaCloudSync` exports `signUp`, `signIn`, `signOut`, `saveToCloud`, and `loadFromCloud`.
+3. If config is missing, confirm Cloud Sync panel shows `Not configured` and the app does not crash.
+4. Set `window.SANABASE_SUPABASE_URL` and `window.SANABASE_SUPABASE_ANON_KEY`, then reload.
+5. Sign up with email/password.
+6. Sign in with email/password.
+7. Create or edit one CRM client/order locally.
+8. Click `Save to cloud`.
+9. Open the app on another browser/device with the same config.
+10. Sign in and click `Load from cloud`.
+11. Confirm before restore, then confirm CRM client/order appears on the second device.
+12. Confirm Backup Center export/import still works.
+13. Confirm no browser Console error appears.
+
 ## Pass criteria
 
 - `public/js/utils.js` loads before `public/app.js`.
@@ -433,6 +451,7 @@ Frontend asset query versions were updated to `20260702-15`. Manual checks to ru
 - `public/js/spreadsheet.js` loads after `api.js` and before `documents.js`.
 - `public/js/documents.js` loads after `spreadsheet.js` and before `priceMatching.js`.
 - `public/js/priceMatching.js` loads after `documents.js` and before `cloudSync.js`.
+- Supabase JS CDN loads after `priceMatching.js` and before `cloudSync.js`.
 - `public/js/cloudSync.js` loads after `priceMatching.js` and before `public/app.js`.
 - `window.SanaUtils` exists.
 - `window.SanaStorage` exists.

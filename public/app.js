@@ -62,7 +62,7 @@ const {
 } = window.SanaPriceMatching;
 
 const state = loadState();
-const BACKUP_VERSION = "20260702-14";
+const BACKUP_VERSION = "20260702-16";
 const CRM_PIPELINE_STATUSES = [
   ["new", "Жаңа заказ"],
   ["calculating", "На просчете"],
@@ -181,12 +181,11 @@ on("brainImageFiles", "change", importBrainImagesEnhanced);
 on("calForm", "submit", saveCalendarRecord);
 on("calSearch", "input", render);
 on("calFilter", "change", render);
-on("cloudSaveBtn", "click", saveCloudSettings);
-on("cloudPushBtn", "click", () => pushCloud(true));
-on("cloudPullBtn", "click", () => pullCloud(true));
-on("cloudConfigExportBtn", "click", exportCloudConfig);
-on("cloudConfigImportFile", "change", importCloudConfig);
-on("cloudClearBtn", "click", clearCloudSettings);
+on("cloudSignUpBtn", "click", () => handleCloudAuth("signup"));
+on("cloudSignInBtn", "click", () => handleCloudAuth("signin"));
+on("cloudSignOutBtn", "click", () => runCloudSyncAction("signOut"));
+on("cloudSaveBtn", "click", () => runCloudSyncAction("saveToCloud"));
+on("cloudLoadBtn", "click", () => runCloudSyncAction("loadFromCloud"));
 on("clearDocs", "click", () => {
   if (!confirm("Барлық сақталған құжаттарды өшіреміз бе?")) return;
   state.docs = [];
@@ -4159,6 +4158,34 @@ function saveBrainMeta(id) {
   $("brainOut").textContent = `${doc.name} сақталды.`;
 }
 
+async function handleCloudAuth(mode) {
+  const email = $("cloudEmail")?.value?.trim() || "";
+  const password = $("cloudPassword")?.value || "";
+  if (!email || !password) {
+    setCloudStatus("Cloud Sync: email және password енгізіңіз.", false);
+    return;
+  }
+  if (!window.SanaCloudSync) {
+    setCloudStatus("Cloud Sync module дайын емес.", false);
+    return;
+  }
+  try {
+    if (mode === "signup") await window.SanaCloudSync.signUp(email, password);
+    else await window.SanaCloudSync.signIn(email, password);
+  } catch (error) {
+    setCloudStatus(`Cloud Sync error: ${shortError(error)}`, false);
+  }
+}
+
+function runCloudSyncAction(action) {
+  const fn = window.SanaCloudSync?.[action];
+  if (typeof fn !== "function") {
+    setCloudStatus("Cloud Sync module дайын емес.", false);
+    return;
+  }
+  Promise.resolve(fn()).catch(error => setCloudStatus(`Cloud Sync error: ${shortError(error)}`, false));
+}
+
 function saveCloudSettings() {
   cloudConfig.url = cleanSupabaseUrl($("cloudUrl").value);
   cloudConfig.key = $("cloudKey").value.trim();
@@ -4297,6 +4324,7 @@ async function pullCloud(showStatus = false) {
 }
 
 function scheduleCloudPush() {
+  if (!$("cloudUrl")) return;
   if (!cloudReady()) return;
   clearTimeout(cloudTimer);
   cloudTimer = setTimeout(() => pushCloud(false), 1200);
@@ -6844,4 +6872,16 @@ function persist(options = {}) {
   storageWriteJson("zhadyra_cfo", state.cfo || defaultCfoState());
   if (options.sync !== false) scheduleCloudPush();
 }
+
+window.SanaAppBridge = {
+  reloadFromLocalStorage() {
+    const restoredState = loadState();
+    Object.keys(state).forEach(key => delete state[key]);
+    Object.assign(state, restoredState);
+    render();
+    renderCloudSettings();
+    updateNotifyUi();
+    window.SanaCloudSync?.renderCloudStatus?.();
+  }
+};
 

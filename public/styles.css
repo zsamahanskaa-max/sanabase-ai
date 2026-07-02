@@ -2153,11 +2153,9 @@ pre {
   color: var(--sage);
 }
 
-#cloudSaveBtn,
 #cloudClearBtn,
 #cloudConfigExportBtn,
-.cloud-config-upload,
-.cloud-grid {
+.cloud-config-upload {
   display: none;
 }
 
@@ -2174,6 +2172,24 @@ pre {
 
 .cloud-help strong {
   color: var(--sage);
+}
+
+.cloud-conflict-panel {
+  border: 1px solid rgba(217, 119, 6, .25);
+  border-radius: 8px;
+  background: #fff7ed;
+  color: #7c2d12;
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.cloud-conflict-panel[hidden] {
+  display: none;
+}
+
+.cloud-conflict-panel span {
+  color: #9a3412;
 }
 
 .cloud-sql summary {

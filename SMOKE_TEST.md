@@ -413,6 +413,18 @@ Frontend asset query versions were updated to `20260702-14`. Manual checks to ru
 12. Confirm Backup Center export/import still works.
 13. Confirm no browser Console error appears.
 
+## 17. Supabase Cloud Sync skeleton
+
+Frontend asset query versions were updated to `20260702-15`. Manual checks to run:
+
+1. Open the app locally.
+2. Confirm `window.SanaCloudSync` exists in Console.
+3. Confirm `window.SanaCloudSync.CLOUD_TABLE` is `sanabase_cloud_state`.
+4. Confirm `window.SanaCloudSync.getLocalKeys()` returns SanaBase localStorage keys.
+5. Confirm Backup Center export/import still opens.
+6. Confirm existing Cloud panel buttons still render.
+7. Confirm no browser Console error appears.
+
 ## Pass criteria
 
 - `public/js/utils.js` loads before `public/app.js`.
@@ -420,17 +432,20 @@ Frontend asset query versions were updated to `20260702-14`. Manual checks to ru
 - `public/js/api.js` loads after `storage.js` and before `public/app.js`.
 - `public/js/spreadsheet.js` loads after `api.js` and before `documents.js`.
 - `public/js/documents.js` loads after `spreadsheet.js` and before `priceMatching.js`.
-- `public/js/priceMatching.js` loads after `documents.js` and before `public/app.js`.
+- `public/js/priceMatching.js` loads after `documents.js` and before `cloudSync.js`.
+- `public/js/cloudSync.js` loads after `priceMatching.js` and before `public/app.js`.
 - `window.SanaUtils` exists.
 - `window.SanaStorage` exists.
 - `window.SanaApi` exists.
 - `window.SanaSpreadsheet` exists.
 - `window.SanaDocuments` exists.
 - `window.SanaPriceMatching` exists.
+- `window.SanaCloudSync` exists.
 - No `SanaUtils is undefined` error appears.
 - No `SanaStorage is undefined` error appears.
 - No `SanaApi is undefined` error appears.
 - No `SanaSpreadsheet is undefined` error appears.
 - No `SanaDocuments is undefined` error appears.
 - No `SanaPriceMatching is undefined` error appears.
+- No `SanaCloudSync is undefined` error appears.
 - CRM, tasks, CFO, import, and AI fallback still work.

@@ -274,6 +274,24 @@ Frontend asset query versions were updated to `20260702-06`. Manual checks to ru
 11. Confirm Goals are still saved.
 12. Confirm no browser Console error appears.
 
+## 9. Clients / Schools Profile Modal
+
+Frontend asset query versions were updated to `20260702-07`. Manual checks to run:
+
+1. Open CRM -> Clients / Schools.
+2. Create or find a client card.
+3. Click `Profile`.
+4. Confirm modal `crmClientProfileModal` opens.
+5. Check tabs: Overview, Orders, Debts, WhatsApp, Tasks, Notes.
+6. Confirm Overview shows clientName, schoolName, BIN, phone, whatsapp, address, paymentTerms, debtLimit, comment.
+7. Confirm Orders uses clientName/schoolName fallback matching.
+8. Confirm Debts shows totalAmount, paidAmount, debtAmount, debt order count.
+9. Open WhatsApp tab and copy one draft.
+10. Open Tasks tab and create a client task.
+11. Close the modal.
+12. Confirm existing CRM quick order save still works.
+13. Confirm Backup Center still opens.
+
 ## Pass criteria
 
 - `public/js/utils.js` loads before `public/app.js`.

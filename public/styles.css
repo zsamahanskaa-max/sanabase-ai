@@ -624,6 +624,121 @@ textarea:focus, input:focus, select:focus { border-color: var(--leaf); }
   color: #eef8f4;
 }
 
+.crm-client-profile-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(10, 18, 16, .72);
+  padding: 20px;
+  display: grid;
+  place-items: center;
+}
+
+.crm-client-profile-modal[hidden] {
+  display: none;
+}
+
+.crm-client-profile-dialog {
+  width: min(960px, 100%);
+  max-height: min(780px, calc(100vh - 40px));
+  overflow: auto;
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: 8px;
+  background: #102823;
+  color: white;
+  padding: 18px;
+  box-shadow: 0 24px 80px rgba(0,0,0,.35);
+  display: grid;
+  gap: 14px;
+}
+
+.crm-client-profile-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.crm-client-profile-head h3,
+.crm-client-profile-head p {
+  margin: 0;
+}
+
+.crm-client-profile-head p,
+.crm-client-profile-body small,
+.crm-client-profile-grid span {
+  color: #bfd0ca;
+}
+
+.crm-client-profile-head button,
+.crm-client-profile-tabs button,
+.crm-client-profile-body button {
+  min-height: 34px;
+  padding: 7px 10px;
+  font-size: 12px;
+}
+
+.crm-client-profile-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.crm-client-profile-tabs button {
+  background: rgba(255,255,255,.1);
+  color: white;
+  border-color: rgba(255,255,255,.18);
+}
+
+.crm-client-profile-tabs button.active {
+  background: #dff7eb;
+  color: #102823;
+}
+
+.crm-client-profile-body {
+  display: grid;
+  gap: 12px;
+}
+
+.crm-client-profile-grid,
+.crm-client-profile-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.crm-client-profile-grid div,
+.crm-client-profile-kpis span,
+.crm-client-profile-list article,
+.crm-client-whatsapp-drafts article,
+.crm-client-profile-empty {
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: 8px;
+  background: rgba(255,255,255,.08);
+  padding: 12px;
+}
+
+.crm-client-profile-grid div,
+.crm-client-profile-kpis span,
+.crm-client-profile-list article {
+  display: grid;
+  gap: 5px;
+}
+
+.crm-client-profile-list,
+.crm-client-whatsapp-drafts {
+  display: grid;
+  gap: 10px;
+}
+
+.crm-client-whatsapp-drafts pre,
+.crm-client-profile-empty pre {
+  min-height: 90px;
+  margin-top: 10px;
+  color: #eef8f4;
+  background: rgba(255,255,255,.08);
+}
+
 .crm-template-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

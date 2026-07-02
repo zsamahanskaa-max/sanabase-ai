@@ -62,7 +62,7 @@ const {
 } = window.SanaPriceMatching;
 
 const state = loadState();
-const BACKUP_VERSION = "20260702-06";
+const BACKUP_VERSION = "20260702-07";
 const DEFAULT_CLOUD_CONFIG = {
   url: "https://koszjmsanlxdakqvdkgc.supabase.co",
   key: "sb_publishable_y7IIJav4n99Z1dbfROh3SA_TtlAn5tO",
@@ -720,6 +720,7 @@ function renderCrmClientPlaceholder() {
         <small>\u049a\u0430\u0440\u044b\u0437 \u043b\u0438\u043c\u0438\u0442\u0456: ${money(client.debtLimit)} · Status: ${client.archivedAt ? "archived" : "active"}</small>
         <div class="crm-client-actions">
           <button type="button" data-crm-client-edit="${escapeHtml(client.id)}">Edit</button>
+          <button type="button" data-crm-client-profile="${escapeHtml(client.id)}">Profile</button>
           <button type="button" data-crm-client-orders="${escapeHtml(client.id)}">Orders</button>
           <button type="button" data-crm-client-debts="${escapeHtml(client.id)}">Debts</button>
           <button type="button" data-crm-client-whatsapp="${escapeHtml(client.id)}">WhatsApp</button>
@@ -843,6 +844,221 @@ function crmClientRelatedOrders(client) {
     ].join(" ").toLowerCase();
     return values.some(value => haystack.includes(value) || value.includes(String(row.clientName || "").toLowerCase()) || value.includes(String(row.schoolName || "").toLowerCase()));
   });
+}
+
+function crmClientDebtSummary(client) {
+  const orders = crmClientRelatedOrders(client);
+  return {
+    orders,
+    totalAmount: orders.reduce((sum, row) => sum + Number(row.amount || 0), 0),
+    paidAmount: orders.reduce((sum, row) => sum + Number(row.paidAmount || 0), 0),
+    debtAmount: orders.reduce((sum, row) => sum + Number(row.debt || 0), 0),
+    debtOrderCount: orders.filter(row => Number(row.debt || 0) > 0).length
+  };
+}
+
+function crmClientProfileName(client) {
+  return client.schoolName || client.name || client.clientName || client.bin || "Client";
+}
+
+function crmClientWhatsappDrafts(client, summary = crmClientDebtSummary(client)) {
+  const name = crmClientProfileName(client);
+  return {
+    debt: [
+      `Сәлеметсіз бе! ${name} бойынша біздің есепте ${money(summary.debtAmount)} төлем қалды деп көрініп тұр.`,
+      `Ашық заказ саны: ${summary.debtOrderCount}.`,
+      "Мүмкін болса, төлем статусын нақтылап жібересіз бе?",
+      "Егер төлем жасалған болса, платежка/чек жіберсеңіз, 1С/CRM ішінде белгілеп қоямыз."
+    ].join("\n"),
+    followUp: [
+      `Сәлеметсіз бе! ${name} бойынша заказ/қажетті тауарлар бар ма?`,
+      "Қажет болса, алдын ала тізім жіберсеңіз, бағасын және жеткізу уақытын дайындап береміз."
+    ].join("\n"),
+    docs: [
+      `Сәлеметсіз бе! ${name} бойынша құжаттарды нақтылап жіберейік.`,
+      "Счет, накладная, реализация, ЭСФ немесе акт сверки керек болса, қай құжат қажет екенін жазыңыз."
+    ].join("\n")
+  };
+}
+
+function crmClientProfileTabs(active = "overview", clientId = "") {
+  const tabs = [
+    ["overview", "Overview"],
+    ["orders", "Orders"],
+    ["debts", "Debts"],
+    ["whatsapp", "WhatsApp"],
+    ["tasks", "Tasks"],
+    ["notes", "Notes"]
+  ];
+  return tabs.map(([id, label]) => `<button type="button" class="${id === active ? "active" : ""}" data-crm-client-profile-tab="${escapeHtml(id)}" data-client-id="${escapeHtml(clientId)}">${escapeHtml(label)}</button>`).join("");
+}
+
+function crmClientProfileOverview(client) {
+  const rows = [
+    ["clientName", client.clientName],
+    ["schoolName", client.schoolName],
+    ["BIN", client.bin],
+    ["phone", client.phone],
+    ["whatsapp", client.whatsapp],
+    ["address", client.address],
+    ["paymentTerms", client.paymentTerms],
+    ["debtLimit", money(client.debtLimit)],
+    ["comment", client.comment]
+  ];
+  return `<div class="crm-client-profile-grid">${rows.map(([label, value]) => `
+    <div>
+      <span>${escapeHtml(label)}</span>
+      <strong>${escapeHtml(String(value || "-"))}</strong>
+    </div>
+  `).join("")}</div>`;
+}
+
+function crmClientProfileOrders(client) {
+  const rows = crmClientRelatedOrders(client);
+  return `
+    <div class="crm-client-profile-list">
+      ${rows.slice(0, 20).map(row => `
+        <article>
+          <strong>${escapeHtml(row.orderNumber || row.title || "Order")}</strong>
+          <span>${escapeHtml(row.date || "-")} · ${escapeHtml(row.productName || "-")}</span>
+          <small>Total: ${money(row.amount)} · Paid: ${money(row.paidAmount)} · Debt: ${money(row.debt)}</small>
+        </article>
+      `).join("") || `<p class="crm-empty">Order табылмады. Matching clientName немесе schoolName арқылы жасалады.</p>`}
+    </div>
+  `;
+}
+
+function crmClientProfileDebts(client) {
+  const summary = crmClientDebtSummary(client);
+  return `
+    <div class="crm-client-profile-kpis">
+      <span><b>${money(summary.totalAmount)}</b><small>totalAmount</small></span>
+      <span><b>${money(summary.paidAmount)}</b><small>paidAmount</small></span>
+      <span><b>${money(summary.debtAmount)}</b><small>debtAmount</small></span>
+      <span><b>${summary.debtOrderCount}</b><small>debt order count</small></span>
+    </div>
+    ${crmClientProfileOrders(client)}
+  `;
+}
+
+function crmClientProfileWhatsapp(client) {
+  const drafts = crmClientWhatsappDrafts(client);
+  return `
+    <div class="crm-client-whatsapp-drafts">
+      ${Object.entries(drafts).map(([type, text]) => `
+        <article>
+          <div class="crm-panel-head">
+            <div>
+              <h4>${escapeHtml(type === "debt" ? "Қарыз сұрау мәтіні" : type === "followUp" ? "Заказ follow-up мәтіні" : "Құжат сұрау мәтіні")}</h4>
+            </div>
+            <button type="button" data-crm-client-profile-copy="${escapeHtml(type)}">Copy</button>
+          </div>
+          <pre>${escapeHtml(text)}</pre>
+        </article>
+      `).join("")}
+    </div>
+  `;
+}
+
+function crmClientProfileTasks(client) {
+  return `
+    <div class="crm-client-profile-empty">
+      <p>Осы client бойынша follow-up task жасауға болады.</p>
+      <button type="button" data-crm-client-profile-task="${escapeHtml(client.id)}">Create client task</button>
+    </div>
+  `;
+}
+
+function crmClientProfileNotes(client) {
+  return `
+    <div class="crm-client-profile-empty">
+      <h4>Read-only comment</h4>
+      <pre>${escapeHtml(client.comment || "Comment жоқ.")}</pre>
+    </div>
+  `;
+}
+
+function renderCrmClientProfile(client, activeTab = "overview") {
+  const modal = $("crmClientProfileModal");
+  if (!modal) return;
+  const normalized = normalizeCrmClientCard(client);
+  const title = $("crmClientProfileTitle");
+  const sub = $("crmClientProfileSub");
+  const tabs = $("crmClientProfileTabs");
+  const body = $("crmClientProfileBody");
+  const summary = crmClientDebtSummary(normalized);
+  if (title) title.textContent = crmClientProfileName(normalized);
+  if (sub) sub.textContent = `${normalized.bin || "BIN жоқ"} · debt ${money(summary.debtAmount)} · orders ${summary.orders.length}`;
+  if (tabs) tabs.innerHTML = crmClientProfileTabs(activeTab, normalized.id);
+  if (!body) return;
+  body.dataset.clientId = normalized.id;
+  body.dataset.activeTab = activeTab;
+  body.dataset.whatsappDebt = crmClientWhatsappDrafts(normalized, summary).debt;
+  body.dataset.whatsappFollowUp = crmClientWhatsappDrafts(normalized, summary).followUp;
+  body.dataset.whatsappDocs = crmClientWhatsappDrafts(normalized, summary).docs;
+  body.innerHTML = {
+    overview: crmClientProfileOverview(normalized),
+    orders: crmClientProfileOrders(normalized),
+    debts: crmClientProfileDebts(normalized),
+    whatsapp: crmClientProfileWhatsapp(normalized),
+    tasks: crmClientProfileTasks(normalized),
+    notes: crmClientProfileNotes(normalized)
+  }[activeTab] || crmClientProfileOverview(normalized);
+}
+
+function openCrmClientProfile(id, tab = "overview") {
+  const client = findCrmClientById(id);
+  if (!client) return;
+  const modal = $("crmClientProfileModal");
+  if (!modal) return;
+  modal.hidden = false;
+  modal.dataset.clientId = id;
+  renderCrmClientProfile(client, tab);
+}
+
+function closeCrmClientProfile() {
+  const modal = $("crmClientProfileModal");
+  if (modal) modal.hidden = true;
+}
+
+async function copyCrmClientProfileText(type) {
+  const body = $("crmClientProfileBody");
+  const text = {
+    debt: body?.dataset.whatsappDebt || "",
+    followUp: body?.dataset.whatsappFollowUp || "",
+    docs: body?.dataset.whatsappDocs || ""
+  }[type] || "";
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    if ($("crmClientOut")) $("crmClientOut").textContent = "Profile WhatsApp text copied.";
+  } catch (error) {
+    if ($("crmClientOut")) $("crmClientOut").textContent = `Copy error: ${error.message}`;
+  }
+}
+
+function createTaskFromCrmClientProfile(id) {
+  const client = findCrmClientById(id);
+  if (!client) return;
+  const summary = crmClientDebtSummary(client);
+  state.tasks.unshift(normalizeTask({
+    title: `CRM client follow-up: ${crmClientProfileName(client)}`.slice(0, 120),
+    body: [
+      `Client: ${crmClientProfileName(client)}`,
+      `Phone: ${client.phone || client.whatsapp || "-"}`,
+      `Debt: ${money(summary.debtAmount)}`,
+      `Orders: ${summary.orders.length}`,
+      client.comment ? `Comment: ${client.comment}` : ""
+    ].filter(Boolean).join("\n"),
+    status: "todo",
+    priority: summary.debtAmount > 0 ? "high" : "medium",
+    due: addDays(isoDate(), 1),
+    owner: "CRM",
+    link: "Client Profile"
+  }));
+  persist();
+  renderTasks();
+  if ($("crmClientOut")) $("crmClientOut").textContent = `Profile task дайын: ${crmClientProfileName(client)}.`;
 }
 
 function showCrmClientMiniPanel({ title, kpis = [], body = "", copyText = "" }) {
@@ -1003,6 +1219,31 @@ function showCrmClientWhatsapp(id) {
 }
 
 function handleCrmClientCardAction(event) {
+  const closeProfileButton = event.target.closest("[data-crm-client-profile-close]");
+  if (closeProfileButton) {
+    closeCrmClientProfile();
+    return;
+  }
+  const profileTabButton = event.target.closest("[data-crm-client-profile-tab]");
+  if (profileTabButton) {
+    openCrmClientProfile(profileTabButton.dataset.clientId, profileTabButton.dataset.crmClientProfileTab);
+    return;
+  }
+  const profileCopyButton = event.target.closest("[data-crm-client-profile-copy]");
+  if (profileCopyButton) {
+    copyCrmClientProfileText(profileCopyButton.dataset.crmClientProfileCopy);
+    return;
+  }
+  const profileTaskButton = event.target.closest("[data-crm-client-profile-task]");
+  if (profileTaskButton) {
+    createTaskFromCrmClientProfile(profileTaskButton.dataset.crmClientProfileTask);
+    return;
+  }
+  const profileButton = event.target.closest("[data-crm-client-profile]");
+  if (profileButton) {
+    openCrmClientProfile(profileButton.dataset.crmClientProfile);
+    return;
+  }
   const copyButton = event.target.closest("[data-crm-client-copy]");
   if (copyButton) {
     copyCrmClientMiniPanelText();

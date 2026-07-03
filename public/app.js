@@ -147,6 +147,7 @@ on("sanabotDebtTaskBtn", "click", debtTaskFromMimoAnswer);
 on("sanabotSupplierTaskBtn", "click", supplierTaskFromMimoAnswer);
 on("sanabotOpenReportBtn", "click", openLatestCrmReportFromMimo);
 document.addEventListener("click", handleMimoOpenAction);
+document.addEventListener("click", handleMimoRiskAction);
 on("matchBtn", "click", matchPrices);
 on("onecImportBtn", "click", importOneCExcel);
 on("onecSaveBrainBtn", "click", saveOneCToBrain);
@@ -5673,7 +5674,7 @@ function renderMimoMiniPanel(metrics = sanaBotMetrics(), brief = sanaBotDailyBri
   const riskTarget = mimoTargetForRisk(brief.risks[0]);
   const cards = [
     ["Top 3 focus", sanaBotListHtml(brief.topFocus), "tasks"],
-    ["Critical risks", brief.risks.length ? sanaBotListHtml(brief.risks.slice(0, 3).map(risk => risk.title)) : "<strong>Қауіпті сигнал жоқ</strong>", riskTarget],
+    ["Risk Scanner", sanaBotRiskScannerHtml(brief.risks), riskTarget],
     ["Next actions", sanaBotListHtml(brief.nextActions), riskTarget],
     ["Safety", sanaBotListHtml([
       `Backup: ${brief.safety.backupLabel}`,
@@ -5709,12 +5710,112 @@ function openMimoTarget(view) {
 
 function mimoTargetForRisk(risk) {
   if (!risk) return "tasks";
+  if (risk.targetView) return risk.targetView;
   if (risk.action === "copy WhatsApp" || risk.action === "open order detail") return "crm";
   if (risk.action === "create reminder") return "tasks";
   if (risk.action === "export backup" || risk.action === "save to cloud") return "backupCenter";
   if (risk.action === "check stock") return "onec";
   if (risk.action === "check documents") return "brain";
   return "tasks";
+}
+
+async function handleMimoRiskAction(event) {
+  const button = event.target.closest("[data-mimo-risk-action]");
+  if (!button) return;
+  event.preventDefault();
+  const brief = sanaBotDailyBrief();
+  const risk = brief.risks[Number(button.dataset.mimoRiskIndex || 0)];
+  if (!risk) return;
+  const action = button.dataset.mimoRiskAction;
+  if (action === "open") {
+    openMimoTarget(mimoTargetForRisk(risk));
+    return;
+  }
+  if (action === "task") {
+    createMimoTaskFromRisk(risk);
+    return;
+  }
+  if (action === "reminder") {
+    createMimoReminderFromRisk(risk);
+    return;
+  }
+  if (action === "whatsapp") {
+    await copyMimoWhatsappFromRisk(risk);
+  }
+}
+
+function sanaBotRiskScannerHtml(risks) {
+  const list = (risks || []).slice(0, 4);
+  if (!list.length) return "<strong>Қауіпті сигнал жоқ</strong>";
+  return `<div class="sanabot-risk-list">${list.map((risk, index) => `
+    <div class="sanabot-risk-row" data-severity="${escapeHtml(risk.severity)}">
+      <b>${escapeHtml(risk.title)}</b>
+      <small>${escapeHtml(risk.reason || risk.nextAction || "Тексеру керек")}</small>
+      <div class="sanabot-risk-actions">
+        <button type="button" data-mimo-risk-action="open" data-mimo-risk-index="${index}">Ашу</button>
+        <button type="button" data-mimo-risk-action="task" data-mimo-risk-index="${index}">Task</button>
+        <button type="button" data-mimo-risk-action="reminder" data-mimo-risk-index="${index}">Reminder</button>
+        ${risk.whatsapp ? `<button type="button" data-mimo-risk-action="whatsapp" data-mimo-risk-index="${index}">WhatsApp</button>` : ""}
+      </div>
+    </div>
+  `).join("")}</div>`;
+}
+
+function createMimoTaskFromRisk(risk) {
+  state.tasks.unshift(normalizeTask({
+    title: `Mimo risk: ${risk.title}`.slice(0, 120),
+    body: mimoRiskBody(risk),
+    status: "todo",
+    priority: risk.severity === "high" ? "high" : "medium",
+    due: isoDate(),
+    owner: "Mimo",
+    link: `${risk.type || "risk"} · ${mimoTargetForRisk(risk)}`
+  }));
+  persist();
+  render();
+  renderMimoFocus();
+  setMimoMood("success");
+  addMimoMessage("bot", `Task жасалды: ${risk.title}`);
+}
+
+function createMimoReminderFromRisk(risk) {
+  createCalendarTask({
+    title: `Mimo reminder: ${risk.title}`.slice(0, 140),
+    date: addDays(isoDate(), 1),
+    category: "Mimo Risk Scanner",
+    priority: risk.severity === "high" ? "high" : "medium",
+    status: "open",
+    comment: mimoRiskBody(risk),
+    orderId: risk.orderId || "",
+    clientId: risk.clientId || ""
+  });
+  persist();
+  render();
+  renderMimoFocus();
+  setMimoMood("success");
+  addMimoMessage("bot", `Reminder дайын: ${risk.title}`);
+}
+
+async function copyMimoWhatsappFromRisk(risk) {
+  const text = risk.whatsapp || sanaBotWhatsappDraft();
+  lastMimoAnswer = text;
+  try {
+    await navigator.clipboard.writeText(text);
+    addMimoMessage("bot", `WhatsApp мәтін clipboard-қа көшірілді:\n${text}`);
+  } catch {
+    addMimoMessage("bot", text);
+  }
+  setMimoMood("focus");
+}
+
+function mimoRiskBody(risk) {
+  return [
+    `Мәселе: ${risk.title}`,
+    `Себеп: ${risk.reason || "-"}`,
+    `Қауіп: ${risk.severity}`,
+    `Шешім: ${risk.nextAction || "Тексеріп, келесі әрекетті таңдаңыз."}`,
+    `Бөлім: ${mimoTargetForRisk(risk)}`
+  ].join("\n");
 }
 
 function rememberMimoAnswer(text, action) {
@@ -5840,13 +5941,71 @@ function sanaBotDailyBrief(metrics = sanaBotMetrics()) {
   const safety = sanaBotSafetyStatus();
   const risks = [];
 
-  if (overdueTasks.length) risks.push({ severity: "high", title: `${overdueTasks.length} кешіккен task`, action: "create reminder" });
-  if (metrics.unpaid > 0) risks.push({ severity: "high", title: `Қарыз бақылауы: ${money(metrics.unpaid)}`, action: "copy WhatsApp" });
-  if (staleOrders.length) risks.push({ severity: "medium", title: `${staleOrders.length} stuck order`, action: "open order detail" });
-  if (missingDocs.length || metrics.docs) risks.push({ severity: "medium", title: `${missingDocs.length || metrics.docs} ESF/құжат сигналы`, action: "check documents" });
-  if (metrics.lowStock > 0) risks.push({ severity: "medium", title: `${metrics.lowStock} склад сигналы`, action: "check stock" });
-  if (!Number.isFinite(safety.backupDays) || safety.backupDays > 7) risks.push({ severity: "medium", title: "Backup ескі немесе жоқ", action: "export backup" });
-  if (!Number.isFinite(safety.cloudDays) || safety.cloudDays > 2) risks.push({ severity: "medium", title: "Cloud sync ескі немесе қосылмаған", action: "save to cloud" });
+  if (overdueTasks.length) risks.push({
+    type: "overdue_task",
+    severity: "high",
+    title: `${overdueTasks.length} кешіккен task`,
+    reason: "Due date өтіп кеткен тапсырмалар бар.",
+    action: "create reminder",
+    targetView: "tasks",
+    nextAction: "Кешіккен task үшін reminder немесе бүгінгі task жасаңыз."
+  });
+  if (metrics.unpaid > 0) risks.push({
+    type: "debt",
+    severity: "high",
+    title: `Қарыз бақылауы: ${money(metrics.unpaid)}`,
+    reason: "Төленбеген payment/debt жазбалары бар.",
+    action: "copy WhatsApp",
+    targetView: "crm",
+    nextAction: "Клиентке қарыз бойынша WhatsApp мәтін дайындаңыз.",
+    whatsapp: sanaBotWhatsappDraft()
+  });
+  if (staleOrders.length) risks.push({
+    type: "stale_order",
+    severity: "medium",
+    title: `${staleOrders.length} stuck order`,
+    reason: "Заказ бірнеше күн status өзгертпей тұр.",
+    action: "open order detail",
+    targetView: "crm",
+    orderId: staleOrders[0]?.id || "",
+    nextAction: "Order detail ашып, next status немесе follow-up жасаңыз."
+  });
+  if (missingDocs.length || metrics.docs) risks.push({
+    type: "missing_esf",
+    severity: "medium",
+    title: `${missingDocs.length || metrics.docs} ESF/құжат сигналы`,
+    reason: "Құжат немесе ESF status толық жабылмаған.",
+    action: "check documents",
+    targetView: "brain",
+    nextAction: "Құжатты Екінші ми/CRM ішінде тексеріңіз."
+  });
+  if (metrics.lowStock > 0) risks.push({
+    type: "low_stock",
+    severity: "medium",
+    title: `${metrics.lowStock} склад сигналы`,
+    reason: "1C summary бойынша аз немесе жоқ тауарлар бар.",
+    action: "check stock",
+    targetView: "onec",
+    nextAction: "1C Excel бөлімінен остаток/номенклатураны тексеріңіз."
+  });
+  if (!Number.isFinite(safety.backupDays) || safety.backupDays > 7) risks.push({
+    type: "backup_missing",
+    severity: "medium",
+    title: "Backup ескі немесе жоқ",
+    reason: "Соңғы backup export 7 күннен ескі немесе табылмады.",
+    action: "export backup",
+    targetView: "backupCenter",
+    nextAction: "Backup Center ашып, export жасаңыз."
+  });
+  if (!Number.isFinite(safety.cloudDays) || safety.cloudDays > 2) risks.push({
+    type: "cloud_sync_missing",
+    severity: "medium",
+    title: "Cloud sync ескі немесе қосылмаған",
+    reason: "Cloud save/load соңғы 2 күнде жасалмаған.",
+    action: "save to cloud",
+    targetView: "backupCenter",
+    nextAction: "Cloud Sync status тексеріп, save to cloud жасаңыз."
+  });
 
   const topFocus = [
     overdueTasks[0] ? `Кешіккен task: ${overdueTasks[0].title}` : "",

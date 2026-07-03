@@ -623,6 +623,20 @@ Frontend asset query versions were updated to `20260704-01`. Manual checks to ru
 11. Confirm CRM, Tasks, Backup Center, Cloud Sync, Order Pipeline, and Mimo visual shell still open.
 12. Confirm no browser Console error appears.
 
+## 30. Mimo Risk Scanner MVP
+
+Frontend asset query versions were updated to `20260704-02`. Manual checks to run:
+
+1. Open Mimo and confirm the `Risk Scanner` card is visible.
+2. Confirm each risk row shows title, short reason, severity style, and action buttons.
+3. Click `Ашу` on a debt/order/backup/stock/document risk and confirm the related view opens.
+4. Click `Task` on a risk and confirm a new Mimo task is created.
+5. Click `Reminder` on a risk and confirm a calendar task/reminder is created.
+6. Click `WhatsApp` on a debt risk and confirm text is copied or shown in chat, but not sent automatically.
+7. Confirm no automatic delete, archive, overwrite, payment, WhatsApp send, or order status change happens.
+8. Confirm CRM, Tasks, Backup Center, Cloud Sync, Order Pipeline, and Mimo still work.
+9. Confirm no browser Console error appears.
+
 ## Pass criteria
 
 - `public/js/utils.js` loads before `public/app.js`.

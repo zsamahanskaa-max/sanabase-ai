@@ -86,6 +86,7 @@ let lastAssistantAnswer = "";
 let lastMimoAnswer = "";
 let lastMimoAction = "chat";
 let sanaBotRoamTimer = null;
+let activeReaderNoteId = null;
 const titles = {
   chat: ["AI чат", "Құжаттарыңызға сүйеніп жауап береді."],
   library: ["Білім базасы", "PDF, Word, Excel және мәтін материалдары."],
@@ -169,7 +170,11 @@ on("goalFilter", "change", render);
 on("noteForm", "submit", saveNote);
 on("noteSearch", "input", render);
 on("noteFolderFilter", "change", render);
+on("noteStatusFilter", "change", render);
 on("noteQuickFolderBtn", "click", useSelectedNoteFolder);
+on("readerCloseBtn", "click", closeNoteReader);
+on("readerResumeBtn", "click", resumeNoteReader);
+on("readerFullscreenBtn", "click", fullscreenNoteReader);
 on("exportAllDataBtn", "click", exportAllData);
 on("importBackupBtn", "click", importBackupData);
 on("searchDocs", "input", render);
@@ -2720,18 +2725,28 @@ function saveNote(event) {
   const title = $("noteTitle").value.trim() || "Untitled note";
   const body = $("noteBody").value.trim();
   if (!body) return;
-  state.notes.unshift(normalizeNote({
-    id: crypto.randomUUID(),
+  const editingId = $("noteForm")?.dataset.editingNoteId || "";
+  const existing = editingId ? state.notes.find(note => note.id === editingId) : null;
+  const payload = normalizeNote({
+    ...(existing || {}),
+    id: existing?.id || crypto.randomUUID(),
     title,
     body,
     folder: $("noteFolder")?.value.trim() || "Жалпы",
     type: $("noteType")?.value || autoNoteType(body),
     tags: splitList($("noteTags")?.value || ""),
-    createdAt: new Date().toISOString(),
+    createdAt: existing?.createdAt || new Date().toISOString(),
     updatedAt: new Date().toISOString()
-  }));
+  });
+  if (existing) {
+    state.notes = state.notes.map(note => note.id === existing.id ? payload : note);
+  } else {
+    state.notes.unshift(payload);
+  }
   ["noteTitle", "noteBody", "noteTags"].forEach(id => { if ($(id)) $(id).value = ""; });
+  if ($("noteFolder")) $("noteFolder").value = "";
   if ($("noteType")) $("noteType").value = "short";
+  if ($("noteForm")) delete $("noteForm").dataset.editingNoteId;
   persist();
   render();
 }
@@ -4964,16 +4979,23 @@ function normalizeImage(image) {
 
 function normalizeNote(note) {
   const body = note.body || "";
+  const status = ["active", "important", "reread", "archived"].includes(note.status) ? note.status : (note.archived ? "archived" : "active");
   return {
     id: note.id || crypto.randomUUID(),
     title: note.title || "Untitled note",
     body,
+    content: body,
     folder: note.folder || "Жалпы",
+    folderId: note.folderId || null,
     type: ["short", "long", "idea", "meeting"].includes(note.type) ? note.type : autoNoteType(body),
     tags: Array.isArray(note.tags) ? note.tags : splitList(note.tags || ""),
+    status,
     brain: Boolean(note.brain),
     createdAt: note.createdAt || new Date().toISOString(),
-    updatedAt: note.updatedAt || note.createdAt || new Date().toISOString()
+    updatedAt: note.updatedAt || note.createdAt || new Date().toISOString(),
+    lastReadAt: note.lastReadAt || null,
+    lastScrollY: Number(note.lastScrollY || 0),
+    readingProgress: Math.max(0, Math.min(100, Number(note.readingProgress || 0)))
   };
 }
 
@@ -5004,6 +5026,15 @@ function noteTypeLabel(type) {
     idea: "Идея",
     meeting: "Кездесу"
   }[type] || "Қысқа";
+}
+
+function noteStatusLabel(status) {
+  return {
+    active: "Белсенді",
+    important: "Маңызды",
+    reread: "Қайта оқу",
+    archived: "Архив"
+  }[status] || "Белсенді";
 }
 
 function noteFolders() {
@@ -6395,13 +6426,20 @@ function renderNotes() {
     folderFilter.value = folders.includes(current) ? current : "all";
   }
   const activeFolder = folderFilter?.value || "all";
+  const activeStatus = $("noteStatusFilter")?.value || "active";
   const query = $("noteSearch")?.value?.toLowerCase() || "";
   const filtered = state.notes.filter(note => {
     const inFolder = activeFolder === "all" || note.folder === activeFolder;
-    const text = `${note.title} ${note.body} ${note.folder} ${note.type} ${(note.tags || []).join(" ")}`.toLowerCase();
-    return inFolder && text.includes(query);
+    const inStatus = activeStatus === "all"
+      ? true
+      : activeStatus === "active"
+        ? note.status !== "archived"
+        : note.status === activeStatus;
+    const text = `${note.title} ${note.body} ${note.folder} ${note.type} ${note.status} ${(note.tags || []).join(" ")}`.toLowerCase();
+    return inFolder && inStatus && text.includes(query);
   });
   renderNoteFolders(folders, activeFolder);
+  renderNoteReadingHistory();
   list.innerHTML = "";
   if (!filtered.length) {
     list.innerHTML = `<article class="note empty-note"><h3>Жазба жоқ</h3><p>Папка таңдап, қысқа немесе ұзақ ақпарат сақтаңыз.</p></article>`;
@@ -6410,27 +6448,169 @@ function renderNotes() {
   filtered.forEach(note => {
     const card = document.createElement("article");
     card.className = `note note-${escapeHtml(note.type)}`;
+    const progress = Math.round(note.readingProgress || 0);
     card.innerHTML = `
       <div class="note-head">
         <div>
           <h3>${escapeHtml(note.title)}</h3>
-          <span>${escapeHtml(note.folder || "Жалпы")} · ${escapeHtml(noteTypeLabel(note.type))}</span>
+          <span>${escapeHtml(note.folder || "Жалпы")} · ${escapeHtml(noteTypeLabel(note.type))} · ${escapeHtml(noteStatusLabel(note.status))}</span>
         </div>
         <div class="note-actions">
+          <button type="button" data-note-reader="${escapeHtml(note.id)}">Оқу</button>
+          <button type="button" data-note-edit="${escapeHtml(note.id)}">Редактировать</button>
+          <button type="button" data-note-status="${escapeHtml(note.id)}" data-status="important">Маңызды</button>
+          <button type="button" data-note-status="${escapeHtml(note.id)}" data-status="reread">Қайта оқу</button>
           <button type="button" data-note-brain="${escapeHtml(note.id)}">${note.brain ? "Екінші мида" : "Екінші миға"}</button>
+          <button type="button" data-note-status="${escapeHtml(note.id)}" data-status="${note.status === "archived" ? "active" : "archived"}">${note.status === "archived" ? "Архивтен алу" : "Архив"}</button>
           <button type="button" data-note-delete="${escapeHtml(note.id)}">Өшіру</button>
         </div>
       </div>
+      <div class="note-progress"><span style="width:${progress}%"></span></div>
+      <small>${progress ? `Оқу прогресі: ${progress}%` : "Әлі оқылмаған"}</small>
       <p>${escapeHtml(note.body)}</p>
       <div class="tag-row">${(note.tags || []).map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join("") || `<span class="tag muted-tag">тег жоқ</span>`}</div>
     `;
     list.appendChild(card);
+  });
+  list.querySelectorAll("[data-note-reader]").forEach(button => {
+    button.addEventListener("click", () => openNoteReader(button.dataset.noteReader));
+  });
+  list.querySelectorAll("[data-note-edit]").forEach(button => {
+    button.addEventListener("click", () => editNote(button.dataset.noteEdit));
+  });
+  list.querySelectorAll("[data-note-status]").forEach(button => {
+    button.addEventListener("click", () => setNoteStatus(button.dataset.noteStatus, button.dataset.status));
   });
   list.querySelectorAll("[data-note-delete]").forEach(button => {
     button.addEventListener("click", () => deleteNote(button.dataset.noteDelete));
   });
   list.querySelectorAll("[data-note-brain]").forEach(button => {
     button.addEventListener("click", () => toggleNoteBrain(button.dataset.noteBrain));
+  });
+}
+
+function renderNoteReadingHistory() {
+  const node = $("noteReadingHistory");
+  if (!node) return;
+  const recent = state.notes
+    .filter(note => note.lastReadAt)
+    .sort((a, b) => String(b.lastReadAt).localeCompare(String(a.lastReadAt)))
+    .slice(0, 4);
+  if (!recent.length) {
+    node.innerHTML = `<span>Оқу тарихы әзірге бос.</span>`;
+    return;
+  }
+  node.innerHTML = recent.map(note => `
+    <button type="button" data-history-reader="${escapeHtml(note.id)}">
+      ${escapeHtml(note.title)} <span>${Math.round(note.readingProgress || 0)}%</span>
+    </button>
+  `).join("");
+  node.querySelectorAll("[data-history-reader]").forEach(button => {
+    button.addEventListener("click", () => openNoteReader(button.dataset.historyReader, true));
+  });
+}
+
+function editNote(id) {
+  const note = state.notes.find(item => item.id === id);
+  if (!note) return;
+  if ($("noteForm")) $("noteForm").dataset.editingNoteId = note.id;
+  if ($("noteTitle")) $("noteTitle").value = note.title || "";
+  if ($("noteFolder")) $("noteFolder").value = note.folder || "Жалпы";
+  if ($("noteType")) $("noteType").value = note.type || "short";
+  if ($("noteTags")) $("noteTags").value = (note.tags || []).join(", ");
+  if ($("noteBody")) $("noteBody").value = note.body || "";
+  $("noteTitle")?.focus();
+}
+
+function setNoteStatus(id, status) {
+  const note = state.notes.find(item => item.id === id);
+  if (!note) return;
+  note.status = ["active", "important", "reread", "archived"].includes(status) ? status : "active";
+  note.updatedAt = new Date().toISOString();
+  persist();
+  render();
+}
+
+function openNoteReader(id, resume = false) {
+  const note = state.notes.find(item => item.id === id);
+  const modal = $("noteReaderModal");
+  if (!note || !modal) return;
+  activeReaderNoteId = note.id;
+  modal.hidden = false;
+  if ($("readerTitle")) $("readerTitle").textContent = note.title || "Жазба";
+  if ($("readerMeta")) $("readerMeta").textContent = `${note.folder || "Жалпы"} · ${noteStatusLabel(note.status)} · ${Math.round(note.readingProgress || 0)}%`;
+  if ($("readerProgressBar")) $("readerProgressBar").style.width = `${Math.round(note.readingProgress || 0)}%`;
+  if ($("readerContent")) {
+    $("readerContent").innerHTML = `<div>${escapeHtml(note.body || "").replace(/\n/g, "<br>")}</div>`;
+    $("readerContent").onscroll = () => saveReaderProgress(note.id);
+  }
+  renderReaderFolderTree(note.folder || "Жалпы");
+  requestAnimationFrame(() => {
+    const content = $("readerContent");
+    if (content && resume) {
+      content.scrollTop = Number(note.lastScrollY || 0);
+      saveReaderProgress(note.id);
+    } else {
+      note.lastReadAt = new Date().toISOString();
+      persist({ sync: false });
+    }
+  });
+}
+
+function closeNoteReader() {
+  if (activeReaderNoteId) saveReaderProgress(activeReaderNoteId);
+  const modal = $("noteReaderModal");
+  if (modal) modal.hidden = true;
+  activeReaderNoteId = null;
+  render();
+}
+
+function resumeNoteReader() {
+  if (!activeReaderNoteId) return;
+  const note = state.notes.find(item => item.id === activeReaderNoteId);
+  const content = $("readerContent");
+  if (note && content) content.scrollTop = Number(note.lastScrollY || 0);
+}
+
+function fullscreenNoteReader() {
+  const shell = $("noteReaderModal");
+  if (!shell) return;
+  if (document.fullscreenElement) {
+    document.exitFullscreen?.();
+  } else {
+    shell.requestFullscreen?.();
+  }
+}
+
+function saveReaderProgress(id) {
+  const note = state.notes.find(item => item.id === id);
+  const content = $("readerContent");
+  if (!note || !content) return;
+  const maxScroll = Math.max(1, content.scrollHeight - content.clientHeight);
+  note.lastScrollY = Math.round(content.scrollTop);
+  note.readingProgress = Math.max(0, Math.min(100, Math.round((content.scrollTop / maxScroll) * 100)));
+  note.lastReadAt = new Date().toISOString();
+  note.updatedAt = new Date().toISOString();
+  if ($("readerProgressBar")) $("readerProgressBar").style.width = `${note.readingProgress}%`;
+  if ($("readerMeta")) $("readerMeta").textContent = `${note.folder || "Жалпы"} · ${noteStatusLabel(note.status)} · ${Math.round(note.readingProgress || 0)}%`;
+  persist({ sync: false });
+}
+
+function renderReaderFolderTree(activeFolder) {
+  const node = $("readerFolderTree");
+  if (!node) return;
+  const folders = noteFolders();
+  node.innerHTML = folders.map(folder => `
+    <button type="button" class="${folder === activeFolder ? "active" : ""}" data-reader-folder="${escapeHtml(folder)}">
+      ${escapeHtml(folder)}
+    </button>
+  `).join("") || `<span>Папка жоқ</span>`;
+  node.querySelectorAll("[data-reader-folder]").forEach(button => {
+    button.addEventListener("click", () => {
+      if ($("noteFolderFilter")) $("noteFolderFilter").value = button.dataset.readerFolder;
+      closeNoteReader();
+      setView("notes");
+    });
   });
 }
 
@@ -6454,6 +6634,7 @@ function renderNoteFolders(folders, activeFolder) {
 }
 
 function deleteNote(id) {
+  if (!confirm("Бұл жазбаны өшіреміз бе?")) return;
   state.notes = state.notes.filter(note => note.id !== id);
   persist();
   render();

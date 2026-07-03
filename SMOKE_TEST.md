@@ -520,6 +520,21 @@ Frontend asset query versions were updated to `20260703-04`. Manual checks to ru
 13. Confirm Mimo stays below modal overlays and does not cover critical modal/buttons/form inputs.
 14. Confirm the mobile mini panel stays inside the viewport when opened.
 
+## 24. Notes reader mode MVP
+
+Frontend asset query versions were updated to `20260703-05`. Manual checks to run:
+
+1. Open `Жазбалар`.
+2. Create a note with a long multi-line body.
+3. Confirm the note card shows `Оқу`, `Редактировать`, `Маңызды`, `Қайта оқу`, `Архив`, and `Өшіру`.
+4. Click `Оқу` and confirm the Reader Mode modal opens with folder tree, readable text, progress bar, resume, fullscreen, and close buttons.
+5. Scroll the reader, close it, reopen with reading history, and confirm progress is saved.
+6. Mark a note as `Маңызды`, `Қайта оқу`, and `Архив`; confirm the status filter works.
+7. Click `Редактировать`, change title/body/folder, save, and confirm the same note is updated instead of duplicated.
+8. Confirm archived notes are hidden from the default active filter.
+9. Confirm Backup Center export includes notes with reading progress fields.
+10. Confirm no browser Console error appears.
+
 ## Pass criteria
 
 - `public/js/utils.js` loads before `public/app.js`.

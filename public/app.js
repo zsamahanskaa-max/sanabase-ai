@@ -2929,6 +2929,8 @@ function saveProject(event) {
   event.preventDefault();
   const title = $("projectTitle")?.value.trim();
   if (!title) return;
+  const editingId = $("projectForm")?.dataset.editingProjectId || "";
+  const existing = editingId ? state.projects.find(project => project.id === editingId) : null;
   const modules = splitLines($("projectModules")?.value).map(name => ({ id: crypto.randomUUID(), title: name }));
   const tasks = splitLines($("projectTasks")?.value).map(name => ({
     id: crypto.randomUUID(),
@@ -2939,7 +2941,8 @@ function saveProject(event) {
     deadline: $("projectEnd")?.value || "",
     owner: ""
   }));
-  state.projects.unshift(normalizeProject({
+  const payload = normalizeProject({
+    id: existing?.id || crypto.randomUUID(),
     title,
     goal: $("projectGoal")?.value.trim() || "",
     category: $("projectCategory")?.value || "Бизнес",
@@ -2947,12 +2950,48 @@ function saveProject(event) {
     status: $("projectStatus")?.value || "active",
     startDate: $("projectStart")?.value || isoDate(),
     endDate: $("projectEnd")?.value || "",
-    modules,
-    tasks
-  }));
+    modules: mergeProjectModules(existing?.modules, modules),
+    tasks: mergeProjectTasks(existing?.tasks, tasks),
+    createdAt: existing?.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  });
+  if (existing) {
+    state.projects = state.projects.map(project => project.id === existing.id ? payload : project);
+  } else {
+    state.projects.unshift(payload);
+  }
   event.target.reset();
+  resetProjectFormMode();
   persist();
   render();
+}
+
+function editProject(id) {
+  const project = state.projects.find(item => item.id === id);
+  if (!project || !$("projectForm")) return;
+  $("projectForm").dataset.editingProjectId = project.id;
+  $("projectTitle").value = project.title || "";
+  $("projectGoal").value = project.goal || "";
+  $("projectCategory").value = project.category || $("projectCategory").value;
+  $("projectPriority").value = project.priority || "medium";
+  $("projectStart").value = project.startDate || "";
+  $("projectEnd").value = project.endDate || "";
+  $("projectStatus").value = project.status || "active";
+  $("projectModules").value = (project.modules || []).map(module => module.title).join("\n");
+  $("projectTasks").value = (project.tasks || []).map(task => task.title).join("\n");
+  updateProjectSubmitLabel(true);
+  $("projectForm").scrollIntoView({ behavior: "smooth", block: "start" });
+  $("projectTitle").focus();
+}
+
+function resetProjectFormMode() {
+  if ($("projectForm")) delete $("projectForm").dataset.editingProjectId;
+  updateProjectSubmitLabel(false);
+}
+
+function updateProjectSubmitLabel(editing) {
+  const button = $("projectForm")?.querySelector('button[type="submit"]');
+  if (button) button.textContent = editing ? "Проектті сақтау" : "Проект қосу";
 }
 
 function savePlan(event) {
@@ -3064,6 +3103,24 @@ function mergeGoalStages(existingStages = [], nextStages = []) {
   return (nextStages || []).map(stage => {
     const previous = previousByTitle.get(listItemKey(stage.title));
     return previous ? { ...stage, id: previous.id, done: Boolean(previous.done), status: previous.status || stage.status } : stage;
+  });
+}
+
+function mergeProjectModules(existingModules = [], nextModules = []) {
+  const previousByTitle = new Map((existingModules || []).map(module => [listItemKey(module.title), module]));
+  return (nextModules || []).map(module => {
+    const previous = previousByTitle.get(listItemKey(module.title));
+    return previous ? { ...module, id: previous.id } : module;
+  });
+}
+
+function mergeProjectTasks(existingTasks = [], nextTasks = []) {
+  const previousByTitle = new Map((existingTasks || []).map(task => [listItemKey(task.title), task]));
+  return (nextTasks || []).map(task => {
+    const previous = previousByTitle.get(listItemKey(task.title));
+    return previous
+      ? { ...task, id: previous.id, done: Boolean(previous.done), status: previous.status || task.status, owner: previous.owner || task.owner }
+      : task;
   });
 }
 
@@ -7136,6 +7193,9 @@ function renderGoals() {
   $("goals").querySelectorAll("[data-goal-edit]").forEach(button => {
     button.addEventListener("click", () => editGoal(button.dataset.goalEdit));
   });
+  $("goals").querySelectorAll("[data-project-edit]").forEach(button => {
+    button.addEventListener("click", () => editProject(button.dataset.projectEdit));
+  });
   $("goals").querySelectorAll("[data-plan-edit]").forEach(button => {
     button.addEventListener("click", () => editPlan(button.dataset.planEdit));
   });
@@ -7219,7 +7279,10 @@ function projectCard(project) {
     <article class="goal-card priority-${escapeHtml(project.priority)} ${isGoalOverdue(project) ? "is-overdue" : ""}">
       <div class="goal-card-head">
         <div><h4>${escapeHtml(project.title)}</h4><span>${escapeHtml(projectStatusLabel(project.status))} · ${escapeHtml(goalPriorityLabel(project.priority))}</span></div>
-        <button type="button" data-goal-delete="${escapeHtml(project.id)}" data-goal-type="project">Өшіру</button>
+        <div class="goal-card-actions">
+          <button type="button" data-project-edit="${escapeHtml(project.id)}">Редактировать</button>
+          <button type="button" data-goal-delete="${escapeHtml(project.id)}" data-goal-type="project">Өшіру</button>
+        </div>
       </div>
       <p>${escapeHtml(project.goal || "Проект мақсаты жазылмаған")}</p>
       ${progressBar(progress.percent)}

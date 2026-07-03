@@ -555,7 +555,7 @@ Frontend asset query versions were updated to `20260703-06`. Manual checks to ru
 
 ## 26. Goals, plans, and tasks edit MVP
 
-Frontend asset query versions were updated to `20260703-07`. Manual checks to run:
+Frontend asset query versions were updated to `20260703-08`. Manual checks to run:
 
 1. Open `Тапсырмалар`.
 2. Create a task with a multi-line checklist.
@@ -565,10 +565,12 @@ Frontend asset query versions were updated to `20260703-07`. Manual checks to ru
 6. Open `Фокус орталығы`.
 7. Create a goal with stages, then click `Редактировать` on the goal card.
 8. Save and confirm the existing goal updates while checked stages stay checked when the same stage text remains.
-9. Create a plan with tasks, then click `Редактировать` on the plan card.
-10. Save and confirm the existing plan updates while checked plan tasks stay checked when the same task text remains.
-11. Refresh the browser and confirm edited tasks/goals/plans remain in localStorage.
-12. Confirm no browser Console error appears.
+9. Create a project with modules/tasks, then click `Редактировать` on the project card.
+10. Save and confirm the existing project updates instead of creating a duplicate.
+11. Create a plan with tasks, then click `Редактировать` on the plan card.
+12. Save and confirm the existing plan updates while checked plan tasks stay checked when the same task text remains.
+13. Refresh the browser and confirm edited tasks/goals/projects/plans remain in localStorage.
+14. Confirm no browser Console error appears.
 
 ## Pass criteria
 

@@ -572,6 +572,22 @@ Frontend asset query versions were updated to `20260703-08`. Manual checks to ru
 13. Refresh the browser and confirm edited tasks/goals/projects/plans remain in localStorage.
 14. Confirm no browser Console error appears.
 
+## 27. Data safety emergency backup MVP
+
+Frontend asset query versions were updated to `20260703-09`. Manual checks to run:
+
+1. Open `Backup Center`.
+2. Export all data and confirm `sanabase-safety-meta` is included when metadata exists.
+3. Import a valid backup JSON.
+4. Confirm the browser downloads `sanabase-emergency-before-import-...json` before restore completes.
+5. Confirm Backup Center status shows the emergency backup filename.
+6. Sign in to Cloud Sync if available.
+7. Click `Бұлттан алу`.
+8. Confirm the browser downloads `sanabase-emergency-before-cloud-load-...json` before cloud payload restore.
+9. Confirm `sanabase-safety-meta` contains `lastLocalSaveAt`, `lastBackupExportAt`, `lastEmergencyBackupAt`, and cloud save/load timestamps after those actions.
+10. Confirm notes, CRM clients, tasks, goals, projects, and plans still appear after restore.
+11. Confirm no browser Console error appears.
+
 ## Pass criteria
 
 - `public/js/utils.js` loads before `public/app.js`.

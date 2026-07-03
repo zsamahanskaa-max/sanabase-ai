@@ -258,6 +258,7 @@
       .single();
     if (error) throw error;
     lastCloudState = { payload, updated_at: data?.updated_at || row.updated_at };
+    window.SanaAppBridge?.markCloudSaveComplete?.();
     renderConflict(null);
     setStatus(`Cloud Sync: бұлтқа сақталды. Уақыты: ${lastCloudState.updated_at}.`, true);
     return lastCloudState;
@@ -283,7 +284,12 @@
       setStatus("Cloud Sync: жүктеу тоқтатылды. Local дерек өзгерген жоқ.", false);
       return null;
     }
+    const emergency = window.SanaAppBridge?.createEmergencyBackup?.("before-cloud-load");
+    if (emergency?.filename) {
+      setStatus(`Cloud Sync: emergency backup дайын: ${emergency.filename}. Cloud дерек жүктеліп жатыр...`, true);
+    }
     restoreLocalData(cloud.payload);
+    window.SanaAppBridge?.markCloudLoadComplete?.();
     return cloud;
   }
 

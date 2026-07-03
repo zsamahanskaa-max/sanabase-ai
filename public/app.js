@@ -3954,6 +3954,17 @@ function setBackupStatus(message) {
   if (out) out.textContent = message;
 }
 
+function backupSafeTimestamp(value = new Date()) {
+  return new Date(value).toISOString().replace(/[:.]/g, "-").slice(0, 19);
+}
+
+function updateSafetyMeta(patch = {}) {
+  const current = storageReadJson("sanabase-safety-meta", {}) || {};
+  const next = { ...current, ...patch, updatedAt: new Date().toISOString() };
+  storageWriteJson("sanabase-safety-meta", next);
+  return next;
+}
+
 function backupKeyList() {
   const exactKeys = [
     "sanabase-state",
@@ -4002,9 +4013,26 @@ function buildBackupPayload() {
 }
 
 function exportAllData() {
+  updateSafetyMeta({ lastBackupExportAt: new Date().toISOString() });
   const backup = buildBackupPayload();
   downloadJson(`sanabase-backup-${isoDate()}.json`, backup);
   setBackupStatus(`Export ready.\nVersion: ${backup.metadata.version}\nKeys: ${backup.metadata.keys.length}\nFile: sanabase-backup-${isoDate()}.json`);
+}
+
+function createEmergencyBackup(reason = "manual") {
+  const createdAt = new Date().toISOString();
+  updateSafetyMeta({
+    lastEmergencyBackupAt: createdAt,
+    lastEmergencyBackupReason: reason
+  });
+  const backup = buildBackupPayload();
+  backup.metadata.emergency = true;
+  backup.metadata.reason = reason;
+  backup.metadata.createdBefore = reason;
+  const safeReason = String(reason || "manual").replace(/[^a-z0-9_-]+/gi, "-").replace(/^-+|-+$/g, "").toLowerCase() || "manual";
+  const filename = `sanabase-emergency-${safeReason}-${backupSafeTimestamp(createdAt)}.json`;
+  downloadJson(filename, backup);
+  return { backup, filename };
 }
 
 function isValidBackupPayload(payload) {
@@ -4048,6 +4076,8 @@ async function importBackupData() {
     return;
   }
 
+  const emergency = createEmergencyBackup("before-import");
+
   keys.forEach(key => {
     const value = backup.data[key];
     if (value === null) {
@@ -4063,7 +4093,7 @@ async function importBackupData() {
   render();
   renderCloudSettings();
   updateNotifyUi();
-  setBackupStatus(`Import complete.\nRestored keys: ${keys.length}\nRefresh the page to double-check CRM, Tasks and Goals.`);
+  setBackupStatus(`Import complete.\nEmergency backup: ${emergency.filename}\nRestored keys: ${keys.length}\nRefresh the page to double-check CRM, Tasks and Goals.`);
 }
 
 function buildReportSummary() {
@@ -7533,6 +7563,7 @@ function loadState() {
 }
 
 function persist(options = {}) {
+  updateSafetyMeta({ lastLocalSaveAt: new Date().toISOString() });
   storageWriteJson("sanabase-state", state);
   storageWriteJson("goals", state.goals || []);
   storageWriteJson("projects", state.projects || []);
@@ -7558,6 +7589,15 @@ window.SanaAppBridge = {
     renderCloudSettings();
     updateNotifyUi();
     window.SanaCloudSync?.renderCloudStatus?.();
+  },
+  createEmergencyBackup(reason) {
+    return createEmergencyBackup(reason);
+  },
+  markCloudLoadComplete() {
+    updateSafetyMeta({ lastCloudLoadAt: new Date().toISOString() });
+  },
+  markCloudSaveComplete() {
+    updateSafetyMeta({ lastCloudSaveAt: new Date().toISOString() });
   }
 };
 

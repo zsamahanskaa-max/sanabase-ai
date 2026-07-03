@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#28433f">
   <title>SanaBase AI</title>
-  <link rel="manifest" href="manifest.json?v=20260703-03">
-  <link rel="stylesheet" href="styles.css?v=20260703-03">
+  <link rel="manifest" href="manifest.json?v=20260703-04">
+  <link rel="stylesheet" href="styles.css?v=20260703-04">
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs" type="module"></script>
@@ -974,10 +974,18 @@
     </section>
   </main>
 
-  <div class="sanabot" id="sanabot">
+  <div class="sanabot" id="sanabot" data-mood="normal">
+    <div class="sanabot-bubble" id="sanabotBubble" aria-live="polite">
+      <strong>Mimo</strong>
+      <span>Бүгінгі фокус дайын.</span>
+    </div>
     <button class="sanabot-fab" id="sanabotToggle" type="button" aria-label="Mimo ашу">
-      <span class="sanabot-avatar" aria-hidden="true">
-        <span class="sanabot-face"></span>
+      <span class="sanabot-robot" aria-hidden="true">
+        <span class="sanabot-antenna"></span>
+        <span class="sanabot-robot-head"><span class="sanabot-face"><span class="sanabot-eye left"></span><span class="sanabot-eye right"></span><span class="sanabot-mouth"></span></span></span>
+        <span class="sanabot-arm left"></span>
+        <span class="sanabot-arm right"></span>
+        <span class="sanabot-body"><span class="sanabot-tablet"><span></span><span></span><span></span></span></span>
         <span class="sanabot-leg left"></span>
         <span class="sanabot-leg right"></span>
       </span>
@@ -985,8 +993,12 @@
     </button>
     <section class="sanabot-panel" id="sanabotPanel" aria-label="Mimo chat panel">
       <header class="sanabot-head">
-        <div class="sanabot-avatar large" aria-hidden="true">
-          <span class="sanabot-face"></span>
+        <div class="sanabot-robot large" aria-hidden="true">
+          <span class="sanabot-antenna"></span>
+          <span class="sanabot-robot-head"><span class="sanabot-face"><span class="sanabot-eye left"></span><span class="sanabot-eye right"></span><span class="sanabot-mouth"></span></span></span>
+          <span class="sanabot-arm left"></span>
+          <span class="sanabot-arm right"></span>
+          <span class="sanabot-body"><span class="sanabot-tablet"><span></span><span></span><span></span></span></span>
           <span class="sanabot-leg left"></span>
           <span class="sanabot-leg right"></span>
         </div>
@@ -997,12 +1009,12 @@
         <button id="sanabotClose" type="button" aria-label="Mimo жабу">×</button>
       </header>
       <div class="sanabot-focus" id="sanabotFocus"></div>
+      <div class="sanabot-mini-panel" id="sanabotMiniPanel"></div>
       <div class="sanabot-actions">
         <button type="button" data-sanabot-action="today">Бүгінгі жоспар</button>
         <button type="button" data-sanabot-action="debt">Қарыздарды тексер</button>
-        <button type="button" data-sanabot-action="orders">Заказдарды тексер</button>
-        <button type="button" data-sanabot-action="stock">Складты қара</button>
-        <button type="button" data-sanabot-action="daily">Күндік отчет</button>
+        <button type="button" data-sanabot-action="clients">Клиенттерді қара</button>
+        <button type="button" data-sanabot-action="errors">Қате тап</button>
       </div>
       <div class="sanabot-messages" id="sanabotMessages"></div>
       <div class="sanabot-suggestions" id="sanabotSuggestions">
@@ -1020,18 +1032,18 @@
     </section>
   </div>
 
-  <script src="js/utils.js?v=20260703-03"></script>
-  <script src="js/storage.js?v=20260703-03"></script>
-  <script src="js/api.js?v=20260703-03"></script>
-  <script src="js/spreadsheet.js?v=20260703-03"></script>
-  <script src="js/documents.js?v=20260703-03"></script>
-  <script src="js/priceMatching.js?v=20260703-03"></script>
+  <script src="js/utils.js?v=20260703-04"></script>
+  <script src="js/storage.js?v=20260703-04"></script>
+  <script src="js/api.js?v=20260703-04"></script>
+  <script src="js/spreadsheet.js?v=20260703-04"></script>
+  <script src="js/documents.js?v=20260703-04"></script>
+  <script src="js/priceMatching.js?v=20260703-04"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     window.SANABASE_SUPABASE_URL = window.SANABASE_SUPABASE_URL || "https://koszjmsanlxdakqvdkgc.supabase.co";
     window.SANABASE_SUPABASE_ANON_KEY = window.SANABASE_SUPABASE_ANON_KEY || "sb_publishable_y7IIJav4n99Z1dbfROh3SA_TtlAn5tO";
   </script>
-  <script src="js/cloudSync.js?v=20260703-03"></script>
-  <script src="app.js?v=20260703-03"></script>
+  <script src="js/cloudSync.js?v=20260703-04"></script>
+  <script src="app.js?v=20260703-04"></script>
 </body>
 </html>

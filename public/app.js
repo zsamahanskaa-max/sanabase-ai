@@ -5111,39 +5111,20 @@ function startMimoRoaming() {
   const root = $("sanabot");
   if (!root || sanaBotRoamTimer) return;
   moveMimoHome();
-  const roam = () => {
-    if (!root.classList.contains("open")) moveMimoRandom();
-  };
-  setTimeout(roam, 1300);
-  sanaBotRoamTimer = setInterval(roam, 5200);
-  window.addEventListener("resize", () => root.classList.contains("open") ? moveMimoHome() : moveMimoRandom());
+  sanaBotRoamTimer = setInterval(moveMimoHome, 30000);
+  window.addEventListener("resize", moveMimoHome);
 }
 
 function moveMimoHome() {
   const root = $("sanabot");
   if (!root) return;
-  root.style.setProperty("--sanabot-x", `${Math.max(16, window.innerWidth - 94)}px`);
-  root.style.setProperty("--sanabot-y", `${Math.max(16, window.innerHeight - 94)}px`);
+  root.style.setProperty("--sanabot-x", `${Math.max(16, window.innerWidth - 112)}px`);
+  root.style.setProperty("--sanabot-y", `${Math.max(16, window.innerHeight - 116)}px`);
   root.classList.remove("is-roaming-left");
 }
 
 function moveMimoRandom() {
-  const root = $("sanabot");
-  if (!root) return;
-  if (window.innerWidth < 700) {
-    moveMimoHome();
-    return;
-  }
-  const margin = window.innerWidth < 700 ? 14 : 22;
-  const maxX = Math.max(margin, window.innerWidth - 92);
-  const maxY = Math.max(margin + 72, window.innerHeight - 98);
-  const minY = window.innerWidth < 700 ? 86 : 74;
-  const nextX = Math.round(margin + Math.random() * (maxX - margin));
-  const nextY = Math.round(minY + Math.random() * (maxY - minY));
-  const currentX = Number.parseFloat(root.style.getPropertyValue("--sanabot-x")) || maxX;
-  root.style.setProperty("--sanabot-x", `${nextX}px`);
-  root.style.setProperty("--sanabot-y", `${nextY}px`);
-  root.classList.toggle("is-roaming-left", nextX < currentX);
+  moveMimoHome();
 }
 
 function toggleMimo() {
@@ -5156,7 +5137,7 @@ function toggleMimo() {
 
 function closeMimo() {
   $("sanabot")?.classList.remove("open");
-  setTimeout(moveMimoRandom, 400);
+  setTimeout(moveMimoHome, 120);
 }
 
 function addMimoMessage(kind, text) {
@@ -5202,9 +5183,44 @@ function renderMimoFocus() {
   focus.innerHTML = `
     <span>Бүгінгі фокус</span>
     <strong>${escapeHtml(metrics.focus)}</strong>
-    <small>${metrics.todayTasks} task · ${metrics.openOrders} заказ · ${money(metrics.unpaid)} қарыз</small>
+    <small>${metrics.todayTasks} task · ${metrics.openOrders} заказ · ${money(metrics.unpaid)} қарыз · backup ${metrics.backupKeys} key</small>
   `;
+  renderMimoBubble(metrics);
+  renderMimoMiniPanel(metrics);
   setMimoMood(sanaBotDashboardMood(), false);
+}
+
+function renderMimoBubble(metrics = sanaBotMetrics()) {
+  const bubble = $("sanabotBubble");
+  if (!bubble) return;
+  const items = [
+    metrics.todayTasks ? `${metrics.todayTasks} task` : "",
+    metrics.openOrders ? `${metrics.openOrders} заказ` : "",
+    metrics.unpaid ? `${money(metrics.unpaid)} қарыз` : "",
+    metrics.lowStock ? `${metrics.lowStock} склад сигналы` : "",
+    "backup тексеру"
+  ].filter(Boolean).slice(0, 3);
+  bubble.innerHTML = `
+    <strong>Бүгін:</strong>
+    <span>${escapeHtml(items.join(" · ") || "Күн тыныш. Бір шағын жоспар қосайық.")}</span>
+  `;
+}
+
+function renderMimoMiniPanel(metrics = sanaBotMetrics()) {
+  const panel = $("sanabotMiniPanel");
+  if (!panel) return;
+  const cards = [
+    ["Daily summary", `${metrics.todayTasks} task · ${metrics.openOrders} заказ`],
+    ["CRM alerts", `${money(metrics.unpaid)} қарыз`],
+    ["Tasks", `${metrics.todayTasks} бүгін`],
+    ["Backup status", `${metrics.backupKeys} key дайын`]
+  ];
+  panel.innerHTML = cards.map(([label, value]) => `
+    <article>
+      <span>${escapeHtml(label)}</span>
+      <strong>${escapeHtml(value)}</strong>
+    </article>
+  `).join("");
 }
 
 function rememberMimoAnswer(text, action) {
@@ -5214,7 +5230,7 @@ function rememberMimoAnswer(text, action) {
   updateMimoActionCards();
   if (lastMimoAction === "debt" || /қарыз|карыз|төлем|оплата|debt/i.test(lastMimoAnswer)) setMimoMood("alert");
   else if (lastMimoAction === "stock" || /склад|остат|тауар|stock/i.test(lastMimoAnswer)) setMimoMood("alert");
-  else setMimoMood("focus");
+  else setMimoMood("normal");
 }
 
 function updateMimoActionCards() {
@@ -5233,14 +5249,16 @@ function toggleMimoCard(id, show) {
 function setMimoMood(mood, force = true) {
   const root = $("sanabot");
   if (!root) return;
-  if (!force && root.dataset.mood === "happy") return;
+  if (!force && (root.dataset.mood === "happy" || root.dataset.mood === "success")) return;
   const next = mood || "ready";
   root.dataset.mood = next;
   const labels = {
-    ready: "Mimo · ready",
-    focus: "Focus mode · жоспар",
+    normal: "Normal · дайын",
+    ready: "Normal · дайын",
+    focus: "Normal · жоспар",
     alert: "Alert mode · тексеру керек",
-    happy: "Happy mode · жарайсыз",
+    success: "Success · жарайсыз",
+    happy: "Success · жарайсыз",
     thinking: "Thinking · бұртиып ойлануда",
     sad: "Sad mode · бұртиып қалды",
     angry: "Angry mode · қабағын түйді"
@@ -5251,8 +5269,7 @@ function setMimoMood(mood, force = true) {
 function sanaBotDashboardMood() {
   const metrics = sanaBotMetrics();
   if (metrics.unpaid > 0 || metrics.lowStock > 0 || metrics.docs > 0) return "alert";
-  if (metrics.todayTasks || metrics.openOrders) return "focus";
-  return "ready";
+  return "normal";
 }
 
 function sanaBotMetrics() {
@@ -5272,12 +5289,13 @@ function sanaBotMetrics() {
     openOrders: openOrders.length,
     unpaid,
     docs: docs.length,
-    lowStock: Number(stock.lowStock || 0) + Number(stock.noStock || 0)
+    lowStock: Number(stock.lowStock || 0) + Number(stock.noStock || 0),
+    backupKeys: typeof backupKeyList === "function" ? backupKeyList().length : 0
   };
 }
 
 function sanaBotActionLabel(action) {
-  return { today: "Бүгінгі жоспар", debt: "Қарыздарды тексер", orders: "Заказдарды тексер", stock: "Складты қара", daily: "Күндік отчет" }[action] || "Mimo";
+  return { today: "Бүгінгі жоспар", debt: "Қарыздарды тексер", clients: "Клиенттерді қара", errors: "Қате тап", orders: "Заказдарды тексер", stock: "Складты қара", daily: "Күндік отчет" }[action] || "Mimo";
 }
 
 function sanaBotActionReply(action) {
@@ -5294,6 +5312,25 @@ function sanaBotActionReply(action) {
   if (action === "orders") {
     const orders = activeCalItems(cal.orders).filter(order => !["closed", "received"].includes(order.status)).slice(0, 5);
     return [`Ашық заказдар: ${metrics.openOrders}.`, orders.map((order, index) => `${index + 1}. ${order.title} · ${crmStatusLabel(order.status)} · ${order.expectedDeliveryDate || "күні жоқ"}`).join("\n") || "Ашық заказ жоқ."].join("\n");
+  }
+  if (action === "clients") {
+    const clients = activeCalItems(cal.clients || []).slice(0, 5);
+    return [
+      `Клиенттер: ${clients.length} карточка.`,
+      clients.map((client, index) => `${index + 1}. ${client.name || client.schoolName || client.clientName || "Клиент"} · ${client.phone || client.bin || "-"}`).join("\n") || "Клиент карточкалары әзірге аз.",
+      "Mimo ұсынысы: қарызы немесе ашық заказы бар клиентке follow-up task жасаңыз."
+    ].join("\n");
+  }
+  if (action === "errors") {
+    const checks = [
+      metrics.todayTasks ? `${metrics.todayTasks} task бүгін/кешіккен` : "",
+      metrics.openOrders ? `${metrics.openOrders} ашық заказ` : "",
+      metrics.unpaid ? `${money(metrics.unpaid)} қарыз` : "",
+      metrics.docs ? `${metrics.docs} құжат/ESF сигналы` : "",
+      metrics.lowStock ? `${metrics.lowStock} склад сигналы` : "",
+      "backup status тексеріңіз"
+    ].filter(Boolean);
+    return [`Mimo quick scan: ${checks.length} сигнал.`, ...checks.map((item, index) => `${index + 1}. ${item}`)].join("\n");
   }
   if (action === "stock") {
     return `Склад сигналы: аз/жоқ товар ${metrics.lowStock}. Толық көру үшін 1С Excel немесе CRM отчет орталығына номенклатура/остаток файлын жүктеңіз.`;
@@ -5364,7 +5401,7 @@ function taskFromMimoAnswer() {
   }));
   persist();
   render();
-  setMimoMood("happy");
+  setMimoMood("success");
   addMimoMessage("bot", `Task дайын: ${title}`);
 }
 
@@ -5493,7 +5530,7 @@ function sanaBotTaskTitle(text) {
 function sanaBotReactToTask(task) {
   if (!$("sanabotMessages")) return;
   $("sanabot")?.classList.add("open");
-  setMimoMood("happy");
+  setMimoMood("success");
   addMimoMessage("bot", `Жарайсыз! “${task.title}” орындалды. Кішкентай жеңіс те жүйені алға жылжытады.`);
   renderMimoFocus();
 }

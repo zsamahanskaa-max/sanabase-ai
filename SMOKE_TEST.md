@@ -501,6 +501,25 @@ Frontend asset query versions were updated to `20260703-03`. Manual checks to ru
 9. Confirm Backup Center export/import still works.
 10. Confirm no browser Console error appears.
 
+## 23. Mimo v2 visual shell
+
+Frontend asset query versions were updated to `20260703-04`. Manual checks to run:
+
+1. Open the app on desktop and phone.
+2. Confirm Mimo appears as a full robot persona, not a plain circle/icon and not a heavy card.
+3. Confirm the robot has head, face screen, expressive eyes, small body, small arms, tiny checklist/tablet, and antenna glow node.
+4. Confirm the speech bubble is separate from the robot.
+5. Click/tap Mimo and confirm a separate glass mini panel opens.
+6. Confirm states render without console errors: normal, thinking, alert, success.
+7. Confirm quick actions are visible: `Бүгінгі жоспар`, `Қарыздарды тексер`, `Клиенттерді қара`, `Қате тап`.
+8. Confirm mobile view stays compact and does not cover Cloud Sync controls.
+9. Confirm CRM quick save, Tasks, Backup Center, Cloud Sync, and Order Pipeline still work.
+10. Confirm no browser Console error appears.
+11. Confirm Mimo stays fixed at the bottom-right corner on desktop.
+12. Confirm Mimo does not roam or jump randomly after waiting 6-8 seconds.
+13. Confirm Mimo stays below modal overlays and does not cover critical modal/buttons/form inputs.
+14. Confirm the mobile mini panel stays inside the viewport when opened.
+
 ## Pass criteria
 
 - `public/js/utils.js` loads before `public/app.js`.

@@ -284,6 +284,7 @@
       setStatus("Cloud Sync: жүктеу тоқтатылды. Local дерек өзгерген жоқ.", false);
       return null;
     }
+    window.SanaAppBridge?.createRestorePoint?.("before-cloud-load");
     const emergency = window.SanaAppBridge?.createEmergencyBackup?.("before-cloud-load");
     if (emergency?.filename) {
       setStatus(`Cloud Sync: emergency backup дайын: ${emergency.filename}. Cloud дерек жүктеліп жатыр...`, true);

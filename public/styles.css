@@ -1239,6 +1239,45 @@ pre {
   margin: 14px 0;
 }
 
+.version-history-list {
+  display: grid;
+  gap: 10px;
+}
+
+.version-history-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: #fbfaf7;
+}
+
+.version-history-item strong,
+.version-history-item span {
+  display: block;
+}
+
+.version-history-item span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.version-history-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.version-history-actions button {
+  min-height: 34px;
+  padding: 7px 10px;
+}
+
 #backupOut {
   min-height: 140px;
 }

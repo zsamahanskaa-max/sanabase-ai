@@ -63,6 +63,8 @@ const {
 
 const state = loadState();
 const BACKUP_VERSION = "20260702-16";
+const VERSION_HISTORY_KEY = "sanabase-version-history";
+const VERSION_HISTORY_LIMIT = 10;
 const CRM_PIPELINE_STATUSES = [
   ["new", "Жаңа заказ"],
   ["calculating", "На просчете"],
@@ -178,6 +180,8 @@ on("readerResumeBtn", "click", resumeNoteReader);
 on("readerFullscreenBtn", "click", fullscreenNoteReader);
 on("exportAllDataBtn", "click", exportAllData);
 on("importBackupBtn", "click", importBackupData);
+on("createRestorePointBtn", "click", () => createManualRestorePoint("manual"));
+on("restoreLatestPointBtn", "click", restoreLatestVersionPoint);
 on("searchDocs", "input", render);
 on("brainSearch", "input", render);
 on("brainCrmBtn", "click", brainCrm);
@@ -3995,8 +3999,9 @@ function backupKeyList() {
   return [...keys].sort();
 }
 
-function buildBackupPayload() {
-  const keys = backupKeyList();
+function buildBackupPayload(options = {}) {
+  const excludeKeys = new Set(options.excludeKeys || []);
+  const keys = backupKeyList().filter(key => !excludeKeys.has(key));
   const data = {};
   keys.forEach(key => {
     data[key] = localStorage.getItem(key);
@@ -4010,6 +4015,135 @@ function buildBackupPayload() {
     },
     data
   };
+}
+
+function versionHistory() {
+  const history = storageReadJson(VERSION_HISTORY_KEY, []);
+  return Array.isArray(history) ? history : [];
+}
+
+function writeVersionHistory(history) {
+  storageWriteJson(VERSION_HISTORY_KEY, history.slice(0, VERSION_HISTORY_LIMIT));
+}
+
+function createRestorePoint(reason = "manual") {
+  const createdAt = new Date().toISOString();
+  const payload = buildBackupPayload({ excludeKeys: [VERSION_HISTORY_KEY] });
+  const point = {
+    id: crypto.randomUUID(),
+    reason,
+    createdAt,
+    keys: payload.metadata.keys,
+    data: payload.data
+  };
+  const history = [point, ...versionHistory().filter(item => item.id !== point.id)].slice(0, VERSION_HISTORY_LIMIT);
+  writeVersionHistory(history);
+  updateSafetyMeta({
+    lastRestorePointAt: createdAt,
+    lastRestorePointReason: reason,
+    restorePointCount: history.length
+  });
+  renderVersionHistory();
+  return point;
+}
+
+function createManualRestorePoint(reason = "manual") {
+  const point = createRestorePoint(reason);
+  setBackupStatus(`Restore point сақталды.\nReason: ${point.reason}\nKeys: ${point.keys.length}\nTime: ${point.createdAt}`);
+}
+
+function applyBackupData(data = {}, keys = []) {
+  keys.forEach(key => {
+    const value = data[key];
+    if (value === null) {
+      localStorage.removeItem(key);
+    } else if (value !== undefined) {
+      localStorage.setItem(key, value);
+    }
+  });
+  const restoredState = loadState();
+  Object.keys(state).forEach(key => delete state[key]);
+  Object.assign(state, restoredState);
+  render();
+  renderCloudSettings();
+  updateNotifyUi();
+}
+
+function restoreVersionPoint(id) {
+  const point = versionHistory().find(item => item.id === id);
+  if (!point) {
+    setBackupStatus("Restore point табылмады.");
+    return;
+  }
+  const ok = confirm(`Restore point қайтару керек пе?\n\nReason: ${point.reason || "manual"}\nTime: ${point.createdAt || "unknown"}\nKeys: ${(point.keys || []).length}\n\nҚазіргі localStorage ауысады, бірақ алдымен emergency backup жасалады.`);
+  if (!ok) {
+    setBackupStatus("Restore point cancelled. No data was changed.");
+    return;
+  }
+  const emergency = createEmergencyBackup("before-version-restore");
+  applyBackupData(point.data || {}, point.keys || []);
+  updateSafetyMeta({ lastVersionRestoreAt: new Date().toISOString(), lastVersionRestoreId: point.id });
+  setBackupStatus(`Restore point қайтарылды.\nEmergency backup: ${emergency.filename}\nRestored keys: ${(point.keys || []).length}`);
+}
+
+function restoreLatestVersionPoint() {
+  const point = versionHistory()[0];
+  if (!point) {
+    setBackupStatus("Version History бос. Алдымен restore point жасаңыз.");
+    return;
+  }
+  restoreVersionPoint(point.id);
+}
+
+function exportVersionPoint(id) {
+  const point = versionHistory().find(item => item.id === id);
+  if (!point) {
+    setBackupStatus("Restore point export үшін табылмады.");
+    return;
+  }
+  const backup = {
+    metadata: {
+      app: "SanaBase",
+      version: BACKUP_VERSION,
+      exportedAt: new Date().toISOString(),
+      restorePoint: true,
+      restorePointId: point.id,
+      reason: point.reason,
+      keys: point.keys || []
+    },
+    data: point.data || {}
+  };
+  const safeReason = String(point.reason || "restore-point").replace(/[^a-z0-9_-]+/gi, "-").replace(/^-+|-+$/g, "").toLowerCase() || "restore-point";
+  downloadJson(`sanabase-restore-point-${safeReason}-${backupSafeTimestamp(point.createdAt || new Date())}.json`, backup);
+  setBackupStatus(`Restore point export дайын.\nReason: ${point.reason || "manual"}\nKeys: ${(point.keys || []).length}`);
+}
+
+function renderVersionHistory() {
+  const list = $("versionHistoryList");
+  if (!list) return;
+  const history = versionHistory();
+  if (!history.length) {
+    list.innerHTML = `<p class="muted">Restore point жоқ. Маңызды өзгеріс алдында қолмен restore point жасаңыз.</p>`;
+    return;
+  }
+  list.innerHTML = history.map((point, index) => `
+    <article class="version-history-item">
+      <div>
+        <strong>${escapeHtml(point.reason || "manual")}</strong>
+        <span>${escapeHtml(point.createdAt || "unknown")} · ${(point.keys || []).length} key${index === 0 ? " · latest" : ""}</span>
+      </div>
+      <div class="version-history-actions">
+        <button type="button" data-version-restore="${escapeHtml(point.id)}">Қайтару</button>
+        <button type="button" data-version-export="${escapeHtml(point.id)}">Export</button>
+      </div>
+    </article>
+  `).join("");
+  list.querySelectorAll("[data-version-restore]").forEach(button => {
+    button.addEventListener("click", () => restoreVersionPoint(button.dataset.versionRestore));
+  });
+  list.querySelectorAll("[data-version-export]").forEach(button => {
+    button.addEventListener("click", () => exportVersionPoint(button.dataset.versionExport));
+  });
 }
 
 function exportAllData() {
@@ -4076,23 +4210,10 @@ async function importBackupData() {
     return;
   }
 
+  createRestorePoint("before-import");
   const emergency = createEmergencyBackup("before-import");
 
-  keys.forEach(key => {
-    const value = backup.data[key];
-    if (value === null) {
-      localStorage.removeItem(key);
-    } else {
-      localStorage.setItem(key, value);
-    }
-  });
-
-  const restoredState = loadState();
-  Object.keys(state).forEach(key => delete state[key]);
-  Object.assign(state, restoredState);
-  render();
-  renderCloudSettings();
-  updateNotifyUi();
+  applyBackupData(backup.data, keys);
   setBackupStatus(`Import complete.\nEmergency backup: ${emergency.filename}\nRestored keys: ${keys.length}\nRefresh the page to double-check CRM, Tasks and Goals.`);
 }
 
@@ -6657,6 +6778,7 @@ function render() {
   state.projects = state.projects.map(normalizeProject);
   state.plans = state.plans.map(normalizePlan);
   state.challenges = state.challenges.map(normalizeChallenge);
+  renderVersionHistory();
   const query = $("searchDocs")?.value?.toLowerCase() || "";
   if (!$("docsGrid")) return;
   $("docsGrid").innerHTML = "";
@@ -7592,6 +7714,9 @@ window.SanaAppBridge = {
   },
   createEmergencyBackup(reason) {
     return createEmergencyBackup(reason);
+  },
+  createRestorePoint(reason) {
+    return createRestorePoint(reason);
   },
   markCloudLoadComplete() {
     updateSafetyMeta({ lastCloudLoadAt: new Date().toISOString() });

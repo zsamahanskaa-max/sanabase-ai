@@ -588,6 +588,24 @@ Frontend asset query versions were updated to `20260703-09`. Manual checks to ru
 10. Confirm notes, CRM clients, tasks, goals, projects, and plans still appear after restore.
 11. Confirm no browser Console error appears.
 
+## 28. Version History and Undo MVP
+
+Frontend asset query versions were updated to `20260703-10`. Manual checks to run:
+
+1. Open `Backup Center`.
+2. Confirm `Version History / Undo` panel is visible.
+3. Click `Restore point жасау`.
+4. Confirm `Version History` list shows a latest restore point.
+5. Add or edit a test note/task.
+6. Click `Соңғысын қайтару`.
+7. Confirm an emergency backup JSON downloads before restore.
+8. Confirm data returns to the restore point state.
+9. Import backup and confirm a `before-import` restore point is created.
+10. Cloud load and confirm a `before-cloud-load` restore point is created.
+11. Export a restore point and confirm JSON downloads.
+12. Confirm CRM, Tasks, Notes, Backup Center, Cloud Sync, and Mimo still open.
+13. Confirm no browser Console error appears.
+
 ## Pass criteria
 
 - `public/js/utils.js` loads before `public/app.js`.

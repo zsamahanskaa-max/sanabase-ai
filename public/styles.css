@@ -1256,6 +1256,8 @@ pre {
 }
 .notes-main {
   min-width: 0;
+  grid-column: 2;
+  grid-row: 1 / span 2;
 }
 .folder-row {
   display: flex;
@@ -1351,6 +1353,82 @@ pre {
   margin-left: 6px;
   background: transparent;
   color: var(--muted);
+}
+.note-folder-manager {
+  display: grid;
+  grid-column: 1;
+  gap: 12px;
+  align-content: start;
+  border: 1px solid rgba(40, 67, 63, .12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .72);
+  padding: 14px;
+}
+.note-folder-manager h3 {
+  margin: 0;
+  font-size: 16px;
+}
+.note-folder-form {
+  display: grid;
+  gap: 8px;
+}
+.note-breadcrumb {
+  border: 1px dashed rgba(40, 67, 63, .2);
+  border-radius: 8px;
+  padding: 9px 10px;
+  color: var(--sage);
+  font-size: 13px;
+  background: rgba(232, 240, 236, .7);
+}
+.note-folder-tree {
+  display: grid;
+  gap: 6px;
+}
+.note-folder-node {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+  align-items: center;
+  padding-left: calc(var(--folder-depth, 0) * 14px);
+}
+.note-folder-node > button {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  border: 1px solid rgba(40, 67, 63, .12);
+  background: white;
+  color: var(--sage);
+  text-align: left;
+}
+.note-folder-node > button.active {
+  background: var(--sage);
+  color: white;
+}
+.note-folder-node small {
+  opacity: .72;
+}
+.note-folder-actions {
+  display: flex;
+  gap: 6px;
+}
+.note-folder-actions button {
+  width: auto;
+  padding: 8px 9px;
+  background: rgba(255, 255, 255, .8);
+  color: var(--sage);
+  font-size: 12px;
+}
+.note-move {
+  display: grid;
+  gap: 6px;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.note-move select {
+  min-width: 0;
 }
 .empty-note {
   border-left-color: var(--line);
@@ -1813,6 +1891,18 @@ pre {
   background: white;
   color: var(--rose);
   border-color: #f0c8c8;
+}
+
+.goal-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.goal-card-actions button:first-child {
+  color: var(--sage);
+  border-color: var(--line);
 }
 
 .progress-bar {
@@ -3336,6 +3426,11 @@ pre {
   }
   .note-head {
     grid-template-columns: 1fr;
+  }
+  .notes-main,
+  .note-folder-manager {
+    grid-column: auto;
+    grid-row: auto;
   }
   .reader-modal {
     padding: 10px;

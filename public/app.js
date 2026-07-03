@@ -168,6 +168,7 @@ on("challengeForm", "submit", saveChallenge);
 on("goalSearch", "input", render);
 on("goalFilter", "change", render);
 on("noteForm", "submit", saveNote);
+on("noteFolderForm", "submit", saveNoteFolder);
 on("noteSearch", "input", render);
 on("noteFolderFilter", "change", render);
 on("noteStatusFilter", "change", render);
@@ -2761,24 +2762,58 @@ function saveTask(event) {
   const title = $("taskTitle").value.trim();
   if (!title) return;
   const body = $("taskBody").value.trim();
-  state.tasks.unshift(normalizeTask({
-    id: crypto.randomUUID(),
+  const editingId = $("taskForm")?.dataset.editingTaskId || "";
+  const existing = editingId ? state.tasks.find(task => task.id === editingId) : null;
+  const payload = normalizeTask({
+    id: existing?.id || crypto.randomUUID(),
     title,
     body,
-    checklist: taskChecklistFromBody(body),
+    checklist: mergeChecklistItems(existing?.checklist, taskChecklistFromBody(body)),
     status: $("taskStatus").value || "todo",
     priority: $("taskPriority").value || "medium",
     due: $("taskDue").value || "",
     owner: $("taskOwner").value.trim(),
     link: $("taskLink").value.trim(),
-    createdAt: new Date().toISOString(),
+    createdAt: existing?.createdAt || new Date().toISOString(),
     updatedAt: new Date().toISOString()
-  }));
+  });
+  if (existing) {
+    state.tasks = state.tasks.map(task => task.id === existing.id ? payload : task);
+  } else {
+    state.tasks.unshift(payload);
+  }
   ["taskTitle", "taskBody", "taskDue", "taskOwner", "taskLink"].forEach(id => { $(id).value = ""; });
   $("taskPriority").value = "medium";
   $("taskStatus").value = "todo";
+  resetTaskFormMode();
   persist();
   render();
+}
+
+function editTask(id) {
+  const task = state.tasks.find(item => item.id === id);
+  if (!task || !$("taskForm")) return;
+  $("taskForm").dataset.editingTaskId = task.id;
+  $("taskTitle").value = task.title || "";
+  $("taskBody").value = task.body || checklistToLines(task.checklist);
+  $("taskStatus").value = task.status || "todo";
+  $("taskPriority").value = task.priority || "medium";
+  $("taskDue").value = task.due || "";
+  $("taskOwner").value = task.owner || "";
+  $("taskLink").value = task.link || "";
+  updateTaskSubmitLabel(true);
+  $("taskForm").scrollIntoView({ behavior: "smooth", block: "start" });
+  $("taskTitle").focus();
+}
+
+function resetTaskFormMode() {
+  if ($("taskForm")) delete $("taskForm").dataset.editingTaskId;
+  updateTaskSubmitLabel(false);
+}
+
+function updateTaskSubmitLabel(editing) {
+  const button = $("taskForm")?.querySelector('button[type="submit"]');
+  if (button) button.textContent = editing ? "Тапсырманы сақтау" : "Тапсырма қосу";
 }
 
 function moveTask(id, status) {
@@ -2831,6 +2866,8 @@ function saveGoal(event) {
   event.preventDefault();
   const title = $("goalTitle")?.value.trim();
   if (!title) return;
+  const editingId = $("goalForm")?.dataset.editingGoalId || "";
+  const existing = editingId ? state.goals.find(goal => goal.id === editingId) : null;
   const stages = splitLines($("goalStages")?.value).map(name => ({
     id: crypto.randomUUID(),
     title: name,
@@ -2839,18 +2876,53 @@ function saveGoal(event) {
     status: "todo",
     done: false
   }));
-  state.goals.unshift(normalizeGoal({
+  const payload = normalizeGoal({
+    id: existing?.id || crypto.randomUUID(),
     title,
     description: $("goalDescription")?.value.trim() || "",
     category: $("goalCategory")?.value || "Бизнес",
     status: $("goalStatus")?.value || "active",
     startDate: $("goalStart")?.value || isoDate(),
     endDate: $("goalEnd")?.value || "",
-    stages
-  }));
+    stages: mergeGoalStages(existing?.stages, stages),
+    createdAt: existing?.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  });
+  if (existing) {
+    state.goals = state.goals.map(goal => goal.id === existing.id ? payload : goal);
+  } else {
+    state.goals.unshift(payload);
+  }
   event.target.reset();
+  resetGoalFormMode();
   persist();
   render();
+}
+
+function editGoal(id) {
+  const goal = state.goals.find(item => item.id === id);
+  if (!goal || !$("goalForm")) return;
+  $("goalForm").dataset.editingGoalId = goal.id;
+  $("goalTitle").value = goal.title || "";
+  $("goalDescription").value = goal.description || "";
+  $("goalCategory").value = goal.category || $("goalCategory").value;
+  $("goalStatus").value = goal.status || "active";
+  $("goalStart").value = goal.startDate || "";
+  $("goalEnd").value = goal.endDate || "";
+  $("goalStages").value = (goal.stages || []).map(stage => stage.title).join("\n");
+  updateGoalSubmitLabel(true);
+  $("goalForm").scrollIntoView({ behavior: "smooth", block: "start" });
+  $("goalTitle").focus();
+}
+
+function resetGoalFormMode() {
+  if ($("goalForm")) delete $("goalForm").dataset.editingGoalId;
+  updateGoalSubmitLabel(false);
+}
+
+function updateGoalSubmitLabel(editing) {
+  const button = $("goalForm")?.querySelector('button[type="submit"]');
+  if (button) button.textContent = editing ? "Мақсатты сақтау" : "Мақсат қосу";
 }
 
 function saveProject(event) {
@@ -2887,12 +2959,15 @@ function savePlan(event) {
   event.preventDefault();
   const title = $("planTitle")?.value.trim();
   if (!title) return;
+  const editingId = $("planForm")?.dataset.editingPlanId || "";
+  const existing = editingId ? state.plans.find(plan => plan.id === editingId) : null;
   const tasks = splitLines($("planTasks")?.value).map(name => ({
     id: crypto.randomUUID(),
     title: name,
     done: false
   }));
-  state.plans.unshift(normalizePlan({
+  const payload = normalizePlan({
+    id: existing?.id || crypto.randomUUID(),
     title,
     type: $("planType")?.value || "daily",
     category: $("planCategory")?.value || "Бизнес",
@@ -2900,12 +2975,47 @@ function savePlan(event) {
     goalTitle: $("planGoal")?.value.trim() || "",
     projectTitle: $("planProject")?.value.trim() || "",
     focus: $("planFocus")?.value.trim() || "",
-    status: "today",
-    tasks
-  }));
+    status: existing?.status || "today",
+    tasks: mergePlanTasks(existing?.tasks, tasks),
+    createdAt: existing?.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  });
+  if (existing) {
+    state.plans = state.plans.map(plan => plan.id === existing.id ? payload : plan);
+  } else {
+    state.plans.unshift(payload);
+  }
   event.target.reset();
+  resetPlanFormMode();
   persist();
   render();
+}
+
+function editPlan(id) {
+  const plan = state.plans.find(item => item.id === id);
+  if (!plan || !$("planForm")) return;
+  $("planForm").dataset.editingPlanId = plan.id;
+  $("planTitle").value = plan.title || "";
+  $("planType").value = plan.type || "daily";
+  $("planCategory").value = plan.category || $("planCategory").value;
+  $("planDate").value = plan.date || isoDate();
+  $("planGoal").value = plan.goalTitle || "";
+  $("planProject").value = plan.projectTitle || "";
+  $("planFocus").value = plan.focus || "";
+  $("planTasks").value = (plan.tasks || []).map(task => task.title).join("\n");
+  updatePlanSubmitLabel(true);
+  $("planForm").scrollIntoView({ behavior: "smooth", block: "start" });
+  $("planTitle").focus();
+}
+
+function resetPlanFormMode() {
+  if ($("planForm")) delete $("planForm").dataset.editingPlanId;
+  updatePlanSubmitLabel(false);
+}
+
+function updatePlanSubmitLabel(editing) {
+  const button = $("planForm")?.querySelector('button[type="submit"]');
+  if (button) button.textContent = editing ? "Жоспарды сақтау" : "Жоспар қосу";
 }
 
 function saveChallenge(event) {
@@ -2931,6 +3041,38 @@ function saveChallenge(event) {
 
 function splitLines(value) {
   return String(value || "").split(/\n/).map(line => line.trim()).filter(Boolean).slice(0, 80);
+}
+
+function listItemKey(title = "") {
+  return normalizeText(String(title || "").replace(/^([-*•]|□|☐|✓|✔|\[[ xх]\]|\d+[.)])\s*/i, ""));
+}
+
+function mergeChecklistItems(existingItems = [], nextItems = []) {
+  const doneByText = new Map((existingItems || []).map(item => [listItemKey(item.text || item.title), Boolean(item.done)]));
+  return (nextItems || []).map(item => ({
+    ...item,
+    done: doneByText.has(listItemKey(item.text || item.title)) ? doneByText.get(listItemKey(item.text || item.title)) : Boolean(item.done)
+  }));
+}
+
+function checklistToLines(items = []) {
+  return (items || []).map(item => `${item.done ? "✓" : "-"} ${item.text || item.title || ""}`.trim()).join("\n");
+}
+
+function mergeGoalStages(existingStages = [], nextStages = []) {
+  const previousByTitle = new Map((existingStages || []).map(stage => [listItemKey(stage.title), stage]));
+  return (nextStages || []).map(stage => {
+    const previous = previousByTitle.get(listItemKey(stage.title));
+    return previous ? { ...stage, id: previous.id, done: Boolean(previous.done), status: previous.status || stage.status } : stage;
+  });
+}
+
+function mergePlanTasks(existingTasks = [], nextTasks = []) {
+  const previousByTitle = new Map((existingTasks || []).map(task => [listItemKey(task.title), task]));
+  return (nextTasks || []).map(task => {
+    const previous = previousByTitle.get(listItemKey(task.title));
+    return previous ? { ...task, id: previous.id, done: Boolean(previous.done) } : task;
+  });
 }
 
 function toggleGoalStage(goalId, stageId) {
@@ -5037,8 +5179,89 @@ function noteStatusLabel(status) {
   }[status] || "Белсенді";
 }
 
+function defaultNoteFolders() {
+  const now = new Date().toISOString();
+  const roots = [
+    ["inbox", "Inbox", null, "📥", "#60a5fa", 1],
+    ["business", "Business", null, "💼", "#34d399", 2],
+    ["finance", "Finance", null, "₸", "#fbbf24", 3],
+    ["documents", "Documents", null, "📄", "#a78bfa", 4],
+    ["study", "Study", null, "📚", "#38bdf8", 5],
+    ["psychology", "Psychology", null, "🧠", "#fb7185", 6],
+    ["projects", "Projects", null, "🧩", "#f97316", 7],
+    ["archive", "Archive", null, "🗄", "#94a3b8", 99],
+    ["business-clients", "Клиенттер", "business", "👥", "#34d399", 1],
+    ["business-shop", "Магазин", "business", "🏪", "#34d399", 2],
+    ["finance-debt", "Қарыз", "finance", "₸", "#fbbf24", 1],
+    ["study-1c", "1C", "study", "📊", "#38bdf8", 1],
+    ["psychology-thoughts", "Ойлар", "psychology", "🧠", "#fb7185", 1]
+  ];
+  return roots.map(([id, name, parentId, icon, color, order]) => normalizeNoteFolder({ id, name, parentId, icon, color, order, createdAt: now, updatedAt: now }));
+}
+
+function normalizeNoteFolder(folder = {}, index = 0) {
+  const now = new Date().toISOString();
+  return {
+    id: folder.id || `folder-${crypto.randomUUID()}`,
+    name: String(folder.name || "Жаңа папка").trim() || "Жаңа папка",
+    parentId: folder.parentId || null,
+    type: "notesFolder",
+    icon: folder.icon || "Папка",
+    color: folder.color || "#60a5fa",
+    order: Number.isFinite(Number(folder.order)) ? Number(folder.order) : index,
+    createdAt: folder.createdAt || now,
+    updatedAt: folder.updatedAt || folder.createdAt || now,
+    archived: Boolean(folder.archived)
+  };
+}
+
+function ensureNoteFolders() {
+  const existing = Array.isArray(state.noteFolders) && state.noteFolders.length
+    ? state.noteFolders.map(normalizeNoteFolder)
+    : defaultNoteFolders();
+  const byPath = new Map(existing.map(folder => [noteFolderPath(folder.id, existing).toLowerCase(), folder]));
+  state.notes.forEach(note => {
+    const folderName = String(note.folder || "").trim();
+    if (!folderName || byPath.has(folderName.toLowerCase())) return;
+    const folder = normalizeNoteFolder({ name: folderName, order: existing.length + 1 });
+    existing.push(folder);
+    byPath.set(folderName.toLowerCase(), folder);
+  });
+  state.noteFolders = existing;
+  return existing;
+}
+
+function activeNoteFolders() {
+  return ensureNoteFolders()
+    .filter(folder => !folder.archived)
+    .sort((a, b) => (a.parentId || "").localeCompare(b.parentId || "") || a.order - b.order || a.name.localeCompare(b.name));
+}
+
+function noteFolderPath(id, folders = state.noteFolders || []) {
+  const folder = folders.find(item => item.id === id);
+  if (!folder) return "";
+  const chain = [folder.name];
+  let parentId = folder.parentId;
+  let guard = 0;
+  while (parentId && guard < 12) {
+    const parent = folders.find(item => item.id === parentId);
+    if (!parent) break;
+    chain.unshift(parent.name);
+    parentId = parent.parentId;
+    guard += 1;
+  }
+  return chain.join(" / ");
+}
+
+function noteFolderBreadcrumb(path) {
+  if (!path || path === "all") return "Жазбалар > Барлық жазбалар";
+  return `Жазбалар > ${String(path).split("/").map(part => part.trim()).filter(Boolean).join(" > ")}`;
+}
+
 function noteFolders() {
-  return [...new Set(state.notes.map(note => note.folder || "Жалпы"))].sort((a, b) => a.localeCompare(b));
+  const folderPaths = activeNoteFolders().map(folder => noteFolderPath(folder.id));
+  const notePaths = state.notes.map(note => note.folder || "Жалпы");
+  return [...new Set(folderPaths.concat(notePaths).filter(Boolean))].sort((a, b) => a.localeCompare(b));
 }
 
 function findRelatedDocs(doc) {
@@ -6336,6 +6559,7 @@ function render() {
   if (!state.calendarOS) state.calendarOS = defaultCalendarOS();
   if ($("docCount")) $("docCount").textContent = `${state.docs.length} құжат`;
   state.notes = state.notes.map(normalizeNote);
+  state.noteFolders = ensureNoteFolders().map(normalizeNoteFolder);
   if ($("imageCount")) $("imageCount").textContent = `${state.images.length} сурет`;
   if ($("noteCount")) $("noteCount").textContent = `${state.notes.length} жазба`;
   if ($("taskCount")) $("taskCount").textContent = `${state.tasks.length} тапсырма`;
@@ -6428,6 +6652,7 @@ function renderNotes() {
   const activeFolder = folderFilter?.value || "all";
   const activeStatus = $("noteStatusFilter")?.value || "active";
   const query = $("noteSearch")?.value?.toLowerCase() || "";
+  renderNoteFolderManager(activeFolder);
   const filtered = state.notes.filter(note => {
     const inFolder = activeFolder === "all" || note.folder === activeFolder;
     const inStatus = activeStatus === "all"
@@ -6449,6 +6674,7 @@ function renderNotes() {
     const card = document.createElement("article");
     card.className = `note note-${escapeHtml(note.type)}`;
     const progress = Math.round(note.readingProgress || 0);
+    const moveOptions = folders.map(folder => `<option value="${escapeHtml(folder)}" ${folder === note.folder ? "selected" : ""}>${escapeHtml(folder)}</option>`).join("");
     card.innerHTML = `
       <div class="note-head">
         <div>
@@ -6469,6 +6695,10 @@ function renderNotes() {
       <small>${progress ? `Оқу прогресі: ${progress}%` : "Әлі оқылмаған"}</small>
       <p>${escapeHtml(note.body)}</p>
       <div class="tag-row">${(note.tags || []).map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join("") || `<span class="tag muted-tag">тег жоқ</span>`}</div>
+      <label class="note-move">
+        <span>Переместить</span>
+        <select data-note-move="${escapeHtml(note.id)}">${moveOptions}</select>
+      </label>
     `;
     list.appendChild(card);
   });
@@ -6480,6 +6710,9 @@ function renderNotes() {
   });
   list.querySelectorAll("[data-note-status]").forEach(button => {
     button.addEventListener("click", () => setNoteStatus(button.dataset.noteStatus, button.dataset.status));
+  });
+  list.querySelectorAll("[data-note-move]").forEach(select => {
+    select.addEventListener("change", () => moveNoteToFolder(select.dataset.noteMove, select.value));
   });
   list.querySelectorAll("[data-note-delete]").forEach(button => {
     button.addEventListener("click", () => deleteNote(button.dataset.noteDelete));
@@ -6508,6 +6741,136 @@ function renderNoteReadingHistory() {
   node.querySelectorAll("[data-history-reader]").forEach(button => {
     button.addEventListener("click", () => openNoteReader(button.dataset.historyReader, true));
   });
+}
+
+function renderNoteFolderManager(activeFolder) {
+  ensureNoteFolders();
+  renderNoteFolderParentSelect();
+  renderNoteFolderTree(activeFolder);
+  const breadcrumb = $("noteBreadcrumb");
+  if (breadcrumb) breadcrumb.textContent = noteFolderBreadcrumb(activeFolder);
+}
+
+function renderNoteFolderParentSelect() {
+  const select = $("noteFolderParent");
+  if (!select) return;
+  const current = select.value || "";
+  const options = activeNoteFolders().map(folder => {
+    const path = noteFolderPath(folder.id);
+    return `<option value="${escapeHtml(folder.id)}">${escapeHtml(path)}</option>`;
+  }).join("");
+  select.innerHTML = `<option value="">Жоғарғы папка</option>${options}`;
+  select.value = activeNoteFolders().some(folder => folder.id === current) ? current : "";
+}
+
+function renderNoteFolderTree(activeFolder) {
+  const node = $("noteFolderTree");
+  if (!node) return;
+  const folders = ensureNoteFolders().slice().sort((a, b) => a.order - b.order || a.name.localeCompare(b.name));
+  const childrenByParent = new Map();
+  folders.forEach(folder => {
+    const key = folder.parentId || "";
+    if (!childrenByParent.has(key)) childrenByParent.set(key, []);
+    childrenByParent.get(key).push(folder);
+  });
+  const renderBranch = (parentId = "", depth = 0) => (childrenByParent.get(parentId) || [])
+    .filter(folder => !folder.archived)
+    .map(folder => {
+      const path = noteFolderPath(folder.id);
+      const count = state.notes.filter(note => note.folder === path).length;
+      return `
+        <div class="note-folder-node" style="--folder-depth:${depth}">
+          <button type="button" class="${activeFolder === path ? "active" : ""}" data-folder-open="${escapeHtml(path)}">
+            <span>${escapeHtml(folder.icon || "Папка")}</span>
+            <strong>${escapeHtml(folder.name)}</strong>
+            <small>${count}</small>
+          </button>
+          <div class="note-folder-actions">
+            <button type="button" data-folder-rename="${escapeHtml(folder.id)}">Редактировать</button>
+            <button type="button" data-folder-archive="${escapeHtml(folder.id)}">Архив</button>
+          </div>
+        </div>
+        ${renderBranch(folder.id, depth + 1)}
+      `;
+    }).join("");
+  node.innerHTML = `
+    <div class="note-folder-node">
+      <button type="button" class="${activeFolder === "all" ? "active" : ""}" data-folder-open="all">
+        <span>*</span><strong>Барлық жазбалар</strong><small>${state.notes.length}</small>
+      </button>
+    </div>
+    ${renderBranch()}
+  `;
+  node.querySelectorAll("[data-folder-open]").forEach(button => {
+    button.addEventListener("click", () => {
+      if ($("noteFolderFilter")) $("noteFolderFilter").value = button.dataset.folderOpen;
+      if (button.dataset.folderOpen !== "all" && $("noteFolder")) $("noteFolder").value = button.dataset.folderOpen;
+      render();
+    });
+  });
+  node.querySelectorAll("[data-folder-rename]").forEach(button => {
+    button.addEventListener("click", () => renameNoteFolder(button.dataset.folderRename));
+  });
+  node.querySelectorAll("[data-folder-archive]").forEach(button => {
+    button.addEventListener("click", () => archiveNoteFolder(button.dataset.folderArchive));
+  });
+}
+
+function saveNoteFolder(event) {
+  event.preventDefault();
+  const name = $("noteFolderName")?.value.trim();
+  if (!name) return;
+  ensureNoteFolders();
+  const folder = normalizeNoteFolder({
+    name,
+    parentId: $("noteFolderParent")?.value || null,
+    order: state.noteFolders.length + 1
+  });
+  state.noteFolders.push(folder);
+  if ($("noteFolderName")) $("noteFolderName").value = "";
+  if ($("noteFolder")) $("noteFolder").value = noteFolderPath(folder.id);
+  persist();
+  render();
+}
+
+function renameNoteFolder(id) {
+  const folder = ensureNoteFolders().find(item => item.id === id);
+  if (!folder) return;
+  const oldPath = noteFolderPath(folder.id);
+  const next = prompt("Папка атауын өзгерту", folder.name);
+  if (!next || !next.trim()) return;
+  folder.name = next.trim();
+  folder.updatedAt = new Date().toISOString();
+  const newPath = noteFolderPath(folder.id);
+  state.notes.forEach(note => {
+    if (note.folder === oldPath) {
+      note.folder = newPath;
+      note.updatedAt = new Date().toISOString();
+    }
+  });
+  persist();
+  render();
+}
+
+function archiveNoteFolder(id) {
+  const folder = ensureNoteFolders().find(item => item.id === id);
+  if (!folder) return;
+  const path = noteFolderPath(folder.id);
+  const count = state.notes.filter(note => note.folder === path).length;
+  if (!confirm(`"${folder.name}" папкасын архивке жібереміз бе?\nІшіндегі жазбалар өшпейді: ${count}`)) return;
+  folder.archived = true;
+  folder.updatedAt = new Date().toISOString();
+  persist();
+  render();
+}
+
+function moveNoteToFolder(id, folderPath) {
+  const note = state.notes.find(item => item.id === id);
+  if (!note || !folderPath) return;
+  note.folder = folderPath;
+  note.updatedAt = new Date().toISOString();
+  persist();
+  render();
 }
 
 function editNote(id) {
@@ -6683,6 +7046,9 @@ function renderTasks() {
   board.querySelectorAll("[data-task-tomorrow]").forEach(button => {
     button.addEventListener("click", () => postponeTaskTomorrow(button.dataset.taskTomorrow));
   });
+  board.querySelectorAll("[data-task-edit]").forEach(button => {
+    button.addEventListener("click", () => editTask(button.dataset.taskEdit));
+  });
   board.querySelectorAll("[data-task-check]").forEach(input => {
     input.addEventListener("change", () => toggleTaskChecklist(input.dataset.taskCheck, input.dataset.checkId));
   });
@@ -6725,6 +7091,7 @@ function taskCard(task) {
       <div class="task-actions">
         ${moves.map(([status, label]) => `<button type="button" data-task-move="${escapeHtml(task.id)}" data-status="${status}">${label}</button>`).join("")}
         <button type="button" data-task-tomorrow="${escapeHtml(task.id)}">Ертеңге</button>
+        <button type="button" data-task-edit="${escapeHtml(task.id)}">Редактировать</button>
         <button type="button" data-task-delete="${escapeHtml(task.id)}">Өшіру</button>
       </div>
     </article>
@@ -6765,6 +7132,12 @@ function renderGoals() {
   });
   $("goals").querySelectorAll("[data-goal-delete]").forEach(button => {
     button.addEventListener("click", () => deleteGoalItem(button.dataset.goalType, button.dataset.goalDelete));
+  });
+  $("goals").querySelectorAll("[data-goal-edit]").forEach(button => {
+    button.addEventListener("click", () => editGoal(button.dataset.goalEdit));
+  });
+  $("goals").querySelectorAll("[data-plan-edit]").forEach(button => {
+    button.addEventListener("click", () => editPlan(button.dataset.planEdit));
   });
 }
 
@@ -6825,7 +7198,10 @@ function goalCard(goal) {
     <article class="goal-card ${isGoalOverdue(goal) ? "is-overdue" : ""}">
       <div class="goal-card-head">
         <div><h4>${escapeHtml(goal.title)}</h4><span>${escapeHtml(goal.category)} · ${escapeHtml(goalStatusLabel(goal.status))}</span></div>
-        <button type="button" data-goal-delete="${escapeHtml(goal.id)}" data-goal-type="goal">Өшіру</button>
+        <div class="goal-card-actions">
+          <button type="button" data-goal-edit="${escapeHtml(goal.id)}">Редактировать</button>
+          <button type="button" data-goal-delete="${escapeHtml(goal.id)}" data-goal-type="goal">Өшіру</button>
+        </div>
       </div>
       <p>${escapeHtml(goal.description || "Сипаттама жоқ")}</p>
       ${progressBar(progress.percent)}
@@ -6862,7 +7238,10 @@ function planCard(plan) {
     <article class="goal-card plan-card ${plan.status === "late" ? "is-overdue" : ""}">
       <div class="goal-card-head">
         <div><h4>${escapeHtml(plan.title)}</h4><span>${escapeHtml(planTypeLabel(plan.type))} · ${escapeHtml(plan.category)} · ${escapeHtml(planStatusLabel(plan.status))}</span></div>
-        <button type="button" data-goal-delete="${escapeHtml(plan.id)}" data-goal-type="plan">Өшіру</button>
+        <div class="goal-card-actions">
+          <button type="button" data-plan-edit="${escapeHtml(plan.id)}">Редактировать</button>
+          <button type="button" data-goal-delete="${escapeHtml(plan.id)}" data-goal-type="plan">Өшіру</button>
+        </div>
       </div>
       <p>${escapeHtml(plan.focus || "Фокус жазылмаған")}</p>
       ${progressBar(progress.percent)}
@@ -7076,6 +7455,7 @@ function loadState() {
       images: Array.isArray(saved.images) ? saved.images.map(normalizeImage) : [],
       calendarOS: normalizeCalendarOS(saved.calendarOS || {}),
       notes: Array.isArray(saved.notes) ? saved.notes.map(normalizeNote) : [],
+      noteFolders: Array.isArray(saved.noteFolders) ? saved.noteFolders.map(normalizeNoteFolder) : [],
       goals: Array.isArray(saved.goals) ? saved.goals.map(normalizeGoal) : (Array.isArray(savedGoals) ? savedGoals.map(normalizeGoal) : []),
       projects: Array.isArray(saved.projects) ? saved.projects.map(normalizeProject) : (Array.isArray(savedProjects) ? savedProjects.map(normalizeProject) : []),
       plans: Array.isArray(saved.plans) ? saved.plans.map(normalizePlan) : (Array.isArray(savedPlans) ? savedPlans.map(normalizePlan) : []),
@@ -7085,7 +7465,7 @@ function loadState() {
       cfo: normalizeCfo(saved.cfo || storageReadJson("zhadyra_cfo", null) || {})
     };
   } catch {
-    return { docs: [], tasks: [], images: [], calendarOS: defaultCalendarOS(), notes: [], goals: [], projects: [], plans: [], challenges: [], oneC: normalizeOneC({}), crmReports: [], cfo: defaultCfoState() };
+    return { docs: [], tasks: [], images: [], calendarOS: defaultCalendarOS(), notes: [], noteFolders: defaultNoteFolders(), goals: [], projects: [], plans: [], challenges: [], oneC: normalizeOneC({}), crmReports: [], cfo: defaultCfoState() };
   }
 }
 

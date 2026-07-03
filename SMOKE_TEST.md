@@ -535,6 +535,41 @@ Frontend asset query versions were updated to `20260703-05`. Manual checks to ru
 9. Confirm Backup Center export includes notes with reading progress fields.
 10. Confirm no browser Console error appears.
 
+## 25. Notes folders v1
+
+Frontend asset query versions were updated to `20260703-06`. Manual checks to run:
+
+1. Open `Жазбалар`.
+2. Confirm the `Папкалар` panel appears under the note form.
+3. Create a top-level folder.
+4. Create a subfolder by selecting a parent folder.
+5. Confirm the folder tree shows nested folders and note counts.
+6. Select a folder and confirm the breadcrumb changes.
+7. Create a note inside the selected folder.
+8. Move an existing note with the `Переместить` select.
+9. Rename a folder and confirm notes in that folder keep working under the new path.
+10. Archive a folder and confirm notes are not deleted.
+11. Confirm Reader Mode still opens.
+12. Confirm Backup Center export includes `noteFolders` through `sanabase-state`.
+13. Confirm no browser Console error appears.
+
+## 26. Goals, plans, and tasks edit MVP
+
+Frontend asset query versions were updated to `20260703-07`. Manual checks to run:
+
+1. Open `Тапсырмалар`.
+2. Create a task with a multi-line checklist.
+3. Click `Редактировать` on the task card.
+4. Confirm the task form is filled with title, body, status, priority, due date, owner, and link.
+5. Save and confirm the existing task updates instead of creating a duplicate.
+6. Open `Фокус орталығы`.
+7. Create a goal with stages, then click `Редактировать` on the goal card.
+8. Save and confirm the existing goal updates while checked stages stay checked when the same stage text remains.
+9. Create a plan with tasks, then click `Редактировать` on the plan card.
+10. Save and confirm the existing plan updates while checked plan tasks stay checked when the same task text remains.
+11. Refresh the browser and confirm edited tasks/goals/plans remain in localStorage.
+12. Confirm no browser Console error appears.
+
 ## Pass criteria
 
 - `public/js/utils.js` loads before `public/app.js`.

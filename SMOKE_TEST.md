@@ -606,6 +606,23 @@ Frontend asset query versions were updated to `20260703-10`. Manual checks to ru
 12. Confirm CRM, Tasks, Notes, Backup Center, Cloud Sync, and Mimo still open.
 13. Confirm no browser Console error appears.
 
+## 29. Mimo Daily Command Brief MVP
+
+Frontend asset query versions were updated to `20260704-01`. Manual checks to run:
+
+1. Open the app and confirm Mimo stays fixed at the bottom-right.
+2. Open Mimo and confirm `Daily Command Brief` is visible.
+3. Confirm `Top 3 focus`, `Critical risks`, `Next actions`, and `Safety` cards render in the mini panel.
+4. Click the mini-panel `Ашу` button in `Top 3 focus` and confirm it opens `Тапсырмалар`.
+5. Click the mini-panel `Ашу` button in `Critical risks` or `Next actions` and confirm it opens the relevant CRM/Tasks/Backup/1C/Brain view.
+6. Click the mini-panel `Ашу` button in `Safety` and confirm it opens `Backup Center`.
+7. Click `Бүгінгі жоспар` and confirm the reply lists top focus plus backup/cloud status.
+8. Click `Қате тап` and confirm Mimo shows risk scanner results.
+9. Click `Күндік отчет` if visible from chat/mock flow and confirm task/order/debt/safety summary appears.
+10. Confirm Backup/Cloud warnings are only recommendations and do not overwrite data automatically.
+11. Confirm CRM, Tasks, Backup Center, Cloud Sync, Order Pipeline, and Mimo visual shell still open.
+12. Confirm no browser Console error appears.
+
 ## Pass criteria
 
 - `public/js/utils.js` loads before `public/app.js`.

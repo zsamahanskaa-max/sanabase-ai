@@ -146,6 +146,7 @@ on("sanabotWhatsappBtn", "click", whatsappFromMimoAnswer);
 on("sanabotDebtTaskBtn", "click", debtTaskFromMimoAnswer);
 on("sanabotSupplierTaskBtn", "click", supplierTaskFromMimoAnswer);
 on("sanabotOpenReportBtn", "click", openLatestCrmReportFromMimo);
+document.addEventListener("click", handleMimoOpenAction);
 on("matchBtn", "click", matchPrices);
 on("onecImportBtn", "click", importOneCExcel);
 on("onecSaveBrainBtn", "click", saveOneCToBrain);
@@ -5547,17 +5548,18 @@ function maybeMimoDailyNudge() {
   localStorage.setItem(key, "1");
   setTimeout(() => {
     const metrics = sanaBotMetrics();
-    const important = metrics.todayTasks + metrics.openOrders + metrics.docs + metrics.lowStock + (metrics.unpaid > 0 ? 1 : 0);
+    const brief = sanaBotDailyBrief(metrics);
+    const important = brief.risks.length;
     const message = important
       ? [
           `Бүгін ${important} маңызды сигнал бар.`,
-          `Фокус: ${metrics.focus}`,
-          `Task: ${metrics.todayTasks} · заказ: ${metrics.openOrders} · қарыз: ${money(metrics.unpaid)} · склад сигналы: ${metrics.lowStock}`,
-          "Mimo ұсынысы: ең қауіпті бір нәрсені таңдап, бірден task немесе WhatsApp текст қылып қойыңыз."
+          `Top focus: ${brief.topFocus.join(" · ")}`,
+          `Risk: ${brief.risks.slice(0, 2).map(risk => risk.title).join(" · ")}`,
+          `Next action: ${brief.nextActions[0] || "бір маңызды істі таңдаңыз"}`
         ].join("\n")
       : [
           "Бүгін жүйе тыныш көрініп тұр.",
-          `Фокус: ${metrics.focus}`,
+          `Top focus: ${brief.topFocus.join(" · ")}`,
           "Mimo ұсынысы: бір қысқа task қосып, күнді жеңіл бастаңыз."
         ].join("\n");
     moveMimoHome();
@@ -5642,47 +5644,77 @@ function renderMimoFocus() {
   const focus = $("sanabotFocus");
   if (!focus) return;
   const metrics = sanaBotMetrics();
+  const brief = sanaBotDailyBrief(metrics);
   focus.innerHTML = `
-    <span>Бүгінгі фокус</span>
-    <strong>${escapeHtml(metrics.focus)}</strong>
-    <small>${metrics.todayTasks} task · ${metrics.openOrders} заказ · ${money(metrics.unpaid)} қарыз · backup ${metrics.backupKeys} key</small>
+    <span>Daily Command Brief</span>
+    <strong>${escapeHtml(brief.topFocus[0] || metrics.focus)}</strong>
+    <small>${brief.risks.length} risk · ${metrics.todayTasks} task · ${metrics.openOrders} заказ · backup ${escapeHtml(brief.safety.backupLabel)}</small>
   `;
-  renderMimoBubble(metrics);
-  renderMimoMiniPanel(metrics);
-  setMimoMood(sanaBotDashboardMood(), false);
+  renderMimoBubble(metrics, brief);
+  renderMimoMiniPanel(metrics, brief);
+  setMimoMood(sanaBotDashboardMood(brief), false);
 }
 
-function renderMimoBubble(metrics = sanaBotMetrics()) {
+function renderMimoBubble(metrics = sanaBotMetrics(), brief = sanaBotDailyBrief(metrics)) {
   const bubble = $("sanabotBubble");
   if (!bubble) return;
-  const items = [
-    metrics.todayTasks ? `${metrics.todayTasks} task` : "",
-    metrics.openOrders ? `${metrics.openOrders} заказ` : "",
-    metrics.unpaid ? `${money(metrics.unpaid)} қарыз` : "",
-    metrics.lowStock ? `${metrics.lowStock} склад сигналы` : "",
-    "backup тексеру"
-  ].filter(Boolean).slice(0, 3);
+  const items = brief.risks.length
+    ? brief.risks.slice(0, 2).map(risk => risk.title)
+    : brief.topFocus.slice(0, 2);
   bubble.innerHTML = `
     <strong>Бүгін:</strong>
     <span>${escapeHtml(items.join(" · ") || "Күн тыныш. Бір шағын жоспар қосайық.")}</span>
   `;
 }
 
-function renderMimoMiniPanel(metrics = sanaBotMetrics()) {
+function renderMimoMiniPanel(metrics = sanaBotMetrics(), brief = sanaBotDailyBrief(metrics)) {
   const panel = $("sanabotMiniPanel");
   if (!panel) return;
+  const riskTarget = mimoTargetForRisk(brief.risks[0]);
   const cards = [
-    ["Daily summary", `${metrics.todayTasks} task · ${metrics.openOrders} заказ`],
-    ["CRM alerts", `${money(metrics.unpaid)} қарыз`],
-    ["Tasks", `${metrics.todayTasks} бүгін`],
-    ["Backup status", `${metrics.backupKeys} key дайын`]
+    ["Top 3 focus", sanaBotListHtml(brief.topFocus), "tasks"],
+    ["Critical risks", brief.risks.length ? sanaBotListHtml(brief.risks.slice(0, 3).map(risk => risk.title)) : "<strong>Қауіпті сигнал жоқ</strong>", riskTarget],
+    ["Next actions", sanaBotListHtml(brief.nextActions), riskTarget],
+    ["Safety", sanaBotListHtml([
+      `Backup: ${brief.safety.backupLabel}`,
+      `Cloud: ${brief.safety.cloudLabel}`,
+      `Restore points: ${brief.safety.restorePoints}`
+    ]), "backupCenter"]
   ];
-  panel.innerHTML = cards.map(([label, value]) => `
+  panel.innerHTML = cards.map(([label, value, target]) => `
     <article>
       <span>${escapeHtml(label)}</span>
-      <strong>${escapeHtml(value)}</strong>
+      ${value}
+      <button class="sanabot-mini-open" type="button" data-mimo-open="${escapeHtml(target)}">Ашу</button>
     </article>
   `).join("");
+}
+
+function handleMimoOpenAction(event) {
+  const button = event.target.closest("[data-mimo-open]");
+  if (!button) return;
+  event.preventDefault();
+  openMimoTarget(button.dataset.mimoOpen);
+}
+
+function openMimoTarget(view) {
+  const target = titles[view] ? view : "tasks";
+  setView(target);
+  render();
+  $("sanabot")?.classList.remove("open");
+  setMimoMood("success");
+  const section = $(target);
+  if (section) section.scrollIntoView({ block: "start" });
+}
+
+function mimoTargetForRisk(risk) {
+  if (!risk) return "tasks";
+  if (risk.action === "copy WhatsApp" || risk.action === "open order detail") return "crm";
+  if (risk.action === "create reminder") return "tasks";
+  if (risk.action === "export backup" || risk.action === "save to cloud") return "backupCenter";
+  if (risk.action === "check stock") return "onec";
+  if (risk.action === "check documents") return "brain";
+  return "tasks";
 }
 
 function rememberMimoAnswer(text, action) {
@@ -5728,8 +5760,10 @@ function setMimoMood(mood, force = true) {
   if ($("sanabotMoodText")) $("sanabotMoodText").textContent = labels[next] || labels.ready;
 }
 
-function sanaBotDashboardMood() {
+function sanaBotDashboardMood(brief = null) {
   const metrics = sanaBotMetrics();
+  const currentBrief = brief || sanaBotDailyBrief(metrics);
+  if (currentBrief.risks.some(risk => risk.severity === "high")) return "alert";
   if (metrics.unpaid > 0 || metrics.lowStock > 0 || metrics.docs > 0) return "alert";
   return "normal";
 }
@@ -5756,6 +5790,141 @@ function sanaBotMetrics() {
   };
 }
 
+function sanaBotListHtml(items) {
+  const list = (items || []).filter(Boolean).slice(0, 4);
+  if (!list.length) return "<strong>-</strong>";
+  return `<ul class="sanabot-brief-list">${list.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`;
+}
+
+function daysSinceIso(value) {
+  if (!value) return Infinity;
+  const timestamp = new Date(value).getTime();
+  if (!Number.isFinite(timestamp)) return Infinity;
+  return Math.max(0, Math.floor((Date.now() - timestamp) / 86400000));
+}
+
+function daysAgoLabel(days) {
+  if (!Number.isFinite(days)) return "жоқ";
+  if (days <= 0) return "бүгін";
+  return `${days} күн бұрын`;
+}
+
+function sanaBotSafetyStatus() {
+  const meta = storageReadJson("sanabase-safety-meta", {}) || {};
+  const backupDays = daysSinceIso(meta.lastBackupExportAt || meta.lastEmergencyBackupAt);
+  const cloudDays = daysSinceIso(meta.lastCloudSaveAt || meta.lastCloudLoadAt);
+  const restorePoints = typeof versionHistory === "function" ? versionHistory().length : 0;
+  return {
+    meta,
+    backupDays,
+    cloudDays,
+    restorePoints,
+    backupLabel: daysAgoLabel(backupDays),
+    cloudLabel: daysAgoLabel(cloudDays)
+  };
+}
+
+function sanaBotDailyBrief(metrics = sanaBotMetrics()) {
+  const today = metrics.today || isoDate();
+  const cal = calendarData();
+  const tasks = state.tasks || [];
+  const todayTasks = tasks.filter(task => task.status !== "done" && (!task.due || task.due <= today));
+  const overdueTasks = tasks.filter(task => task.status !== "done" && task.due && task.due < today);
+  const openOrders = activeCalItems(cal.orders).filter(order => !["closed", "received"].includes(order.status));
+  const staleOrders = openOrders.filter(order => {
+    const date = order.updatedAt || order.expectedDeliveryDate || order.clientOrderDate || order.createdAt || order.date;
+    return date && daysSinceIso(date) >= 3;
+  });
+  const debts = activeCalItems(cal.payments).filter(payment => payment.status !== "paid");
+  const missingDocs = activeCalItems(cal.documents).filter(doc => doc.esfDeadline && doc.esfStatus !== "sent");
+  const safety = sanaBotSafetyStatus();
+  const risks = [];
+
+  if (overdueTasks.length) risks.push({ severity: "high", title: `${overdueTasks.length} кешіккен task`, action: "create reminder" });
+  if (metrics.unpaid > 0) risks.push({ severity: "high", title: `Қарыз бақылауы: ${money(metrics.unpaid)}`, action: "copy WhatsApp" });
+  if (staleOrders.length) risks.push({ severity: "medium", title: `${staleOrders.length} stuck order`, action: "open order detail" });
+  if (missingDocs.length || metrics.docs) risks.push({ severity: "medium", title: `${missingDocs.length || metrics.docs} ESF/құжат сигналы`, action: "check documents" });
+  if (metrics.lowStock > 0) risks.push({ severity: "medium", title: `${metrics.lowStock} склад сигналы`, action: "check stock" });
+  if (!Number.isFinite(safety.backupDays) || safety.backupDays > 7) risks.push({ severity: "medium", title: "Backup ескі немесе жоқ", action: "export backup" });
+  if (!Number.isFinite(safety.cloudDays) || safety.cloudDays > 2) risks.push({ severity: "medium", title: "Cloud sync ескі немесе қосылмаған", action: "save to cloud" });
+
+  const topFocus = [
+    overdueTasks[0] ? `Кешіккен task: ${overdueTasks[0].title}` : "",
+    debts[0] ? `Қарыз follow-up: ${debts[0].title || debts[0].counterparty || "төлем"}` : "",
+    staleOrders[0] ? `Stuck order: ${staleOrders[0].title || staleOrders[0].orderNumber || "заказ"}` : "",
+    todayTasks[0] ? `Бүгінгі task: ${todayTasks[0].title}` : "",
+    metrics.focus
+  ].filter(Boolean).slice(0, 3);
+
+  while (topFocus.length < 3) {
+    const fallback = ["Backup статусын тексеру", "Cloud sync сақтауды тексеру", "Бір жаңа task қосу"][topFocus.length] || "Күндік жоспарды қарау";
+    if (!topFocus.includes(fallback)) topFocus.push(fallback);
+    else break;
+  }
+
+  const nextActions = risks.slice(0, 3).map(risk => {
+    if (risk.action === "copy WhatsApp") return "Қарыз бойынша WhatsApp мәтін дайындау";
+    if (risk.action === "create reminder") return "Кешіккен task үшін reminder жасау";
+    if (risk.action === "open order detail") return "Stuck order detail ашып, next status басу";
+    if (risk.action === "export backup") return "Backup Center арқылы export жасау";
+    if (risk.action === "save to cloud") return "Cloud Sync арқылы save to cloud жасау";
+    return risk.title;
+  });
+
+  if (!nextActions.length) nextActions.push("Бүгінгі жоспарды қарап, бір нақты task таңдаңыз");
+
+  return {
+    topFocus,
+    risks,
+    nextActions,
+    safety,
+    overdueTasks,
+    todayTasks,
+    openOrders,
+    staleOrders,
+    debts,
+    missingDocs
+  };
+}
+
+function sanaBotBriefReply(action, metrics = sanaBotMetrics(), brief = sanaBotDailyBrief(metrics)) {
+  if (action === "today") {
+    return [
+      "Бүгінгі Command Brief:",
+      "Top 3 focus:",
+      ...brief.topFocus.map((item, index) => `${index + 1}. ${item}`),
+      "",
+      `Risk саны: ${brief.risks.length}.`,
+      `Backup: ${brief.safety.backupLabel}. Cloud: ${brief.safety.cloudLabel}.`
+    ].join("\n");
+  }
+  if (action === "errors") {
+    return [
+      `Mimo Risk Scanner: ${brief.risks.length} сигнал.`,
+      ...(brief.risks.length ? brief.risks.map((risk, index) => `${index + 1}. [${risk.severity}] ${risk.title}`) : ["1. Қауіпті сигнал табылмады."]),
+      "",
+      "Next action:",
+      ...brief.nextActions.map((item, index) => `${index + 1}. ${item}`)
+    ].join("\n");
+  }
+  if (action === "daily") {
+    return [
+      `Күндік отчет (${metrics.today})`,
+      `Task: ${metrics.todayTasks}`,
+      `Заказ: ${metrics.openOrders}`,
+      `Қарыз: ${money(metrics.unpaid)}`,
+      `Құжат/ESF: ${metrics.docs}`,
+      `Склад сигналы: ${metrics.lowStock}`,
+      `Backup: ${brief.safety.backupLabel}`,
+      `Cloud: ${brief.safety.cloudLabel}`,
+      "",
+      "Top 3 focus:",
+      ...brief.topFocus.map((item, index) => `${index + 1}. ${item}`)
+    ].join("\n");
+  }
+  return "";
+}
+
 function sanaBotActionLabel(action) {
   return { today: "Бүгінгі жоспар", debt: "Қарыздарды тексер", clients: "Клиенттерді қара", errors: "Қате тап", orders: "Заказдарды тексер", stock: "Складты қара", daily: "Күндік отчет" }[action] || "Mimo";
 }
@@ -5763,6 +5932,7 @@ function sanaBotActionLabel(action) {
 function sanaBotActionReply(action) {
   const metrics = sanaBotMetrics();
   const cal = calendarData();
+  if (["today", "errors", "daily"].includes(action)) return sanaBotBriefReply(action, metrics);
   if (action === "today") {
     const tasks = state.tasks.filter(task => task.status !== "done" && (!task.due || task.due <= metrics.today)).slice(0, 5);
     return [`Бүгінгі фокус: ${metrics.focus}.`, `Ашық task: ${metrics.todayTasks}.`, tasks.map((task, index) => `${index + 1}. ${task.title}`).join("\n") || "Бүгінге нақты task жоқ. Бір кішкентай task қосуды ұсынамын."].join("\n");

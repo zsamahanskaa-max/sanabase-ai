@@ -637,6 +637,19 @@ Frontend asset query versions were updated to `20260704-02`. Manual checks to ru
 8. Confirm CRM, Tasks, Backup Center, Cloud Sync, Order Pipeline, and Mimo still work.
 9. Confirm no browser Console error appears.
 
+## 31. Notes folder rename without browser prompt
+
+Frontend asset query versions were updated to `20260704-03`. Manual checks to run:
+
+1. Open `Жазбалар`.
+2. Click `Редактировать` on a note folder.
+3. Confirm the folder form is filled with the folder name and parent folder.
+4. Change the folder name and click `Папканы сақтау`.
+5. Confirm notes inside that folder keep their data and move to the renamed path.
+6. Click `Болдырмау` during edit mode and confirm the form returns to add mode.
+7. Confirm no browser `prompt()` error appears in Console.
+8. Confirm Mimo Risk Scanner, Backup Center, and Tasks still open.
+
 ## Pass criteria
 
 - `public/js/utils.js` loads before `public/app.js`.

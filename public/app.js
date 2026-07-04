@@ -173,6 +173,7 @@ on("goalSearch", "input", render);
 on("goalFilter", "change", render);
 on("noteForm", "submit", saveNote);
 on("noteFolderForm", "submit", saveNoteFolder);
+on("noteFolderCancelBtn", "click", resetNoteFolderForm);
 on("noteSearch", "input", render);
 on("noteFolderFilter", "change", render);
 on("noteStatusFilter", "change", render);
@@ -7356,16 +7357,37 @@ function renderNoteFolderTree(activeFolder) {
 
 function saveNoteFolder(event) {
   event.preventDefault();
+  const form = $("noteFolderForm");
   const name = $("noteFolderName")?.value.trim();
   if (!name) return;
   ensureNoteFolders();
+  const editingId = form?.dataset.editingFolderId || "";
+  if (editingId) {
+    const folder = state.noteFolders.find(item => item.id === editingId);
+    if (!folder) {
+      resetNoteFolderForm();
+      return;
+    }
+    const oldPath = noteFolderPath(folder.id);
+    folder.name = name;
+    const nextParent = $("noteFolderParent")?.value || null;
+    folder.parentId = nextParent && nextParent !== folder.id ? nextParent : folder.parentId;
+    folder.updatedAt = new Date().toISOString();
+    const newPath = noteFolderPath(folder.id);
+    updateNotesFolderPath(oldPath, newPath);
+    resetNoteFolderForm();
+    if ($("noteFolder")) $("noteFolder").value = newPath;
+    persist();
+    render();
+    return;
+  }
   const folder = normalizeNoteFolder({
     name,
     parentId: $("noteFolderParent")?.value || null,
     order: state.noteFolders.length + 1
   });
   state.noteFolders.push(folder);
-  if ($("noteFolderName")) $("noteFolderName").value = "";
+  resetNoteFolderForm();
   if ($("noteFolder")) $("noteFolder").value = noteFolderPath(folder.id);
   persist();
   render();
@@ -7374,20 +7396,39 @@ function saveNoteFolder(event) {
 function renameNoteFolder(id) {
   const folder = ensureNoteFolders().find(item => item.id === id);
   if (!folder) return;
-  const oldPath = noteFolderPath(folder.id);
-  const next = prompt("Папка атауын өзгерту", folder.name);
-  if (!next || !next.trim()) return;
-  folder.name = next.trim();
-  folder.updatedAt = new Date().toISOString();
-  const newPath = noteFolderPath(folder.id);
+  const form = $("noteFolderForm");
+  if (form) form.dataset.editingFolderId = folder.id;
+  if ($("noteFolderName")) {
+    $("noteFolderName").value = folder.name;
+    $("noteFolderName").focus();
+  }
+  if ($("noteFolderParent")) $("noteFolderParent").value = folder.parentId || "";
+  updateNoteFolderFormMode(true);
+}
+
+function updateNotesFolderPath(oldPath, newPath) {
+  if (!oldPath || !newPath || oldPath === newPath) return;
   state.notes.forEach(note => {
-    if (note.folder === oldPath) {
-      note.folder = newPath;
+    const folder = String(note.folder || "");
+    if (folder === oldPath || folder.startsWith(`${oldPath} / `)) {
+      note.folder = folder.replace(oldPath, newPath);
       note.updatedAt = new Date().toISOString();
     }
   });
-  persist();
-  render();
+  if ($("noteFolderFilter")?.value === oldPath) $("noteFolderFilter").value = newPath;
+}
+
+function updateNoteFolderFormMode(isEditing) {
+  if ($("noteFolderSubmit")) $("noteFolderSubmit").textContent = isEditing ? "Папканы сақтау" : "Папка қосу";
+  if ($("noteFolderCancelBtn")) $("noteFolderCancelBtn").hidden = !isEditing;
+}
+
+function resetNoteFolderForm() {
+  const form = $("noteFolderForm");
+  if (form) delete form.dataset.editingFolderId;
+  if ($("noteFolderName")) $("noteFolderName").value = "";
+  if ($("noteFolderParent")) $("noteFolderParent").value = "";
+  updateNoteFolderFormMode(false);
 }
 
 function archiveNoteFolder(id) {

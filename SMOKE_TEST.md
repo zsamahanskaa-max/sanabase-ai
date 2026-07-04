@@ -650,6 +650,42 @@ Frontend asset query versions were updated to `20260704-03`. Manual checks to ru
 7. Confirm no browser `prompt()` error appears in Console.
 8. Confirm Mimo Risk Scanner, Backup Center, and Tasks still open.
 
+## 32. 1C Excel connection stabilization
+
+Frontend asset query versions were updated to `20260704-05`. Manual checks to run:
+
+1. Open `1С Excel`.
+2. Upload a 1C Excel/CSV file where the first rows are report title/period and the real headers start lower.
+3. Click `1С Excel оқу`.
+4. Confirm the report shows `Header жолы` with the detected header row.
+5. Confirm the inspector shows file name, data type, detected columns, warnings, and preview table.
+6. Confirm low stock, no stock, debt, stock value, and document counts still render in KPI cards.
+7. Confirm `Не істеу керек?` action plan appears under the inspector.
+8. Click `CFO-ға қосу` and confirm Sana CFO receives products/clients/orders/documents without duplicate overwrite.
+9. Click `Task жасау` and confirm low-stock/debt tasks are created only when matching rows exist.
+10. Confirm `Екінші миға сақтау` and `CRM құжат жасау` still work after import.
+11. Confirm no browser Console error appears.
+
+## 33. ElectroPro Assistant MVP
+
+Frontend asset query versions were updated to `20260704-06`. Manual checks to run:
+
+1. Open `Электро Кеңесші` from sidebar.
+2. Confirm dashboard stats, tabs, and safety disclaimer render.
+3. In `Клиент кеңесі`, enter `Маған далаға розетка керек` and click `Кеңес беру`.
+4. Confirm the answer asks IP/outdoor/load/budget/electrician clarification questions and includes safety disclaimer.
+5. Enter `Қалай жалғаймын?` and confirm it refuses wiring/installation instructions.
+6. Save consultation and convert it to CRM order draft.
+7. Add a product card, refresh, and confirm it stays in catalog.
+8. Edit and delete a product card.
+9. Add a brand and China product.
+10. Select 2 products and run compare.
+11. Run calculator and confirm preliminary safety warning appears.
+12. Import Excel catalog with SKU/Barcode/Name/Brand/Category/PurchasePrice/SalePrice/StockQty columns.
+13. Confirm Backup export includes ElectroPro data through `sanabase-state`.
+14. Confirm mobile layout does not overflow.
+15. Confirm Console error is empty.
+
 ## Pass criteria
 
 - `public/js/utils.js` loads before `public/app.js`.

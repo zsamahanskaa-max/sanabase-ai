@@ -886,9 +886,257 @@ textarea:focus, input:focus, select:focus { border-color: var(--leaf); }
   line-height: 1.45;
 }
 
+.onec-inspector {
+  margin-top: 4px;
+  display: grid;
+  gap: 12px;
+}
+
+.onec-empty,
+.onec-inspector-grid article,
+.onec-action-plan,
+.onec-warning-list,
+.onec-preview {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(255,255,255,.72);
+  padding: 12px;
+}
+
+.onec-empty span,
+.onec-inspector-grid small {
+  display: block;
+  color: var(--muted);
+  margin-top: 5px;
+  line-height: 1.45;
+}
+
+.onec-inspector-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.onec-inspector-grid span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.onec-inspector-grid strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.onec-warning-list {
+  border-color: rgba(202, 138, 4, .28);
+  background: rgba(255, 247, 214, .85);
+}
+
+.onec-warning-list p {
+  margin: 0 0 6px;
+  color: #7c4a03;
+  line-height: 1.4;
+}
+
+.onec-warning-list p:last-child {
+  margin-bottom: 0;
+}
+
+.onec-action-plan {
+  background: linear-gradient(135deg, rgba(29, 78, 216, .08), rgba(20, 184, 166, .08));
+}
+
+.onec-action-plan strong {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.onec-action-plan p {
+  margin: 0 0 6px;
+  color: var(--text);
+  line-height: 1.45;
+}
+
+.onec-action-plan p:last-child {
+  margin-bottom: 0;
+}
+
+.onec-preview {
+  overflow-x: auto;
+}
+
+.onec-preview strong {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.onec-preview table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 620px;
+}
+
+.onec-preview th,
+.onec-preview td {
+  border-bottom: 1px solid var(--line);
+  padding: 8px;
+  text-align: left;
+  font-size: 12px;
+  vertical-align: top;
+}
+
+.onec-preview th {
+  color: var(--muted);
+  font-weight: 800;
+}
+
 .cfo-shell {
   display: grid;
   gap: 16px;
+}
+
+.electro-shell {
+  display: grid;
+  gap: 16px;
+}
+
+.electro-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(260px, .7fr);
+  gap: 14px;
+  align-items: stretch;
+}
+
+.electro-hero,
+.electro-safety,
+.electro-panel,
+.electro-output,
+.electro-card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255,255,255,.78);
+  padding: 16px;
+}
+
+.electro-hero h2 {
+  margin: 8px 0;
+  font-size: clamp(28px, 4vw, 46px);
+}
+
+.electro-hero p,
+.electro-safety span,
+.electro-card p {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.electro-safety {
+  background: linear-gradient(135deg, rgba(127, 29, 29, .08), rgba(202, 138, 4, .08));
+  display: grid;
+  align-content: center;
+  gap: 8px;
+}
+
+.electro-stats {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.electro-stats article {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: white;
+  padding: 12px;
+}
+
+.electro-stats span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.electro-stats strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 24px;
+}
+
+.electro-tabs,
+.electro-card-actions,
+.electro-import {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.electro-tabs button.active {
+  background: var(--sage);
+  color: white;
+}
+
+.electro-panel {
+  display: none;
+}
+
+.electro-panel.active {
+  display: grid;
+  gap: 14px;
+}
+
+.electro-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.electro-grid .wide {
+  grid-column: 1 / -1;
+}
+
+.electro-output {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+  background: #071512;
+  color: #effff9;
+  max-height: none;
+}
+
+.electro-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.electro-card {
+  display: grid;
+  gap: 8px;
+}
+
+.electro-card h4 {
+  margin: 0;
+}
+
+.electro-compare {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+@media (max-width: 900px) {
+  .electro-hero,
+  .electro-grid,
+  .electro-list,
+  .electro-stats {
+    grid-template-columns: 1fr;
+  }
 }
 
 .cfo-hero,

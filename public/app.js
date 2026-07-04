@@ -61,6 +61,25 @@ const {
   uniqueIndexes
 } = window.SanaPriceMatching;
 
+var ELECTRO_SAFETY_DISCLAIMER = "Ескерту: бұл алдын ала дүкендік кеңес. Нақты монтаж, кабель қимасы, автомат, УЗО/дифавтомат, щит жинау және қосу жұмыстары объектіні көрген сертификатталған электрик арқылы тексерілуі керек.";
+var ELECTRO_DANGER_PATTERNS = [
+  /қалай\s+(жалғаймын|қосам|қосады|жинаймын)/i,
+  /қай\s+сым|қай\s+жерге\s+қос/i,
+  /щит.*қалай|щит.*жина/i,
+  /фазаны\s+қайда|ноль.*қайда|земля.*қайда/i,
+  /автоматты.*айналып|обход/i,
+  /заземление\s+жоқ|жерге\s+қосу\s+жоқ/i,
+  /қауіпсіздіксіз|қоса\s+салайын/i
+];
+var ELECTRO_LESSONS = [
+  ["basis", "Электрика негіздері", "Вольт, Ампер, Ватт және қауіпсіздік логикасы."],
+  ["terms", "Фаза, ноль, земля", "Клиентке түсіндіретін қарапайым терминдер."],
+  ["breaker", "Автомат деген не", "Автоматический выключатель не үшін керек."],
+  ["rcd", "УЗО және дифавтомат", "Қорғаныс аппаратының дүкендік түсіндірмесі."],
+  ["ip", "IP қорғаныс", "Дала, ванна, ылғал жер үшін IP сұрау."],
+  ["sales", "Сатушы скрипті", "Клиентке дұрыс сұрақ қою және қауіпсіз тоқтату."]
+];
+
 const state = loadState();
 const BACKUP_VERSION = "20260702-16";
 const VERSION_HISTORY_KEY = "sanabase-version-history";
@@ -95,6 +114,7 @@ const titles = {
   match: ["Прайс салыстыру", "Формуласы бар қорап/саны бағандарын өзгертпей, бағасын almat company price арқылы қояды."],
   onec: ["1С Excel байланыс", "1С-тен шыққан Excel/CSV арқылы товар, остаток, баға, клиент, қарыз және құжаттарды талдау."],
   calendaros: ["Жадыра күнтізбе жүйесі", "Клиент, заказ, поставщик, төлем, құжат, ESF, есеп және тарих бір календарь ішінде."],  cfo: ["Sana CFO / AI Бас Бухгалтер", "B2B мектептер, электр дүкені, ОУР режимі, қарыз, cash flow, P&L, склад, құжат, 1С және салық бақылауы."],
+  electro: ["Электро Кеңесші", "Электр дүкеніне арналған қауіпсіз сатушы-кеңесші, каталог, бренд, Қытай тауары, калькулятор және WhatsApp жауап."],
   brain: ["Екінші ми", "Құжаттарды сақтап, тегпен байланыстырып, сол базадан CRM жасау."],
   translate: ["Аударма", "Мәтінді қалаған тілге аударыңыз."],
   quiz: ["Тест жасау", "Базаңыздан тест және жауап кілтін жасаңыз."],
@@ -150,6 +170,8 @@ document.addEventListener("click", handleMimoOpenAction);
 document.addEventListener("click", handleMimoRiskAction);
 on("matchBtn", "click", matchPrices);
 on("onecImportBtn", "click", importOneCExcel);
+on("onecSyncCfoBtn", "click", syncOneCToCfo);
+on("onecTaskBtn", "click", tasksFromOneC);
 on("onecSaveBrainBtn", "click", saveOneCToBrain);
 on("onecCrmDocBtn", "click", oneCToCrmDocument);
 on("cfoQuickForm", "submit", saveCfoQuickRecord);
@@ -162,6 +184,17 @@ on("cfoExportBtn", "click", exportCfoData);
 on("cfoClearBtn", "click", clearCfoData);
 on("cfoImportBtn", "click", importCfoFiles);
 on("cfoImportReportBtn", "click", showCfoImportReport);
+on("electroConsultForm", "submit", runElectroConsult);
+on("electroSaveConsultBtn", "click", saveElectroConsultation);
+on("electroToOrderBtn", "click", electroConsultationToOrder);
+on("electroProductForm", "submit", saveElectroProduct);
+on("electroProductResetBtn", "click", resetElectroProductForm);
+on("electroBrandForm", "submit", saveElectroBrand);
+on("electroChinaForm", "submit", saveElectroChinaProduct);
+on("electroImportBtn", "click", importElectroProducts);
+on("electroCompareBtn", "click", compareElectroProducts);
+on("electroCalcBtn", "click", runElectroCalculator);
+document.addEventListener("click", handleElectroActions);
 on("taskForm", "submit", saveTask);
 on("taskSearch", "input", render);
 on("taskQuickCrmBtn", "click", taskFromCrm);
@@ -226,6 +259,9 @@ document.querySelectorAll("[data-sanabot-action]").forEach(button => {
 });
 document.querySelectorAll("[data-cfo-tab]").forEach(button => {
   button.addEventListener("click", () => setCfoTab(button.dataset.cfoTab));
+});
+document.querySelectorAll("[data-electro-tab]").forEach(button => {
+  button.addEventListener("click", () => setElectroTab(button.dataset.electroTab));
 });
 
 render();
@@ -2525,6 +2561,10 @@ async function importOneCExcel() {
       summary: result.summary,
       kind: result.kind,
       headers: result.headers,
+      headerRow: result.headerRow,
+      columns: result.columns,
+      warnings: result.warnings,
+      preview: result.preview,
       text: result.text
     });
     persist();
@@ -2538,14 +2578,38 @@ async function importOneCExcel() {
 function analyzeOneCTable(table, forcedKind = "auto") {
   const rows = table.rows || [];
   if (!rows.length) throw new Error("Файл ішінде жол табылмады");
-  const headers = normalizeHeader(rows[0]);
-  const data = rows.slice(1).filter(row => row.some(cell => String(cell || "").trim()));
+  const headerInfo = findOneCHeaderRow(rows);
+  const headers = normalizeHeader(rows[headerInfo.index] || rows[0]);
+  const data = rows.slice(headerInfo.index + 1).filter(row => row.some(cell => String(cell || "").trim()));
   const kind = forcedKind === "auto" ? detectOneCKind(headers) : forcedKind;
   const cols = oneCColumns(headers);
   const parsed = data.map(row => oneCRow(row, cols)).filter(row => Object.values(row).some(Boolean));
   const summary = oneCSummary(parsed, kind);
-  const text = oneCReport(table.name, kind, headers, parsed, summary, cols);
-  return { kind, headers, rows: parsed, summary, text };
+  const warnings = oneCWarnings(headers, parsed, summary, cols, headerInfo);
+  const preview = parsed.slice(0, 8);
+  const text = oneCReport(table.name, kind, headers, parsed, summary, cols, warnings, headerInfo);
+  return { kind, headers, rows: parsed, summary, text, headerRow: headerInfo.index + 1, columns: cols, warnings, preview };
+}
+
+function findOneCHeaderRow(rows) {
+  const candidates = rows.slice(0, 20).map((row, index) => {
+    const headers = normalizeHeader(row);
+    const source = headers.map(normalizeText).join(" ");
+    const nonEmpty = headers.filter(Boolean).length;
+    let score = nonEmpty;
+    [
+      /код|артикул|sku|номенклатура|товар|тауар/,
+      /остаток|қалдық|склад|количество|саны|qty/,
+      /цена|баға|сату|продаж|закуп|себестоимость/,
+      /контрагент|клиент|покупатель|қарыз|долг|задолж/,
+      /дата|документ|номер|реализац|эсф|esf/
+    ].forEach(pattern => {
+      if (pattern.test(source)) score += 8;
+    });
+    return { index, score, nonEmpty };
+  });
+  const best = candidates.sort((a, b) => b.score - a.score || b.nonEmpty - a.nonEmpty)[0] || { index: 0, score: 0 };
+  return best.score >= 10 ? best : { index: 0, score: best.score || 0 };
 }
 
 function detectOneCKind(headers) {
@@ -2559,11 +2623,11 @@ function detectOneCKind(headers) {
 
 function oneCColumns(headers) {
   return {
-    code: findColumn(headers, "", ["код", "артикул", "sku", "номеркод", "кодтовара"]),
+    code: findColumn(headers, "", ["код", "артикул", "sku", "номеркод", "кодтовара", "штрихкод", "barcode"]),
     name: findColumn(headers, "", ["атауы", "наименование", "номенклатура", "товар", "тауар", "name"]),
-    stock: findColumn(headers, "", ["остаток", "остат", "қалдық", "калдык", "склад", "саны", "количество", "qty"]),
-    buyPrice: findColumn(headers, "", ["закуп", "сатыпалу", "себестоимость", "кірісбаға", "покуп"]),
-    sellPrice: findColumn(headers, "", ["продаж", "сату", "цена", "баға", "бага", "розниц"]),
+    stock: findColumn(headers, "", ["остаток", "остат", "қалдық", "калдык", "склад", "саны", "количество", "кол-во", "qty"]),
+    buyPrice: findColumn(headers, "", ["закуп", "сатыпалу", "себестоимость", "кірісбаға", "покуп", "приход"]),
+    sellPrice: findColumn(headers, "", ["продаж", "сату", "цена", "баға", "бага", "розниц", "розничная", "прайс"]),
     client: findColumn(headers, "", ["клиент", "контрагент", "покупатель", "сатыпалушы"]),
     debt: findColumn(headers, "", ["долг", "қарыз", "карыз", "задолж", "дебет", "debt"]),
     date: findColumn(headers, "", ["дата", "күн", "куні", "date"]),
@@ -2617,11 +2681,23 @@ function oneCSummary(rows, kind) {
   };
 }
 
-function oneCReport(fileName, kind, headers, rows, summary, cols) {
+function oneCWarnings(headers, rows, summary, cols, headerInfo) {
+  const warnings = [];
+  if ((headerInfo?.index || 0) > 0) warnings.push(`Header ${headerInfo.index + 1}-жолдан табылды. Үстіндегі 1С тақырып жолдары өткізіліп кетті.`);
+  if (cols.name < 0 && cols.client < 0) warnings.push("Негізгі атау/клиент бағаны танылмады. 1С Excel-де 'Номенклатура' немесе 'Контрагент' бағанын қалдырыңыз.");
+  if (cols.stock < 0 && summary.kind === "products") warnings.push("Остаток/қалдық бағаны табылмады. Склад анализі толық болмайды.");
+  if (cols.sellPrice < 0 && cols.buyPrice < 0 && summary.kind === "products") warnings.push("Баға бағандары табылмады. Склад құны және маржа шамамен шықпайды.");
+  if (cols.debt < 0 && summary.kind === "clients") warnings.push("Қарыз/долг бағаны табылмады. Дебиторка анализі толық болмайды.");
+  if (!rows.length) warnings.push("Оқылған дерек жолдары бос. Файлда filter/merged header болуы мүмкін.");
+  return warnings;
+}
+
+function oneCReport(fileName, kind, headers, rows, summary, cols, warnings = [], headerInfo = { index: 0 }) {
   const risky = rows.filter(row => row.debt > 0 || row.stock === 0 || (row.stock > 0 && row.stock <= 3)).slice(0, 12);
   return [
     `1С Excel талдау: ${fileName}`,
     `Түрі: ${oneCKindLabel(kind)}`,
+    `Header жолы: ${headerInfo.index + 1}`,
     `Оқылған жол: ${summary.totalRows}`,
     "",
     "Танылған бағандар:",
@@ -2636,6 +2712,9 @@ function oneCReport(fileName, kind, headers, rows, summary, cols) {
     `- Қарыз сомасы: ${Math.round(summary.debtTotal).toLocaleString("kk-KZ")} ₸`,
     `- Склад құны шамамен: ${Math.round(summary.stockValue).toLocaleString("kk-KZ")} ₸`,
     `- Құжат саны: ${summary.documents}`,
+    "",
+    "Ескерту:",
+    warnings.map(item => `- ${item}`).join("\n") || "- Қауіпті ескерту жоқ",
     "",
     "Назар керек жолдар:",
     risky.map((row, index) => `${index + 1}. ${row.client || row.name || row.document || row.code || "Жол"}${row.debt ? ` · қарыз ${Math.round(row.debt).toLocaleString("kk-KZ")} ₸` : ""}${row.stock === 0 ? " · остаток жоқ" : row.stock > 0 && row.stock <= 3 ? ` · остаток аз (${row.stock})` : ""}`).join("\n") || "Қауіпті жол табылмады.",
@@ -2686,6 +2765,156 @@ function oneCToCrmDocument() {
   persist();
   render();
   if ($("onecOut")) $("onecOut").textContent = `${text}\n\n---\n1С талдау CRM құжат болып сақталды.`;
+}
+
+function syncOneCToCfo() {
+  const out = $("onecOut");
+  const oneC = normalizeOneC(state.oneC || {});
+  if (!oneC.rows.length) {
+    if (out) out.textContent = "Алдымен 1С Excel файлын оқыңыз. Содан кейін CFO-ға қосуға болады.";
+    return;
+  }
+  const payload = oneCToCfoPayload(oneC);
+  const totalIncoming = Object.values(payload).reduce((sum, rows) => sum + rows.length, 0);
+  if (!totalIncoming) {
+    if (out) out.textContent = "Бұл файлдан CFO-ға қосылатын нақты дерек табылмады. Header/баған атауларын тексеріңіз.";
+    return;
+  }
+  state.cfo = normalizeCfo(state.cfo || {});
+  const before = {
+    orders: state.cfo.orders.length,
+    clients: state.cfo.clients.length,
+    products: state.cfo.products.length,
+    documents: state.cfo.documents.length
+  };
+  state.cfo.orders = mergeCfoRows(state.cfo.orders, payload.orders);
+  state.cfo.clients = mergeCfoRows(state.cfo.clients, payload.clients);
+  state.cfo.products = mergeCfoRows(state.cfo.products, payload.products);
+  state.cfo.documents = mergeCfoRows(state.cfo.documents, payload.documents);
+  const added = {
+    orders: state.cfo.orders.length - before.orders,
+    clients: state.cfo.clients.length - before.clients,
+    products: state.cfo.products.length - before.products,
+    documents: state.cfo.documents.length - before.documents
+  };
+  const addedTotal = Object.values(added).reduce((sum, value) => sum + value, 0);
+  state.cfo.lastImport = {
+    at: new Date().toISOString(),
+    files: [oneC.fileName || "1C Excel"],
+    summary: { source: "1c_excel", ...added },
+    report: oneCToCfoReport(oneC, added)
+  };
+  state.cfo.activeTab = "onec";
+  persist();
+  render();
+  if (out) out.textContent = `${oneCToCfoReport(oneC, added)}\n\nҚосылған жаңа жол: ${addedTotal}. Қайталанған жолдар қайта жазылмады.`;
+  if ($("cfoImportOut")) $("cfoImportOut").textContent = state.cfo.lastImport.report;
+}
+
+function oneCToCfoPayload(oneC) {
+  const rows = oneC.rows || [];
+  const products = rows
+    .filter(row => row.name || row.code)
+    .map(row => normalizeCfoProduct({
+      business: inferCfoBusiness(`${row.name || ""} ${row.code || ""}`),
+      name: row.name || row.code,
+      oneCName: row.name || row.code,
+      category: row.code || "",
+      purchasePrice: row.buyPrice,
+      salePrice: row.sellPrice,
+      quantity: row.stock,
+      minQuantity: row.stock > 0 && row.stock <= 3 ? 5 : 3
+    }));
+  const clients = rows
+    .filter(row => row.client)
+    .map(row => normalizeCfoClient({
+      business: inferCfoBusiness(row.client),
+      name: row.client,
+      debtAmount: row.debt,
+      comment: [oneC.fileName, row.document, row.status].filter(Boolean).join(" · ")
+    }));
+  const orders = rows
+    .filter(row => row.client && (row.sellPrice || row.debt || row.document || oneC.kind === "orders"))
+    .map(row => normalizeCfoOrder({
+      business: inferCfoBusiness(`${row.client} ${row.name || ""}`),
+      clientName: row.client,
+      schoolName: row.client,
+      date: normalizeDateInput(row.date) || isoDate(),
+      status: row.debt > 0 ? "delivered" : "open",
+      totalAmount: row.sellPrice || row.debt || 0,
+      costAmount: row.buyPrice || 0,
+      paidAmount: row.debt > 0 ? 0 : row.sellPrice || 0,
+      documentStatus: row.document ? "дайын" : "толық емес",
+      oneCStatus: row.document ? `1С ${row.document}` : "1С Excel импорт",
+      comment: [row.name, row.code, row.status].filter(Boolean).join(" · ")
+    }));
+  const documents = rows
+    .filter(row => row.document || oneC.kind === "documents")
+    .map(row => normalizeCfoDocument({
+      business: inferCfoBusiness(`${row.client || ""} ${row.name || ""}`),
+      type: row.document || "1С құжат",
+      status: row.status || "дайын",
+      date: normalizeDateInput(row.date) || isoDate(),
+      comment: [row.client, row.name, row.code].filter(Boolean).join(" · ")
+    }));
+  return { orders, clients, products, documents };
+}
+
+function oneCToCfoReport(oneC, added) {
+  return [
+    "1С → CFO импорт нәтижесі",
+    `Файл: ${oneC.fileName || "-"}`,
+    `Түрі: ${oneCKindLabel(oneC.kind)}`,
+    `CFO orders: +${added.orders}`,
+    `CFO clients: +${added.clients}`,
+    `CFO products: +${added.products}`,
+    `CFO documents: +${added.documents}`,
+    "",
+    "Келесі қадам:",
+    "- Sana CFO / 1С табын ашып, импортталған жолдарды тексеріңіз.",
+    "- Қарыз болса Debts/Клиенттер қарызы бөлімінде қараңыз.",
+    "- Аз қалған товар болса Склад бақылау бөлімінде заказ жасаңыз."
+  ].join("\n");
+}
+
+function tasksFromOneC() {
+  const out = $("onecOut");
+  const oneC = normalizeOneC(state.oneC || {});
+  if (!oneC.rows.length) {
+    if (out) out.textContent = "Task жасау үшін алдымен 1С Excel файлын оқыңыз.";
+    return;
+  }
+  const lowStock = oneC.rows.filter(row => (row.name || row.code) && (row.stock === 0 || (row.stock > 0 && row.stock <= 3))).slice(0, 10);
+  const debts = oneC.rows.filter(row => row.client && row.debt > 0).slice(0, 10);
+  const tasks = [];
+  if (lowStock.length) {
+    tasks.push(normalizeTask({
+      title: "1С склад: аз қалған товарларға заказ дайындау",
+      body: lowStock.map(row => `- ${row.name || row.code}: остаток ${row.stock}`).join("\n"),
+      priority: "high",
+      due: addDays(isoDate(), 1),
+      owner: "1С Excel",
+      link: "1С Excel"
+    }));
+  }
+  if (debts.length) {
+    tasks.push(normalizeTask({
+      title: "1С қарыз: клиенттерге төлем follow-up жасау",
+      body: debts.map(row => `- ${row.client}: қарыз ${money(row.debt)}`).join("\n"),
+      priority: "high",
+      due: isoDate(),
+      owner: "1С Excel",
+      link: "1С Excel"
+    }));
+  }
+  if (!tasks.length) {
+    if (out) out.textContent = "1С файлынан task жасайтын қарыз немесе аз қалған товар табылмады.";
+    return;
+  }
+  state.tasks.unshift(...tasks);
+  persist();
+  render();
+  if (out) out.textContent = `${tasks.length} task жасалды.\n\n${tasks.map(task => `- ${task.title}`).join("\n")}`;
 }
 
 async function matchPrices() {
@@ -5303,16 +5532,20 @@ function normalizeChallenge(challenge) {
 }
 
 function normalizeOneC(data = {}) {
-  return {
-    fileName: data.fileName || "",
-    importedAt: data.importedAt || "",
-    kind: data.kind || "auto",
-    headers: Array.isArray(data.headers) ? data.headers : [],
-    rows: Array.isArray(data.rows) ? data.rows : [],
-    summary: data.summary || {},
-    text: data.text || ""
-  };
-}
+    return {
+      fileName: data.fileName || "",
+      importedAt: data.importedAt || "",
+      kind: data.kind || "auto",
+      headers: Array.isArray(data.headers) ? data.headers : [],
+      headerRow: Number(data.headerRow || 0),
+      columns: data.columns || {},
+      warnings: Array.isArray(data.warnings) ? data.warnings : [],
+      preview: Array.isArray(data.preview) ? data.preview : [],
+      rows: Array.isArray(data.rows) ? data.rows : [],
+      summary: data.summary || {},
+      text: data.text || ""
+    };
+  }
 
 function normalizeImage(image) {
   const folder = image.folder || "Суреттер";
@@ -7084,6 +7317,689 @@ function askCfoMock(event) {
   if ($("cfoChatOut")) $("cfoChatOut").textContent = answer;
 }
 
+function defaultElectroCategories() {
+  return [
+    "Кабель және провод", "Автоматтар", "УЗО", "Дифавтомат", "Розетка", "Выключатель", "Рамка", "Подрозетник", "Распредкоробка", "Щит", "DIN рейка", "Клемма", "Наконечник", "Изолента", "Гофра", "Кабель-канал", "LED лампа", "LED лента", "Блок питания", "Прожектор", "Светильник", "Патрон", "Вилка", "Удлинитель", "Сетевой фильтр", "Реле напряжения", "Стабилизатор", "Счетчик", "Контактор", "Реле времени", "Датчик движения", "Фотореле", "Заземление элементтері", "Инструмент", "Расходник", "Батарейка/аккумулятор", "Басқа"
+  ].map(name => normalizeElectroCategory({ categoryName: name }));
+}
+
+function defaultElectroBrands() {
+  return ["Tekled", "Viko", "Schneider Electric", "Legrand", "IEK", "EKF", "TDM", "Navigator", "Feron", "Jazzway", "Camelion", "Қытай no-name", "Қытай OEM", "Басқа"]
+    .map(name => normalizeElectroBrand({
+      name,
+      segment: /schneider|legrand/i.test(name) ? "premium" : /tekled|viko|iek|ekf/i.test(name) ? "middle" : /қытай|china/i.test(name) ? "budget" : "unknown",
+      description: "Бұл бренд бойынша нақты паспорт/сертификат керек. Қолда бар құжатты жүктеңіз."
+    }));
+}
+
+function defaultElectroState() {
+  return {
+    activeTab: "consult",
+    products: [],
+    brands: defaultElectroBrands(),
+    categories: defaultElectroCategories(),
+    consultations: [],
+    chinaProducts: [],
+    lessons: ELECTRO_LESSONS.map(([id, title, body]) => ({ id, title, body, done: false, score: 0 })),
+    scripts: [],
+    settings: {},
+    lastConsultationId: "",
+    lastAnswer: ""
+  };
+}
+
+function normalizeElectro(electro = {}) {
+  const base = defaultElectroState();
+  const categories = Array.isArray(electro.categories) && electro.categories.length ? electro.categories.map(normalizeElectroCategory) : base.categories;
+  const brands = Array.isArray(electro.brands) && electro.brands.length ? electro.brands.map(normalizeElectroBrand) : base.brands;
+  return {
+    ...base,
+    ...electro,
+    activeTab: electro.activeTab || "consult",
+    products: Array.isArray(electro.products) ? electro.products.map(normalizeElectroProduct) : [],
+    brands,
+    categories,
+    consultations: Array.isArray(electro.consultations) ? electro.consultations.map(normalizeElectroConsultation) : [],
+    chinaProducts: Array.isArray(electro.chinaProducts) ? electro.chinaProducts.map(normalizeElectroChinaProduct) : [],
+    lessons: Array.isArray(electro.lessons) && electro.lessons.length ? electro.lessons : base.lessons,
+    scripts: Array.isArray(electro.scripts) ? electro.scripts : [],
+    settings: electro.settings || {}
+  };
+}
+
+function normalizeElectroCategory(category = {}) {
+  const name = category.categoryName || category.name || "Басқа";
+  return {
+    id: category.id || `cat-${normalizeText(name).replace(/[^a-z0-9а-яәіңғүұқөһ]+/gi, "-") || crypto.randomUUID()}`,
+    categoryName: name,
+    kazName: category.kazName || name,
+    ruName: category.ruName || name,
+    trName: category.trName || "",
+    enName: category.enName || "",
+    purpose: category.purpose || "",
+    whereUsed: Array.isArray(category.whereUsed) ? category.whereUsed : [],
+    keySpecs: Array.isArray(category.keySpecs) ? category.keySpecs : [],
+    selectionQuestions: Array.isArray(category.selectionQuestions) ? category.selectionQuestions : electroClarifyingQuestions(),
+    safetyNotes: Array.isArray(category.safetyNotes) ? category.safetyNotes : [ELECTRO_SAFETY_DISCLAIMER],
+    relatedProducts: Array.isArray(category.relatedProducts) ? category.relatedProducts : [],
+    commonMistakes: Array.isArray(category.commonMistakes) ? category.commonMistakes : [],
+    sellerScript: category.sellerScript || "Қай жерге қоясыз, ішке ме далаға ма, қандай жүктеме қосылады?",
+    createdAt: category.createdAt || nowIso(),
+    updatedAt: category.updatedAt || category.createdAt || nowIso()
+  };
+}
+
+function normalizeElectroProduct(product = {}) {
+  const purchase = Number(product.purchasePrice || 0);
+  const sale = Number(product.salePrice || 0);
+  return {
+    id: product.id || crypto.randomUUID(),
+    sku: product.sku || "",
+    barcode: product.barcode || "",
+    name: product.name || "",
+    brand: product.brand || "",
+    model: product.model || "",
+    categoryId: product.categoryId || "",
+    supplier: product.supplier || "",
+    country: product.country || "Other",
+    source: product.source || "Manual",
+    purchasePrice: purchase,
+    salePrice: sale,
+    currency: product.currency || "KZT",
+    marginPercent: Number(product.marginPercent || (sale ? ((sale - purchase) / sale) * 100 : 0)),
+    stockQty: Number(product.stockQty || 0),
+    unit: product.unit || "шт",
+    specs: { voltage: "", current: "", power: "", ipRating: "", cableSection: "", poles: "", color: "", material: "", dimensions: "", warranty: "", certificate: "", ...(product.specs || {}) },
+    descriptionKaz: product.descriptionKaz || product.description || "",
+    descriptionRu: product.descriptionRu || "",
+    descriptionTr: product.descriptionTr || "",
+    descriptionEn: product.descriptionEn || "",
+    useCases: Array.isArray(product.useCases) ? product.useCases : [],
+    compatibleWith: Array.isArray(product.compatibleWith) ? product.compatibleWith : [],
+    alternatives: Array.isArray(product.alternatives) ? product.alternatives : [],
+    safetyNotes: Array.isArray(product.safetyNotes) ? product.safetyNotes : [ELECTRO_SAFETY_DISCLAIMER],
+    photos: Array.isArray(product.photos) ? product.photos : [],
+    documents: Array.isArray(product.documents) ? product.documents : [],
+    createdAt: product.createdAt || nowIso(),
+    updatedAt: product.updatedAt || product.createdAt || nowIso()
+  };
+}
+
+function normalizeElectroBrand(brand = {}) {
+  return {
+    id: brand.id || crypto.randomUUID(),
+    name: brand.name || "Бренд",
+    country: brand.country || "",
+    segment: brand.segment || "unknown",
+    categories: Array.isArray(brand.categories) ? brand.categories : [],
+    description: brand.description || "Бұл бренд бойынша нақты паспорт/сертификат керек. Қолда бар құжатты жүктеңіз.",
+    strengths: Array.isArray(brand.strengths) ? brand.strengths : [],
+    weaknesses: Array.isArray(brand.weaknesses) ? brand.weaknesses : [],
+    sellerNotes: Array.isArray(brand.sellerNotes) ? brand.sellerNotes : [],
+    warrantyInfo: brand.warrantyInfo || "",
+    supplierContacts: Array.isArray(brand.supplierContacts) ? brand.supplierContacts : [],
+    createdAt: brand.createdAt || nowIso(),
+    updatedAt: brand.updatedAt || brand.createdAt || nowIso()
+  };
+}
+
+function normalizeElectroChinaProduct(item = {}) {
+  const total = Number(item.totalCostKzt ?? (Number(item.purchasePrice || 0) + Number(item.deliveryCost || 0) + Number(item.customsCost || 0)));
+  const sale = Number(item.recommendedSalePrice || 0);
+  return {
+    id: item.id || crypto.randomUUID(),
+    chineseName: item.chineseName || "",
+    translatedNameKaz: item.translatedNameKaz || item.chineseName || "",
+    translatedNameRu: item.translatedNameRu || item.chineseName || "",
+    supplierName: item.supplierName || "",
+    supplierContact: item.supplierContact || "",
+    platform: item.platform || "Manual",
+    purchaseCurrency: item.purchaseCurrency || "KZT",
+    purchasePrice: Number(item.purchasePrice || 0),
+    deliveryCost: Number(item.deliveryCost || 0),
+    customsCost: Number(item.customsCost || 0),
+    totalCostKzt: total,
+    recommendedSalePrice: sale,
+    minSalePrice: Number(item.minSalePrice || Math.round(total * 1.2)),
+    marginPercent: Number(item.marginPercent || (sale ? ((sale - total) / sale) * 100 : 0)),
+    certificateStatus: item.certificateStatus || "unknown",
+    qualityCheckStatus: item.qualityCheckStatus || "not_checked",
+    notes: item.notes || "",
+    linkedProductId: item.linkedProductId || null,
+    createdAt: item.createdAt || nowIso(),
+    updatedAt: item.updatedAt || item.createdAt || nowIso()
+  };
+}
+
+function normalizeElectroConsultation(item = {}) {
+  return {
+    id: item.id || crypto.randomUUID(),
+    clientName: item.clientName || "",
+    clientPhone: item.clientPhone || "",
+    language: item.language || "kk",
+    requestText: item.requestText || "",
+    projectType: item.projectType || "unknown",
+    voltage: item.voltage || "unknown",
+    locationType: item.locationType || "unknown",
+    powerInfo: item.powerInfo || "",
+    budget: item.budget || "",
+    recommendedProducts: Array.isArray(item.recommendedProducts) ? item.recommendedProducts : [],
+    questionsToAsk: Array.isArray(item.questionsToAsk) ? item.questionsToAsk : electroClarifyingQuestions(),
+    safetyWarnings: Array.isArray(item.safetyWarnings) ? item.safetyWarnings : [ELECTRO_SAFETY_DISCLAIMER],
+    status: item.status || "new",
+    linkedOrderId: item.linkedOrderId || null,
+    linkedClientId: item.linkedClientId || null,
+    answer: item.answer || "",
+    createdAt: item.createdAt || nowIso(),
+    updatedAt: item.updatedAt || item.createdAt || nowIso()
+  };
+}
+
+function setElectroTab(tab) {
+  state.electro = normalizeElectro(state.electro || {});
+  state.electro.activeTab = tab || "consult";
+  persist();
+  renderElectro();
+}
+
+function electroClarifyingQuestions() {
+  return [
+    "Қай жерге керек: үй, офис, магазин, мектеп, дала, склад?",
+    "Қандай мақсатқа керек: жарық, розетка, щит, автомат, кабель?",
+    "Ішке ме, далаға ма, әлде ылғал жер ме?",
+    "Қанша қуат қосылады: Вт немесе кВт білесіз бе?",
+    "220В па, 380В па?",
+    "Кабель ұзындығы шамамен қанша метр?",
+    "Қандай бренд және бюджет керек?",
+    "Монтажды сертификатталған электрик жасай ма?"
+  ];
+}
+
+function runElectroConsult(event) {
+  event.preventDefault();
+  const consultation = buildElectroConsultationFromForm();
+  const answer = electroConsultAnswer(consultation);
+  state.electro = normalizeElectro(state.electro || {});
+  state.electro.lastAnswer = answer;
+  if ($("electroConsultOut")) $("electroConsultOut").textContent = answer;
+}
+
+function buildElectroConsultationFromForm() {
+  const requestText = $("electroRequest")?.value?.trim() || "";
+  return normalizeElectroConsultation({
+    clientName: $("electroClientName")?.value?.trim() || "",
+    clientPhone: $("electroClientPhone")?.value?.trim() || "",
+    language: $("electroLanguage")?.value || "kk",
+    requestText,
+    budget: $("electroBudget")?.value?.trim() || "",
+    projectType: inferElectroProjectType(requestText),
+    voltage: /380/i.test(requestText) ? "380V" : /220/i.test(requestText) ? "220V" : "unknown",
+    locationType: /дала|улица|сырт|наруж/i.test(requestText) ? "outdoor" : /ванна|ылғал|су|подвал|душ/i.test(requestText) ? "wet" : "unknown",
+    recommendedProducts: electroRecommendProducts(requestText),
+    questionsToAsk: electroClarifyingQuestions(),
+    safetyWarnings: [ELECTRO_SAFETY_DISCLAIMER]
+  });
+}
+
+function electroConsultAnswer(consultation) {
+  const text = consultation.requestText || "";
+  const dangerous = ELECTRO_DANGER_PATTERNS.some(pattern => pattern.test(text));
+  if (dangerous) {
+    return [
+      "Қысқа қорытынды:",
+      "Бұл қауіпті монтаж жұмысы. Мен дүкендік деңгейде қандай тауарлар керек болуы мүмкін екенін ғана түсіндіре аламын. Нақты қосу схемасын объектіні көрген электрик жасауы керек.",
+      "",
+      "Нақтылау сұрақтары:",
+      electroClarifyingQuestions().slice(0, 5).map((q, i) => `${i + 1}. ${q}`).join("\n"),
+      "",
+      "Қауіпсіздік:",
+      ELECTRO_SAFETY_DISCLAIMER,
+      "",
+      "Клиентке дайын мәтін:",
+      electroMultilangResponse(text, consultation.language, true)
+    ].join("\n");
+  }
+  const products = consultation.recommendedProducts.length ? consultation.recommendedProducts : ["Товар түрін нақтылау керек", "IP/сертификат/брендті тексеру керек"];
+  return [
+    "1. Сізге керек болуы мүмкін:",
+    products.map(item => `- ${item}`).join("\n"),
+    "",
+    "2. Неге:",
+    "- Қолдану орны, ылғал/дала факторы, қуат және бренд нақты болмаса, дұрыс товар таңдау қиын.",
+    "- Мектеп/офис/магазин объектісінде сертификат, сапа және қауіпсіздік маңызды.",
+    "",
+    "3. Нені нақтылау керек:",
+    electroClarifyingQuestions().map((q, i) => `${i + 1}. ${q}`).join("\n"),
+    "",
+    "4. Қауіпсіздік:",
+    `- ${ELECTRO_SAFETY_DISCLAIMER}`,
+    "",
+    "5. Сатушы ретінде ұсынатын нұсқа:",
+    "- Бюджет: құжаты бар, базалық сападағы товар.",
+    "- Орташа: Tekled/Viko/IEK/EKF сияқты паспортын тексеруге болатын нұсқа.",
+    "- Жақсы/премиум: объект маңызды болса Schneider/Legrand немесе нақты сертификаты бар бренд.",
+    "",
+    "6. Клиентке дайын жауап:",
+    electroMultilangResponse(text, consultation.language, false)
+  ].join("\n");
+}
+
+function electroMultilangResponse(text, language, dangerous) {
+  const kk = dangerous
+    ? "Бұл қосу/монтажға қатысты қауіпті сұрақ. Біз дүкен ретінде дұрыс тауар таңдауға көмектесеміз, ал нақты қосу схемасын электрик объектіні көріп бекітуі керек."
+    : "Дұрыс тауар таңдау үшін қай жерге қоятыныңызды, ішке/далаға ма екенін, қуат шамасын және бюджетіңізді нақтылап алайын.";
+  const ru = dangerous
+    ? "Это опасный монтажный вопрос. Мы можем помочь подобрать товар, но схему подключения должен подтвердить электрик на объекте."
+    : "Чтобы подобрать правильно, уточню: куда устанавливаете, внутри или на улице, какая нагрузка и какой бюджет?";
+  const tr = dangerous
+    ? "Bu tehlikeli bir montaj konusudur. Ürün seçimine yardımcı olabiliriz, bağlantı şemasını sahada elektrikçi onaylamalıdır."
+    : "Doğru ürünü seçmek için yeri, iç/dış mekânı, yükü ve bütçeyi netleştirelim.";
+  const en = dangerous
+    ? "This is a hazardous installation question. We can help choose products, but wiring must be checked by a certified electrician on site."
+    : "To choose the right product, let me clarify the location, indoor/outdoor use, load, and budget.";
+  if (language === "ru") return `Русский:\n${ru}`;
+  if (language === "tr") return `Türkçe:\n${tr}`;
+  if (language === "en") return `English:\n${en}`;
+  if (language === "mixed") return `Қазақша:\n${kk}\n\nРусский:\n${ru}\n\nTürkçe:\n${tr}\n\nEnglish:\n${en}`;
+  return `Қазақша:\n${kk}\n\nРусский:\n${ru}`;
+}
+
+function inferElectroProjectType(text = "") {
+  const source = normalizeText(text);
+  if (/мектеп|школа|school/.test(source)) return "school";
+  if (/офис|office/.test(source)) return "office";
+  if (/магазин|shop|дүкен/.test(source)) return "shop";
+  if (/склад|warehouse/.test(source)) return "warehouse";
+  if (/дала|улица|outdoor|сырт/.test(source)) return "outdoor";
+  if (/үй|дом|квартира|home/.test(source)) return "home";
+  return "unknown";
+}
+
+function electroRecommendProducts(text = "") {
+  const source = normalizeText(text);
+  const items = [];
+  if (/кабель|провод|сым|ввг|пвс|шввп/.test(source)) items.push("Кабель/провод: нақты марка, метр, сечение паспортпен тексеріледі");
+  if (/розетка/.test(source)) items.push("Розетка: ішкі/сыртқы, IP қорғаныс, рамка және подрозетник");
+  if (/выключатель|қосқыш/.test(source)) items.push("Выключатель: схема түрін электрик нақтылайды, сатушы дизайн/серия ұсынады");
+  if (/автомат|автоматический/.test(source)) items.push("Автомат: номиналды электрик есептейді, бренд/полюс/серияны нақтылау керек");
+  if (/узо|диф/.test(source)) items.push("УЗО/дифавтомат: қорғаныс аппараты, нақты таңдау объектіге байланысты");
+  if (/led|лента|жарық|лампа|свет|прожектор/.test(source)) items.push("LED жарық: қуат, түс температурасы, IP, блок питания");
+  if (/дала|улица|наруж|сырт|ванна|ылғал|су/.test(source)) items.push("Дала/ылғал жер: IP қорғанысы жоғары товар, герметик қорап/коробка");
+  if (/мектеп|офис|school|школа/.test(source)) items.push("Мектеп/офис: сертификат, паспорт, сапа және жауапкершілік құжаттары");
+  return items.slice(0, 6);
+}
+
+function saveElectroConsultation() {
+  state.electro = normalizeElectro(state.electro || {});
+  const consultation = buildElectroConsultationFromForm();
+  consultation.answer = state.electro.lastAnswer || electroConsultAnswer(consultation);
+  consultation.status = "consulted";
+  state.electro.consultations.unshift(consultation);
+  state.electro.lastConsultationId = consultation.id;
+  persist();
+  render();
+  if ($("electroConsultOut")) $("electroConsultOut").textContent = `${consultation.answer}\n\n---\nКонсультация сақталды.`;
+}
+
+function electroConsultationToOrder() {
+  state.electro = normalizeElectro(state.electro || {});
+  const consultation = state.electro.consultations.find(item => item.id === state.electro.lastConsultationId) || buildElectroConsultationFromForm();
+  const order = createOrder({
+    entity: "client_order",
+    title: `ElectroPro: ${consultation.clientName || consultation.requestText.slice(0, 40) || "клиент консультациясы"}`,
+    date: isoDate(),
+    endDate: isoDate(),
+    category: "ElectroPro",
+    priority: /school|office|outdoor|wet/.test(`${consultation.projectType} ${consultation.locationType}`) ? "high" : "medium",
+    clientName: consultation.clientName || "ElectroPro клиент",
+    amount: 0,
+    status: "new",
+    comment: consultation.answer || consultation.requestText
+  });
+  order.pipelineStatus = "new";
+  order.productName = consultation.recommendedProducts.join(", ");
+  order.clientName = consultation.clientName || "";
+  order.schoolName = consultation.projectType === "school" ? consultation.clientName : "";
+  order.comment = `${consultation.requestText}\n\n${consultation.answer || ""}`;
+  consultation.linkedOrderId = order.id;
+  consultation.status = "order_created";
+  if (!state.electro.consultations.some(item => item.id === consultation.id)) state.electro.consultations.unshift(consultation);
+  persist();
+  render();
+  setView("crm");
+}
+
+function saveElectroProduct(event) {
+  event.preventDefault();
+  state.electro = normalizeElectro(state.electro || {});
+  const id = $("electroProductId")?.value || "";
+  const payload = normalizeElectroProduct({
+    id: id || undefined,
+    sku: $("electroSku")?.value?.trim() || "",
+    barcode: $("electroBarcode")?.value?.trim() || "",
+    name: $("electroProductName")?.value?.trim() || "",
+    brand: $("electroProductBrand")?.value?.trim() || "",
+    categoryId: $("electroProductCategory")?.value || "",
+    country: $("electroCountry")?.value || "Other",
+    purchasePrice: Number($("electroPurchasePrice")?.value || 0),
+    salePrice: Number($("electroSalePrice")?.value || 0),
+    stockQty: Number($("electroStockQty")?.value || 0),
+    unit: $("electroUnit")?.value || "шт",
+    specs: { voltage: $("electroVoltage")?.value?.trim() || "", ipRating: $("electroIpRating")?.value?.trim() || "" },
+    descriptionKaz: $("electroDescription")?.value?.trim() || ""
+  });
+  if (!payload.name) return;
+  const index = state.electro.products.findIndex(item => item.id === id);
+  if (index >= 0) state.electro.products[index] = { ...payload, updatedAt: nowIso() };
+  else state.electro.products.unshift(payload);
+  resetElectroProductForm();
+  persist();
+  render();
+}
+
+function resetElectroProductForm() {
+  $("electroProductForm")?.reset();
+  if ($("electroProductId")) $("electroProductId").value = "";
+}
+
+function saveElectroBrand(event) {
+  event.preventDefault();
+  state.electro = normalizeElectro(state.electro || {});
+  const id = $("electroBrandId")?.value || "";
+  const payload = normalizeElectroBrand({
+    id: id || undefined,
+    name: $("electroBrandName")?.value?.trim() || "",
+    country: $("electroBrandCountry")?.value?.trim() || "",
+    segment: $("electroBrandSegment")?.value || "unknown",
+    description: $("electroBrandNotes")?.value?.trim() || ""
+  });
+  const index = state.electro.brands.findIndex(item => item.id === id);
+  if (index >= 0) state.electro.brands[index] = { ...payload, updatedAt: nowIso() };
+  else state.electro.brands.unshift(payload);
+  event.target.reset();
+  if ($("electroBrandId")) $("electroBrandId").value = "";
+  persist();
+  render();
+}
+
+function saveElectroChinaProduct(event) {
+  event.preventDefault();
+  state.electro = normalizeElectro(state.electro || {});
+  const payload = normalizeElectroChinaProduct({
+    chineseName: $("electroChineseName")?.value?.trim() || "",
+    supplierName: $("electroChinaSupplier")?.value?.trim() || "",
+    platform: $("electroChinaPlatform")?.value || "Manual",
+    purchasePrice: Number($("electroChinaPurchase")?.value || 0),
+    deliveryCost: Number($("electroChinaDelivery")?.value || 0),
+    customsCost: Number($("electroChinaCustoms")?.value || 0),
+    recommendedSalePrice: Number($("electroChinaSale")?.value || 0),
+    certificateStatus: $("electroChinaCertificate")?.value || "unknown",
+    notes: $("electroChinaNotes")?.value?.trim() || ""
+  });
+  if (!payload.chineseName) return;
+  state.electro.chinaProducts.unshift(payload);
+  event.target.reset();
+  persist();
+  render();
+}
+
+async function importElectroProducts() {
+  const out = $("electroCompareOut");
+  const file = $("electroImportFile")?.files?.[0];
+  if (!file) {
+    if (out) out.textContent = "Алдымен Excel/CSV каталог файлын таңдаңыз.";
+    return;
+  }
+  try {
+    const table = await readTableFile(file);
+    const headers = normalizeHeader(table.rows[0] || []);
+    const rows = table.rows.slice(1).filter(row => row.some(cell => String(cell || "").trim()));
+    const col = {
+      sku: findColumn(headers, "", ["sku", "код", "артикул"]),
+      barcode: findColumn(headers, "", ["barcode", "штрихкод"]),
+      name: findColumn(headers, "", ["name", "атауы", "наименование", "товар"]),
+      brand: findColumn(headers, "", ["brand", "бренд"]),
+      category: findColumn(headers, "", ["category", "категория"]),
+      purchase: findColumn(headers, "", ["purchaseprice", "закуп", "сатып"]),
+      sale: findColumn(headers, "", ["saleprice", "цена", "сату", "баға"]),
+      stock: findColumn(headers, "", ["stockqty", "остаток", "қалдық", "количество"]),
+      voltage: findColumn(headers, "", ["voltage", "вольт", "напряжение"]),
+      ip: findColumn(headers, "", ["iprating", "ip"])
+    };
+    const imported = rows.map(row => normalizeElectroProduct({
+      sku: col.sku >= 0 ? row[col.sku] : "",
+      barcode: col.barcode >= 0 ? row[col.barcode] : "",
+      name: col.name >= 0 ? row[col.name] : "",
+      brand: col.brand >= 0 ? row[col.brand] : "",
+      categoryId: electroCategoryIdByName(col.category >= 0 ? row[col.category] : ""),
+      purchasePrice: col.purchase >= 0 ? parseMoney(row[col.purchase]) : 0,
+      salePrice: col.sale >= 0 ? parseMoney(row[col.sale]) : 0,
+      stockQty: col.stock >= 0 ? parseMoney(row[col.stock]) : 0,
+      specs: { voltage: col.voltage >= 0 ? String(row[col.voltage] || "") : "", ipRating: col.ip >= 0 ? String(row[col.ip] || "") : "" },
+      source: "Import"
+    })).filter(item => item.name);
+    state.electro = normalizeElectro(state.electro || {});
+    const existing = new Set(state.electro.products.map(item => normalizeText(item.sku || item.barcode || item.name)));
+    let added = 0;
+    imported.forEach(item => {
+      const key = normalizeText(item.sku || item.barcode || item.name);
+      if (existing.has(key)) return;
+      existing.add(key);
+      state.electro.products.unshift(item);
+      added += 1;
+    });
+    persist();
+    render();
+    if (out) out.textContent = `Каталог импорт: ${imported.length} жол оқылды, ${added} жаңа тауар қосылды. Duplicate SKU/barcode/name қайта қосылмады.`;
+  } catch (error) {
+    if (out) out.textContent = `Каталог импорт қатесі: ${shortError(error)}`;
+  }
+}
+
+function electroCategoryIdByName(name = "") {
+  const text = normalizeText(name);
+  const found = (state.electro?.categories || []).find(item => normalizeText(item.categoryName) === text);
+  return found?.id || (state.electro?.categories?.[0]?.id || "");
+}
+
+function compareElectroProducts() {
+  state.electro = normalizeElectro(state.electro || {});
+  const selected = [...document.querySelectorAll("[data-electro-compare]:checked")].map(input => state.electro.products.find(item => item.id === input.value)).filter(Boolean);
+  const out = $("electroCompareOut");
+  if (selected.length < 2) {
+    if (out) out.textContent = "Салыстыру үшін кемінде 2 тауар таңдаңыз.";
+    return;
+  }
+  const rows = selected.map(item => `| ${item.name} | ${item.brand || "-"} | ${money(item.salePrice)} | ${item.specs?.ipRating || "-"} | ${item.stockQty} ${item.unit} | ${item.safetyNotes?.[0] || ELECTRO_SAFETY_DISCLAIMER} |`);
+  if (out) out.textContent = [
+    "Салыстыру:",
+    "",
+    "| Нұсқа | Бренд | Баға | IP | Қалдық | Ескерту |",
+    "|---|---|---:|---|---:|---|",
+    rows.join("\n"),
+    "",
+    "Қорытынды:",
+    "- Арзан керек болса: бағасы төмен, бірақ паспорты/сертификаты бар нұсқаны таңдаңыз.",
+    "- Ұзаққа керек болса: бренд, сертификат, гарантия және IP қорғанысын тексеріңіз.",
+    "- Мектеп/офис болса: құжат, сертификат және электрик тексеруі міндетті."
+  ].join("\n");
+}
+
+function runElectroCalculator() {
+  const type = $("electroCalcType")?.value || "power";
+  const a = Number($("electroCalcA")?.value || 0);
+  const b = Number($("electroCalcB")?.value || 0);
+  const c = Number($("electroCalcC")?.value || 0);
+  let result = "";
+  if (type === "power") result = `Қуат шамамен: ${Math.round(a * b)} Вт`;
+  if (type === "amp") result = b ? `Ток шамамен: ${(a / b).toFixed(2)} A` : "Вольт мәнін енгізіңіз.";
+  if (type === "led") result = `LED жалпы қуат: ${Math.round(a * b)} Вт. Блок питания запаспен: ${Math.ceil(a * b * 1.25)} Вт.`;
+  if (type === "cable") result = `Кабель ұзындығы запаспен: ${(a * (1 + b / 100)).toFixed(1)} м`;
+  if (type === "price") result = `Ұсынылатын сату бағасы: ${money(Math.round((a + c) * (1 + b / 100)))}`;
+  if ($("electroCalcOut")) $("electroCalcOut").textContent = `${result}\n\nБұл алдын ала есеп. Нақты кабель қимасы, автомат номиналы, қорғаныс аппараты және монтаж шешімін объектіні көрген электрик бекітуі керек.`;
+}
+
+function handleElectroActions(event) {
+  const editProduct = event.target.closest("[data-electro-product-edit]")?.dataset.electroProductEdit;
+  const deleteProduct = event.target.closest("[data-electro-product-delete]")?.dataset.electroProductDelete;
+  const explainProduct = event.target.closest("[data-electro-product-explain]")?.dataset.electroProductExplain;
+  const lessonDone = event.target.closest("[data-electro-lesson]")?.dataset.electroLesson;
+  if (editProduct) return fillElectroProductForm(editProduct);
+  if (deleteProduct) return deleteElectroProduct(deleteProduct);
+  if (explainProduct) return explainElectroProduct(explainProduct);
+  if (lessonDone) return toggleElectroLesson(lessonDone);
+}
+
+function fillElectroProductForm(id) {
+  const item = state.electro?.products?.find(product => product.id === id);
+  if (!item) return;
+  setElectroTab("catalog");
+  $("electroProductId").value = item.id;
+  $("electroSku").value = item.sku || "";
+  $("electroBarcode").value = item.barcode || "";
+  $("electroProductName").value = item.name || "";
+  $("electroProductBrand").value = item.brand || "";
+  $("electroProductCategory").value = item.categoryId || "";
+  $("electroCountry").value = item.country || "Other";
+  $("electroPurchasePrice").value = item.purchasePrice || "";
+  $("electroSalePrice").value = item.salePrice || "";
+  $("electroStockQty").value = item.stockQty || "";
+  $("electroUnit").value = item.unit || "шт";
+  $("electroVoltage").value = item.specs?.voltage || "";
+  $("electroIpRating").value = item.specs?.ipRating || "";
+  $("electroDescription").value = item.descriptionKaz || "";
+}
+
+function deleteElectroProduct(id) {
+  if (!confirm("Бұл тауар карточкасын өшіреміз бе?")) return;
+  state.electro.products = state.electro.products.filter(item => item.id !== id);
+  persist();
+  render();
+}
+
+function explainElectroProduct(id) {
+  const item = state.electro?.products?.find(product => product.id === id);
+  if (!item || !$("electroConsultOut")) return;
+  $("electroConsultOut").textContent = [
+    `${item.name} туралы клиентке түсіндіру:`,
+    `- Бренд: ${item.brand || "нақтылау керек"}`,
+    `- Баға: ${money(item.salePrice)}`,
+    `- Қалдық: ${item.stockQty} ${item.unit}`,
+    `- IP/Voltage: ${item.specs?.ipRating || "-"} · ${item.specs?.voltage || "-"}`,
+    "",
+    "WhatsApp:",
+    `Сәлеметсіз бе! ${item.name} бойынша нұсқа бар. Нақты таңдау үшін қай жерге қоятыныңызды, ішке/далаға ма екенін және жүктемені нақтылап жіберіңіз.`,
+    "",
+    ELECTRO_SAFETY_DISCLAIMER
+  ].join("\n");
+  setElectroTab("consult");
+}
+
+function toggleElectroLesson(id) {
+  const lesson = state.electro.lessons.find(item => item.id === id);
+  if (!lesson) return;
+  lesson.done = !lesson.done;
+  lesson.score = lesson.done ? 100 : 0;
+  persist();
+  render();
+}
+
+function renderElectro() {
+  if (!$("electroStats")) return;
+  state.electro = normalizeElectro(state.electro || {});
+  document.querySelectorAll("[data-electro-tab]").forEach(button => button.classList.toggle("active", button.dataset.electroTab === state.electro.activeTab));
+  document.querySelectorAll("[data-electro-panel]").forEach(panel => panel.classList.toggle("active", panel.dataset.electroPanel === state.electro.activeTab));
+  $("electroStats").innerHTML = [
+    ["Консультация", state.electro.consultations.length],
+    ["Тауар", state.electro.products.length],
+    ["Бренд", state.electro.brands.length],
+    ["Қытай товар", state.electro.chinaProducts.length],
+    ["Оқу прогресс", `${electroLessonProgress()}%`]
+  ].map(([label, value]) => `<article><span>${label}</span><strong>${value}</strong></article>`).join("");
+  renderElectroSelects();
+  renderElectroProducts();
+  renderElectroBrands();
+  renderElectroChina();
+  renderElectroLessons();
+}
+
+function renderElectroSelects() {
+  const categoryOptions = state.electro.categories.map(item => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.categoryName)}</option>`).join("");
+  if ($("electroCategorySelect")) $("electroCategorySelect").innerHTML = `<option value="">Авто</option>${categoryOptions}`;
+  if ($("electroProductCategory")) $("electroProductCategory").innerHTML = categoryOptions;
+  if ($("electroBrandSelect")) $("electroBrandSelect").innerHTML = `<option value="">Авто</option>${state.electro.brands.map(item => `<option>${escapeHtml(item.name)}</option>`).join("")}`;
+}
+
+function renderElectroProducts() {
+  const node = $("electroProductList");
+  if (!node) return;
+  if (!state.electro.products.length) {
+    node.innerHTML = `<article class="electro-card"><strong>Каталог бос</strong><p>Алдымен тауар қосыңыз немесе Excel каталог импорттаңыз.</p></article>`;
+    return;
+  }
+  node.innerHTML = state.electro.products.map(item => `
+    <article class="electro-card">
+      <label class="electro-compare"><input type="checkbox" data-electro-compare value="${escapeHtml(item.id)}"> Compare</label>
+      <h4>${escapeHtml(item.name)}</h4>
+      <p>${escapeHtml(item.brand || "Бренд жоқ")} · ${money(item.salePrice)} · ${item.stockQty} ${escapeHtml(item.unit)}</p>
+      <p>${escapeHtml(item.descriptionKaz || "Сипаттама жоқ")}</p>
+      <div class="electro-card-actions">
+        <button type="button" data-electro-product-explain="${escapeHtml(item.id)}">Клиентке түсіндіру</button>
+        <button type="button" data-electro-product-edit="${escapeHtml(item.id)}">Edit</button>
+        <button type="button" data-electro-product-delete="${escapeHtml(item.id)}">Delete</button>
+      </div>
+    </article>
+  `).join("");
+}
+
+function renderElectroBrands() {
+  const node = $("electroBrandList");
+  if (!node) return;
+  node.innerHTML = state.electro.brands.map(item => `
+    <article class="electro-card">
+      <h4>${escapeHtml(item.name)}</h4>
+      <p>${escapeHtml(item.country || "Ел көрсетілмеген")} · ${escapeHtml(item.segment)}</p>
+      <p>${escapeHtml(item.description)}</p>
+    </article>
+  `).join("");
+}
+
+function renderElectroChina() {
+  const node = $("electroChinaList");
+  if (!node) return;
+  if (!state.electro.chinaProducts.length) {
+    node.innerHTML = `<article class="electro-card"><strong>Қытай тауарлары бос</strong><p>Alibaba/1688/Manual тауарын қосып, total cost, certificate және quality status бақылаңыз.</p></article>`;
+    return;
+  }
+  node.innerHTML = state.electro.chinaProducts.map(item => `
+    <article class="electro-card">
+      <h4>${escapeHtml(item.translatedNameKaz || item.chineseName)}</h4>
+      <p>${escapeHtml(item.platform)} · cost ${money(item.totalCostKzt)} · sale ${money(item.recommendedSalePrice)}</p>
+      <p>Certificate: ${escapeHtml(item.certificateStatus)} · Quality: ${escapeHtml(item.qualityCheckStatus)}</p>
+      <p>${escapeHtml(item.notes || "Risk checklist: сертификат, сапа, гарантия, паспорт тексерілсін.")}</p>
+    </article>
+  `).join("");
+}
+
+function renderElectroLessons() {
+  const node = $("electroLessonList");
+  if (!node) return;
+  node.innerHTML = state.electro.lessons.map(item => `
+    <article class="electro-card">
+      <h4>${escapeHtml(item.title)}</h4>
+      <p>${escapeHtml(item.body)}</p>
+      <p>Формат: қарапайым түсіндіру · орысша термин · клиентке қалай айту · қауіпсіздік · 3 сұрақтық тест.</p>
+      <button type="button" data-electro-lesson="${escapeHtml(item.id)}">${item.done ? "Оқылды" : "Оқылды деп белгілеу"}</button>
+    </article>
+  `).join("");
+}
+
+function electroLessonProgress() {
+  const lessons = state.electro?.lessons || [];
+  if (!lessons.length) return 0;
+  return Math.round((lessons.filter(item => item.done).length / lessons.length) * 100);
+}
+
 function render() {
   if (!Array.isArray(state.images)) state.images = [];
   if (!Array.isArray(state.goals)) state.goals = [];
@@ -7091,6 +8007,7 @@ function render() {
   if (!Array.isArray(state.plans)) state.plans = [];
   if (!Array.isArray(state.challenges)) state.challenges = [];
   if (!Array.isArray(state.crmReports)) state.crmReports = [];
+  state.electro = normalizeElectro(state.electro || {});
   state.cfo = normalizeCfo(state.cfo || {});
   state.oneC = normalizeOneC(state.oneC || {});
   state.crmReports = state.crmReports.map(normalizeCrmReport);
@@ -7141,6 +8058,7 @@ function render() {
   renderCrmReportDashboard();
   renderCfo();
   renderOneC();
+  renderElectro();
   renderAssistantDashboard();
   renderCloudSettings();
   renderMimoFocus();
@@ -7157,6 +8075,83 @@ function renderOneC() {
     ["Қарыз", `${Math.round(summary.debtTotal || 0).toLocaleString("kk-KZ")} ₸`],
     ["Құжат", summary.documents || 0]
   ].map(([label, value]) => `<article class="crm-stat"><span>${label}</span><strong>${value}</strong></article>`).join("");
+  renderOneCInspector();
+}
+
+function renderOneCInspector() {
+  const node = $("onecInspector");
+  if (!node) return;
+  const oneC = normalizeOneC(state.oneC || {});
+  if (!oneC.fileName && !oneC.rows.length) {
+    node.innerHTML = `
+      <div class="onec-empty">
+        <strong>1С Excel әлі оқылмады</strong>
+        <span>Файл таңдаңыз, типін auto қалдырыңыз, содан кейін "1С Excel оқу" басыңыз. Жүйе header жолын және бағандарды өзі таниды.</span>
+      </div>
+    `;
+    return;
+  }
+  const columns = Object.entries(oneC.columns || {})
+    .filter(([, index]) => Number(index) >= 0)
+    .map(([key, index]) => `${oneCColumnLabel(key)}: ${oneC.headers[index] || index + 1}`);
+  node.innerHTML = `
+    <div class="onec-inspector-grid">
+      <article>
+        <span>Файл</span>
+        <strong>${escapeHtml(oneC.fileName || "-")}</strong>
+        <small>${escapeHtml(oneCKindLabel(oneC.kind))} · header ${oneC.headerRow || 1}-жол</small>
+      </article>
+      <article>
+        <span>Танылған бағандар</span>
+        <strong>${columns.length}</strong>
+        <small>${escapeHtml(columns.slice(0, 5).join(" · ") || "Бағандар толық танылмады")}</small>
+      </article>
+      <article>
+        <span>Ескерту</span>
+        <strong>${oneC.warnings.length}</strong>
+        <small>${escapeHtml(oneC.warnings[0] || "Қауіпті ескерту жоқ")}</small>
+      </article>
+    </div>
+    <div class="onec-action-plan">
+      <strong>Не істеу керек?</strong>
+      ${oneCActionPlan(oneC).map(item => `<p>${escapeHtml(item)}</p>`).join("")}
+    </div>
+    ${oneC.warnings.length ? `<div class="onec-warning-list">${oneC.warnings.map(item => `<p>${escapeHtml(item)}</p>`).join("")}</div>` : ""}
+    ${oneCPreviewTable(oneC.preview.length ? oneC.preview : oneC.rows.slice(0, 8))}
+  `;
+}
+
+function oneCActionPlan(oneC) {
+  const summary = oneC.summary || {};
+  const plan = [];
+  plan.push("Файл дұрыс оқылса, алдымен CFO-ға қосу батырмасын басыңыз. Бұл деректі Бас бухгалтер модуліне жібереді.");
+  if (summary.noStock || summary.lowStock) plan.push("Складта аз/жоқ товар бар: Task жасау батырмасы поставщикке заказ дайындау task-ын ашады.");
+  if (summary.debtRows) plan.push("Қарызы бар клиенттер бар: Task жасау батырмасы төлем follow-up task-ын дайындайды.");
+  if (summary.documents) plan.push("Құжат жолдары табылды: CFO ішінде 1С/Құжаттар бақылауынан ESF, реализация, накладной статусын тексеріңіз.");
+  if (!plan.length) plan.push("Егер дерек толық емес көрінсе, 1С-тен Excel-ге барлық бағандарды шығарып қайта жүктеңіз.");
+  return plan;
+}
+
+function oneCPreviewTable(rows) {
+  if (!rows?.length) return "";
+  const cells = rows.map(row => `
+    <tr>
+      <td>${escapeHtml(row.code || "-")}</td>
+      <td>${escapeHtml(row.name || row.client || row.document || "-")}</td>
+      <td>${escapeHtml(String(row.stock ?? "-"))}</td>
+      <td>${escapeHtml(row.debt ? money(row.debt) : "-")}</td>
+      <td>${escapeHtml(row.status || "-")}</td>
+    </tr>
+  `).join("");
+  return `
+    <div class="onec-preview">
+      <strong>Preview</strong>
+      <table>
+        <thead><tr><th>Код</th><th>Атауы/клиент</th><th>Остаток</th><th>Қарыз</th><th>Статус</th></tr></thead>
+        <tbody>${cells}</tbody>
+      </table>
+    </div>
+  `;
 }
 
 function deleteDoc(id) {
@@ -8047,10 +9042,11 @@ function loadState() {
       challenges: Array.isArray(saved.challenges) ? saved.challenges.map(normalizeChallenge) : (Array.isArray(savedChallenges) ? savedChallenges.map(normalizeChallenge) : []),
       oneC: normalizeOneC(saved.oneC || savedOneC || {}),
       crmReports: Array.isArray(saved.crmReports) ? saved.crmReports.map(normalizeCrmReport) : (Array.isArray(savedCrmReports) ? savedCrmReports.map(normalizeCrmReport) : []),
-      cfo: normalizeCfo(saved.cfo || storageReadJson("zhadyra_cfo", null) || {})
+      cfo: normalizeCfo(saved.cfo || storageReadJson("zhadyra_cfo", null) || {}),
+      electro: normalizeElectro(saved.electro || {})
     };
   } catch {
-    return { docs: [], tasks: [], images: [], calendarOS: defaultCalendarOS(), notes: [], noteFolders: defaultNoteFolders(), goals: [], projects: [], plans: [], challenges: [], oneC: normalizeOneC({}), crmReports: [], cfo: defaultCfoState() };
+    return { docs: [], tasks: [], images: [], calendarOS: defaultCalendarOS(), notes: [], noteFolders: defaultNoteFolders(), goals: [], projects: [], plans: [], challenges: [], oneC: normalizeOneC({}), crmReports: [], cfo: defaultCfoState(), electro: defaultElectroState() };
   }
 }
 
@@ -8069,6 +9065,7 @@ function persist(options = {}) {
   storageWriteJson("zhadyra_1c_excel", state.oneC || {});
   storageWriteJson("zhadyra_crm_reports", state.crmReports || []);
   storageWriteJson("zhadyra_cfo", state.cfo || defaultCfoState());
+  storageWriteJson("sanabase-electro", state.electro || defaultElectroState());
   if (options.sync !== false) scheduleCloudPush();
 }
 

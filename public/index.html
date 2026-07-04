@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#28433f">
   <title>SanaBase AI</title>
-  <link rel="manifest" href="manifest.json?v=20260704-03">
-  <link rel="stylesheet" href="styles.css?v=20260704-03">
+  <link rel="manifest" href="manifest.json?v=20260704-06">
+  <link rel="stylesheet" href="styles.css?v=20260704-06">
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs" type="module"></script>
@@ -27,6 +27,7 @@
       <button class="nav-item" data-view="match">Прайс салыстыру</button>
       <button class="nav-item" data-view="onec">1С Excel</button>
       <button class="nav-item" data-view="cfo">AI Бас бухгалтер</button>
+      <button class="nav-item" data-view="electro">Электро Кеңесші</button>
       <button class="nav-item" data-view="brain">Екінші ми</button>
       <button class="nav-item" data-view="translate">Аударма</button>
       <button class="nav-item" data-view="quiz">Тест</button>
@@ -382,6 +383,8 @@
         </div>
         <div class="crm-actions">
           <button id="onecImportBtn" type="button">1С Excel оқу</button>
+          <button id="onecSyncCfoBtn" type="button">CFO-ға қосу</button>
+          <button id="onecTaskBtn" type="button">Task жасау</button>
           <button id="onecSaveBrainBtn" type="button">Екінші миға сақтау</button>
           <button id="onecCrmDocBtn" type="button">CRM құжат жасау</button>
         </div>
@@ -390,7 +393,127 @@
           <span>1С ішінде Отчет/Список ашып, Excel-ге выгрузить жасайсыз. Осы жерге файлды салып, “1С Excel оқу” басасыз.</span>
         </div>
         <div class="crm-dashboard" id="onecDashboard"></div>
+        <div class="onec-inspector" id="onecInspector"></div>
         <pre id="onecOut">1С-тен Excel/CSV шығарып, осы жерге жүктеңіз. Жүйе бағандарды өзі тануға тырысады.</pre>
+      </div>
+    </section>
+
+    <section class="view" id="electro">
+      <div class="electro-shell">
+        <div class="electro-hero">
+          <div>
+            <span class="brain-type">ElectroPro Assistant</span>
+            <h2>Электро Кеңесші</h2>
+            <p>Электр дүкеніне арналған сатушы-кеңесші: клиент сұрағын нақтылайды, қауіпсіздік ескертеді, WhatsApp жауап, товар карточкасы, бренд, Қытай тауары және алдын ала калькулятор береді.</p>
+          </div>
+          <div class="electro-safety">
+            <strong>Қауіпсіздік ережесі</strong>
+            <span>Нақты монтаж, кабель қимасы, автомат, УЗО/дифавтомат және щит жинау шешімін объектіні көрген сертификатталған электрик тексеруі керек.</span>
+          </div>
+        </div>
+
+        <div class="electro-stats" id="electroStats"></div>
+
+        <div class="electro-tabs">
+          <button type="button" data-electro-tab="consult">Клиент кеңесі</button>
+          <button type="button" data-electro-tab="catalog">Каталог</button>
+          <button type="button" data-electro-tab="brands">Брендтер</button>
+          <button type="button" data-electro-tab="china">Қытай тауарлары</button>
+          <button type="button" data-electro-tab="compare">Салыстыру</button>
+          <button type="button" data-electro-tab="calc">Калькуляторлар</button>
+          <button type="button" data-electro-tab="learn">Оқу</button>
+        </div>
+
+        <section class="electro-panel" data-electro-panel="consult">
+          <form class="electro-grid" id="electroConsultForm">
+            <label><span>Клиент аты</span><input id="electroClientName" placeholder="Мысалы: Айгүл"></label>
+            <label><span>Телефон / WhatsApp</span><input id="electroClientPhone" placeholder="+7 ..."></label>
+            <label><span>Тіл</span><select id="electroLanguage"><option value="kk">Қазақша</option><option value="ru">Русский</option><option value="tr">Türkçe</option><option value="en">English</option><option value="mixed">Барлығы</option></select></label>
+            <label><span>Категория</span><select id="electroCategorySelect"></select></label>
+            <label><span>Бренд</span><select id="electroBrandSelect"></select></label>
+            <label><span>Бюджет</span><input id="electroBudget" placeholder="Бюджет / орташа / премиум"></label>
+            <label class="wide"><span>Клиент сұрағы</span><textarea id="electroRequest" placeholder="Мысалы: Маған далаға розетка керек"></textarea></label>
+            <button type="submit">Кеңес беру</button>
+            <button id="electroSaveConsultBtn" type="button">Консультация сақтау</button>
+            <button id="electroToOrderBtn" type="button">Заказға айналдыру</button>
+          </form>
+          <div class="electro-output" id="electroConsultOut">Клиент сұрағын жазыңыз. ElectroPro нақтылау сұрақтарын, қауіпсіздік ескертуін және WhatsApp мәтінін дайындайды.</div>
+        </section>
+
+        <section class="electro-panel" data-electro-panel="catalog">
+          <form class="electro-grid" id="electroProductForm">
+            <input id="electroProductId" type="hidden">
+            <label><span>SKU</span><input id="electroSku"></label>
+            <label><span>Barcode</span><input id="electroBarcode"></label>
+            <label><span>Тауар атауы</span><input id="electroProductName" required></label>
+            <label><span>Бренд</span><input id="electroProductBrand" placeholder="Tekled / Viko / ..."></label>
+            <label><span>Категория</span><select id="electroProductCategory"></select></label>
+            <label><span>Ел</span><select id="electroCountry"><option>Kazakhstan</option><option>Turkey</option><option>China</option><option>Russia</option><option>Europe</option><option>Other</option></select></label>
+            <label><span>Сатып алу бағасы</span><input id="electroPurchasePrice" type="number"></label>
+            <label><span>Сату бағасы</span><input id="electroSalePrice" type="number"></label>
+            <label><span>Қалдық</span><input id="electroStockQty" type="number"></label>
+            <label><span>Бірлік</span><select id="electroUnit"><option>шт</option><option>м</option><option>упак</option><option>бухта</option><option>комплект</option><option>коробка</option></select></label>
+            <label><span>Voltage</span><input id="electroVoltage" placeholder="220V / 380V"></label>
+            <label><span>IP Rating</span><input id="electroIpRating" placeholder="IP20 / IP44 / IP65"></label>
+            <label class="wide"><span>Сипаттама / specs</span><textarea id="electroDescription"></textarea></label>
+            <button type="submit">Тауар сақтау</button>
+            <button id="electroProductResetBtn" type="button">Форманы тазалау</button>
+          </form>
+          <div class="electro-import">
+            <label class="upload"><input id="electroImportFile" type="file" accept=".xlsx,.xls,.csv,.tsv"> Excel каталог жүктеу</label>
+            <button id="electroImportBtn" type="button">Preview / Import</button>
+          </div>
+          <div class="electro-list" id="electroProductList"></div>
+        </section>
+
+        <section class="electro-panel" data-electro-panel="brands">
+          <form class="electro-grid" id="electroBrandForm">
+            <input id="electroBrandId" type="hidden">
+            <label><span>Бренд</span><input id="electroBrandName" required></label>
+            <label><span>Ел</span><input id="electroBrandCountry"></label>
+            <label><span>Сегмент</span><select id="electroBrandSegment"><option>budget</option><option>middle</option><option>premium</option><option>unknown</option></select></label>
+            <label class="wide"><span>Seller notes</span><textarea id="electroBrandNotes" placeholder="Нақты паспорт/сертификат жоқ болса, соны жазыңыз"></textarea></label>
+            <button type="submit">Бренд сақтау</button>
+          </form>
+          <div class="electro-list" id="electroBrandList"></div>
+        </section>
+
+        <section class="electro-panel" data-electro-panel="china">
+          <form class="electro-grid" id="electroChinaForm">
+            <input id="electroChinaId" type="hidden">
+            <label><span>Қытайша атауы</span><input id="electroChineseName" required></label>
+            <label><span>Поставщик</span><input id="electroChinaSupplier"></label>
+            <label><span>Платформа</span><select id="electroChinaPlatform"><option>Alibaba</option><option>1688</option><option>Taobao</option><option>Manual</option><option>Other</option></select></label>
+            <label><span>Сатып алу бағасы</span><input id="electroChinaPurchase" type="number"></label>
+            <label><span>Жеткізу</span><input id="electroChinaDelivery" type="number"></label>
+            <label><span>Кеден/басқа шығын</span><input id="electroChinaCustoms" type="number"></label>
+            <label><span>Ұсынылған сату бағасы</span><input id="electroChinaSale" type="number"></label>
+            <label><span>Сертификат</span><select id="electroChinaCertificate"><option value="unknown">unknown</option><option value="needed">needed</option><option value="available">available</option><option value="not_required_check">not_required_check</option><option value="problem">problem</option></select></label>
+            <label class="wide"><span>Notes</span><textarea id="electroChinaNotes"></textarea></label>
+            <button type="submit">Қытай тауарын сақтау</button>
+          </form>
+          <div class="electro-list" id="electroChinaList"></div>
+        </section>
+
+        <section class="electro-panel" data-electro-panel="compare">
+          <div class="electro-output" id="electroCompareOut">Каталогтан 2-3 тауарды checkbox арқылы таңдаңыз да, салыстыру басыңыз.</div>
+          <button id="electroCompareBtn" type="button">Таңдалғанды салыстыру</button>
+        </section>
+
+        <section class="electro-panel" data-electro-panel="calc">
+          <div class="electro-grid">
+            <label><span>Calculator</span><select id="electroCalcType"><option value="power">Вт = Вольт × Ампер</option><option value="amp">Ампер = Вт / Вольт</option><option value="led">LED лента блок питания</option><option value="cable">Кабель ұзындығы + запас</option><option value="price">Баға + маржа</option></select></label>
+            <label><span>1-мән</span><input id="electroCalcA" type="number" placeholder="Voltage / Watt / метр / purchase"></label>
+            <label><span>2-мән</span><input id="electroCalcB" type="number" placeholder="Amp / Volt / W per m / margin %"></label>
+            <label><span>3-мән</span><input id="electroCalcC" type="number" placeholder="Запас % / delivery"></label>
+            <button id="electroCalcBtn" type="button">Есептеу</button>
+          </div>
+          <div class="electro-output" id="electroCalcOut">Бұл алдын ала есеп. Нақты шешімді электрик бекітеді.</div>
+        </section>
+
+        <section class="electro-panel" data-electro-panel="learn">
+          <div class="electro-list" id="electroLessonList"></div>
+        </section>
       </div>
     </section>
 
@@ -1086,18 +1209,18 @@
     </section>
   </div>
 
-  <script src="js/utils.js?v=20260704-03"></script>
-  <script src="js/storage.js?v=20260704-03"></script>
-  <script src="js/api.js?v=20260704-03"></script>
-  <script src="js/spreadsheet.js?v=20260704-03"></script>
-  <script src="js/documents.js?v=20260704-03"></script>
-  <script src="js/priceMatching.js?v=20260704-03"></script>
+  <script src="js/utils.js?v=20260704-06"></script>
+  <script src="js/storage.js?v=20260704-06"></script>
+  <script src="js/api.js?v=20260704-06"></script>
+  <script src="js/spreadsheet.js?v=20260704-06"></script>
+  <script src="js/documents.js?v=20260704-06"></script>
+  <script src="js/priceMatching.js?v=20260704-06"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     window.SANABASE_SUPABASE_URL = window.SANABASE_SUPABASE_URL || "https://koszjmsanlxdakqvdkgc.supabase.co";
     window.SANABASE_SUPABASE_ANON_KEY = window.SANABASE_SUPABASE_ANON_KEY || "sb_publishable_y7IIJav4n99Z1dbfROh3SA_TtlAn5tO";
   </script>
-  <script src="js/cloudSync.js?v=20260704-03"></script>
-  <script src="app.js?v=20260704-03"></script>
+  <script src="js/cloudSync.js?v=20260704-06"></script>
+  <script src="app.js?v=20260704-06"></script>
 </body>
 </html>

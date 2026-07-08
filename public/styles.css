@@ -348,6 +348,42 @@ textarea:focus, input:focus, select:focus { border-color: var(--leaf); }
   resize: vertical;
 }
 
+.crm-actions.compact {
+  grid-template-columns: repeat(2, minmax(120px, 1fr));
+  min-width: min(100%, 320px);
+}
+
+.crm-nakladnaya-items-panel {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.crm-nakladnaya-items {
+  display: grid;
+  gap: 8px;
+}
+
+.crm-nakladnaya-item-row {
+  display: grid;
+  grid-template-columns: 36px 110px minmax(180px, 1fr) 130px 90px 90px 110px;
+  gap: 8px;
+  align-items: center;
+}
+
+.crm-nakladnaya-item-row span {
+  display: grid;
+  place-items: center;
+  height: 38px;
+  border-radius: 8px;
+  background: rgba(36, 76, 67, 0.1);
+  color: var(--sage);
+  font-weight: 800;
+}
+
 .crm-nakladnaya-status {
   border: 1px dashed var(--line);
   border-radius: 10px;
@@ -3928,6 +3964,12 @@ pre {
   }
   .composer, .toolbar, .split, .notes-layout, .tasks-layout, .cal-layout, .cal-hero, .match-grid, .brain-fields, .brain-head, .cloud-grid, .task-form-grid, .note-form-grid, .cal-form-grid, .assistant-controls, .assistant-dashboard, .goal-toolbar, .goal-layout, .goal-columns, .goal-form-grid, .crm-actions, .crm-dashboard, .crm-sections, .crm-template-grid, .crm-panel-head, .crm-toolbar, .crm-quick-form, .crm-file-grid, .crm-smart-archive, .crm-report-card, .cfo-hero, .cfo-layout, .cfo-toolbar, .cfo-form-grid, .cfo-accountant-grid, .cfo-file-grid, .cfo-business-grid {
     grid-template-columns: 1fr;
+  }
+  .crm-nakladnaya-item-row {
+    grid-template-columns: 34px 1fr;
+  }
+  .crm-nakladnaya-item-row input {
+    grid-column: 2;
   }
   .cfo-kpis,
   .cfo-mini-grid {

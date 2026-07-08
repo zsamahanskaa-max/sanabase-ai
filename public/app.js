@@ -158,6 +158,8 @@ on("crmOrderClientSelect", "change", fillCrmOrderClientFromSelect);
 on("crmNakladnayaOrderSelect", "change", fillCrmNakladnayaFromSelectedOrder);
 on("crmNakladnayaLoadOrderBtn", "click", fillCrmNakladnayaFromSelectedOrder);
 on("crmNakladnayaClearBtn", "click", clearCrmNakladnayaForm);
+on("crmNakladnayaAddItemBtn", "click", addCrmNakladnayaItemRow);
+on("crmNakladnayaClearItemsBtn", "click", clearCrmNakladnayaItemRows);
 on("crmNakladnayaGenerateBtn", "click", generateCrmNakladnaya);
 on("crmNakladnayaPrintBtn", "click", printCrmNakladnaya);
 on("crmNakladnayaSaveBtn", "click", saveCrmNakladnayaDocument);
@@ -728,6 +730,7 @@ function renderCrmNakladnayaBuilder() {
   if ($("crmNakladnayaPreview") && !$("crmNakladnayaPreview").innerHTML.trim()) {
     $("crmNakladnayaPreview").innerHTML = crmNakladnayaEmptyPreview();
   }
+  ensureCrmNakladnayaItemRows();
 }
 
 function crmNakladnayaEmptyPreview() {
@@ -758,6 +761,14 @@ function fillCrmNakladnayaFromSelectedOrder() {
   setValue("crmNakladnayaQuantity", Number(order.quantity || 0) || "");
   setValue("crmNakladnayaUnit", "дана");
   setValue("crmNakladnayaPrice", Number(order.salePrice || 0) || "");
+  setCrmNakladnayaItemRows([{
+    code: order.productCode || order.sku || order.barcode || "",
+    name: order.productName || order.productsJson || "",
+    serial: "",
+    quantity: Number(order.quantity || 0) || "",
+    unit: "дана",
+    price: Number(order.salePrice || 0) || ""
+  }]);
   setValue("crmNakladnayaComment", order.comment || "");
   if ($("crmNakladnayaStatus")) $("crmNakladnayaStatus").textContent = `Order-ден толтырылды: ${order.orderNumber || order.title || order.id}.`;
   generateCrmNakladnaya();
@@ -771,6 +782,7 @@ function clearCrmNakladnayaForm() {
   setValue("crmNakladnayaDate", isoDate());
   setValue("crmNakladnayaNumber", `NK-${Date.now().toString().slice(-6)}`);
   fillCrmCompanyProfileToNakladnaya();
+  setCrmNakladnayaItemRows([]);
   if ($("crmNakladnayaPreview")) $("crmNakladnayaPreview").innerHTML = crmNakladnayaEmptyPreview();
   if ($("crmNakladnayaStatus")) $("crmNakladnayaStatus").textContent = "Бос шаблон дайын. Тауарды қолмен енгізіп немесе бос күйінде печать ете аласыз.";
 }
@@ -778,7 +790,16 @@ function clearCrmNakladnayaForm() {
 function collectCrmNakladnayaData() {
   const quantity = Number($("crmNakladnayaQuantity")?.value || 0);
   const price = Number($("crmNakladnayaPrice")?.value || 0);
-  const total = quantity * price;
+  const fallbackItem = {
+    code: $("crmNakladnayaProductCode")?.value?.trim() || "",
+    name: $("crmNakladnayaProductName")?.value?.trim() || "",
+    serial: $("crmNakladnayaSerial")?.value?.trim() || "",
+    quantity,
+    unit: $("crmNakladnayaUnit")?.value?.trim() || "дана",
+    price
+  };
+  const items = collectCrmNakladnayaItems(fallbackItem);
+  const total = items.reduce((sum, item) => sum + item.total, 0);
   return {
     type: $("crmNakladnayaType")?.value || "nakladnaya",
     orderId: $("crmNakladnayaOrderSelect")?.value || "",
@@ -793,16 +814,89 @@ function collectCrmNakladnayaData() {
     buyerBin: $("crmNakladnayaBuyerBin")?.value?.trim() || "",
     buyerPhone: $("crmNakladnayaBuyerPhone")?.value?.trim() || "",
     buyerAddress: $("crmNakladnayaBuyerAddress")?.value?.trim() || "",
-    productCode: $("crmNakladnayaProductCode")?.value?.trim() || "",
-    productName: $("crmNakladnayaProductName")?.value?.trim() || "",
-    serial: $("crmNakladnayaSerial")?.value?.trim() || "",
+    productCode: fallbackItem.code,
+    productName: fallbackItem.name,
+    serial: fallbackItem.serial,
     quantity,
-    unit: $("crmNakladnayaUnit")?.value?.trim() || "дана",
+    unit: fallbackItem.unit,
     price,
     total,
+    items,
     warrantyMonths: Number($("crmNakladnayaWarrantyMonths")?.value || 0),
     comment: $("crmNakladnayaComment")?.value?.trim() || ""
   };
+}
+
+function ensureCrmNakladnayaItemRows() {
+  const node = $("crmNakladnayaItems");
+  if (!node || node.children.length) return;
+  setCrmNakladnayaItemRows([]);
+}
+
+function emptyCrmNakladnayaItem() {
+  return { code: "", name: "", serial: "", quantity: "", unit: "дана", price: "" };
+}
+
+function setCrmNakladnayaItemRows(items = []) {
+  const node = $("crmNakladnayaItems");
+  if (!node) return;
+  const rows = items.length ? items : [emptyCrmNakladnayaItem(), emptyCrmNakladnayaItem(), emptyCrmNakladnayaItem()];
+  node.innerHTML = rows.map((item, index) => crmNakladnayaItemRowHtml(item, index)).join("");
+}
+
+function addCrmNakladnayaItemRow() {
+  const rows = readCrmNakladnayaItemRows();
+  rows.push(emptyCrmNakladnayaItem());
+  setCrmNakladnayaItemRows(rows);
+}
+
+function clearCrmNakladnayaItemRows() {
+  setCrmNakladnayaItemRows([]);
+  if ($("crmNakladnayaStatus")) $("crmNakladnayaStatus").textContent = "Тауар жолдары тазаланды.";
+}
+
+function crmNakladnayaItemRowHtml(item, index) {
+  return `
+    <div class="crm-nakladnaya-item-row" data-nakladnaya-item-row>
+      <span>${index + 1}</span>
+      <input data-nakladnaya-item="code" value="${escapeHtml(item.code || "")}" placeholder="код">
+      <input data-nakladnaya-item="name" value="${escapeHtml(item.name || "")}" placeholder="тауар атауы">
+      <input data-nakladnaya-item="serial" value="${escapeHtml(item.serial || "")}" placeholder="серия / IMEI">
+      <input data-nakladnaya-item="quantity" type="number" step="0.001" value="${escapeHtml(String(item.quantity || ""))}" placeholder="саны">
+      <input data-nakladnaya-item="unit" value="${escapeHtml(item.unit || "дана")}" placeholder="өлшем">
+      <input data-nakladnaya-item="price" type="number" step="0.01" value="${escapeHtml(String(item.price || ""))}" placeholder="баға">
+    </div>
+  `;
+}
+
+function readCrmNakladnayaItemRows() {
+  return Array.from(document.querySelectorAll("[data-nakladnaya-item-row]")).map(row => ({
+    code: row.querySelector('[data-nakladnaya-item="code"]')?.value?.trim() || "",
+    name: row.querySelector('[data-nakladnaya-item="name"]')?.value?.trim() || "",
+    serial: row.querySelector('[data-nakladnaya-item="serial"]')?.value?.trim() || "",
+    quantity: row.querySelector('[data-nakladnaya-item="quantity"]')?.value || "",
+    unit: row.querySelector('[data-nakladnaya-item="unit"]')?.value?.trim() || "дана",
+    price: row.querySelector('[data-nakladnaya-item="price"]')?.value || ""
+  }));
+}
+
+function collectCrmNakladnayaItems(fallbackItem) {
+  const rows = readCrmNakladnayaItemRows()
+    .filter(item => item.code || item.name || item.serial || Number(item.quantity || 0) || Number(item.price || 0));
+  const source = rows.length ? rows : (fallbackItem.name || fallbackItem.code || fallbackItem.quantity || fallbackItem.price ? [fallbackItem] : []);
+  return source.map(item => {
+    const quantity = Number(item.quantity || 0);
+    const price = Number(item.price || 0);
+    return {
+      code: item.code || "",
+      name: item.name || "",
+      serial: item.serial || "",
+      quantity,
+      unit: item.unit || "дана",
+      price,
+      total: quantity * price
+    };
+  });
 }
 
 function crmNakladnayaTitle(type) {
@@ -852,19 +946,7 @@ function crmNakladnayaHtml(data) {
             <th>Сумма</th>
           </tr>
         </thead>
-        <tbody>
-          <tr>
-            <td>1</td>
-            <td>${escapeHtml(data.productCode || "")}</td>
-            <td>${escapeHtml(data.productName || "")}</td>
-            <td>${escapeHtml(data.serial || "")}</td>
-            <td>${data.quantity || ""} ${escapeHtml(data.unit || "")}</td>
-            <td>${data.price ? money(data.price) : ""}</td>
-            <td>${data.total ? money(data.total) : ""}</td>
-          </tr>
-          ${!data.productName ? `<tr><td>2</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>` : ""}
-          ${!data.productName ? `<tr><td>3</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>` : ""}
-        </tbody>
+        <tbody>${crmNakladnayaItemTableRows(data.items)}</tbody>
       </table>
       <div class="crm-nakladnaya-total">
         <span>Жалпы сумма:</span>
@@ -889,6 +971,25 @@ function crmNakladnayaHtml(data) {
   `;
 }
 
+function crmNakladnayaItemTableRows(items = []) {
+  const rows = items.length ? items : [
+    emptyCrmNakladnayaItem(),
+    emptyCrmNakladnayaItem(),
+    emptyCrmNakladnayaItem()
+  ];
+  return rows.map((item, index) => `
+    <tr>
+      <td>${index + 1}</td>
+      <td>${escapeHtml(item.code || "")}</td>
+      <td>${escapeHtml(item.name || "")}</td>
+      <td>${escapeHtml(item.serial || "")}</td>
+      <td>${item.quantity || ""} ${escapeHtml(item.unit || "")}</td>
+      <td>${item.price ? money(item.price) : ""}</td>
+      <td>${item.total ? money(item.total) : ""}</td>
+    </tr>
+  `).join("");
+}
+
 function crmNakladnayaText(data) {
   return [
     crmNakladnayaTitle(data.type),
@@ -907,13 +1008,9 @@ function crmNakladnayaText(data) {
     `Телефон: ${data.buyerPhone || ""}`,
     `Адрес: ${data.buyerAddress || ""}`,
     "",
-    "Тауар:",
-    `Код: ${data.productCode || ""}`,
-    `Атауы: ${data.productName || ""}`,
-    `Сериялық номер: ${data.serial || ""}`,
-    `Саны: ${data.quantity || ""} ${data.unit || ""}`,
-    `Бағасы: ${data.price ? money(data.price) : ""}`,
-    `Сумма: ${data.total ? money(data.total) : ""}`,
+    "Тауарлар:",
+    ...(data.items || []).map((item, index) => `${index + 1}. ${item.code || "-"} · ${item.name || "-"} · ${item.serial || "-"} · ${item.quantity || ""} ${item.unit || ""} · ${item.price ? money(item.price) : ""} · ${item.total ? money(item.total) : ""}`),
+    `Жалпы сумма: ${data.total ? money(data.total) : ""}`,
     data.warrantyMonths ? `Гарантия: ${data.warrantyMonths} ай` : "",
     "",
     `Комментарий: ${data.comment || ""}`,

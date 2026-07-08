@@ -748,7 +748,7 @@ Frontend asset query versions were updated to `20260708-04`. Service worker navi
 
 ## 38. CRM Nakladnaya / Warranty generator
 
-Frontend asset query versions were updated to `20260708-08`. Manual checks to run:
+Frontend asset query versions were updated to `20260708-09`. Manual checks to run:
 
 1. Open CRM.
 2. In `Накладной / Гарантия жасау`, enter seller data once and click `Құжат жасау`.
@@ -763,9 +763,10 @@ Frontend asset query versions were updated to `20260708-08`. Manual checks to ru
 11. Enable `CRM-ге сақтағанда складтан сатылды деп азайту`.
 12. Click `CRM-ге сақтау`, confirm the warning, and confirm ElectroPro stock decreases.
 13. Confirm ElectroPro movement history gets a sale row from the nakladnaya.
-14. Click `Бос шаблон` and confirm blank printable document can be generated.
-15. Confirm existing CRM quick order save still works.
-16. Confirm Console error is empty.
+14. Confirm `Накладной сатылым отчеты` shows sale count, total amount, margin, client, and product rows.
+15. Click `Бос шаблон` and confirm blank printable document can be generated.
+16. Confirm existing CRM quick order save still works.
+17. Confirm Console error is empty.
 
 ## Pass criteria
 

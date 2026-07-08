@@ -408,6 +408,41 @@ textarea:focus, input:focus, select:focus { border-color: var(--leaf); }
   width: auto;
 }
 
+.crm-nakladnaya-report {
+  display: grid;
+  gap: 12px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+
+.crm-nakladnaya-sales-rows {
+  display: grid;
+  gap: 8px;
+}
+
+.crm-nakladnaya-sale-row,
+.crm-nakladnaya-sale-empty {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(130px, .5fr) minmax(150px, .6fr);
+  gap: 12px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.74);
+  padding: 10px 12px;
+}
+
+.crm-nakladnaya-sale-row span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.crm-nakladnaya-sale-empty {
+  grid-template-columns: 1fr;
+  color: var(--muted);
+}
+
 .crm-nakladnaya-preview {
   overflow-x: auto;
 }
@@ -3986,6 +4021,9 @@ pre {
   }
   .crm-nakladnaya-item-row input {
     grid-column: 2;
+  }
+  .crm-nakladnaya-sale-row {
+    grid-template-columns: 1fr;
   }
   .cfo-kpis,
   .cfo-mini-grid {

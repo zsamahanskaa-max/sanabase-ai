@@ -734,6 +734,7 @@ function renderCrmNakladnayaBuilder() {
   }
   ensureCrmNakladnayaItemRows();
   renderCrmNakladnayaProductDatalist();
+  renderCrmNakladnayaSalesReport();
 }
 
 function crmNakladnayaEmptyPreview() {
@@ -1194,6 +1195,64 @@ function applyCrmNakladnayaStockSale(data) {
     result.updated += 1;
   });
   return result;
+}
+
+function crmNakladnayaSalesRows() {
+  state.electro = normalizeElectro(state.electro || {});
+  return (state.electro.movements || [])
+    .filter(item => item.type === "sale" && /наклад|naklad/i.test(`${item.comment || ""}`))
+    .map(item => {
+      const qty = Number(item.qty || 0);
+      const sale = Number(item.salePrice || 0);
+      const purchase = Number(item.purchasePrice || 0);
+      const total = Number(item.totalAmount || (qty * sale));
+      const cost = qty * purchase;
+      return {
+        ...item,
+        total,
+        cost,
+        margin: total - cost,
+        marginPercent: total ? Math.round(((total - cost) / total) * 100) : 0
+      };
+    });
+}
+
+function renderCrmNakladnayaSalesReport() {
+  const kpis = $("crmNakladnayaSalesKpis");
+  const list = $("crmNakladnayaSalesRows");
+  if (!kpis || !list) return;
+  const rows = crmNakladnayaSalesRows();
+  const total = rows.reduce((sum, row) => sum + row.total, 0);
+  const margin = rows.reduce((sum, row) => sum + row.margin, 0);
+  const qty = rows.reduce((sum, row) => sum + Number(row.qty || 0), 0);
+  const clients = new Set(rows.map(row => row.counterparty).filter(Boolean)).size;
+  kpis.innerHTML = [
+    ["Накладной продажа", rows.length],
+    ["Тауар саны", qty],
+    ["Сатылым сумма", money(total)],
+    ["Маржа", money(margin)],
+    ["Клиент", clients]
+  ].map(([label, value]) => `<article class="crm-stat"><span>${escapeHtml(label)}</span><strong>${escapeHtml(String(value))}</strong></article>`).join("");
+  if (!rows.length) {
+    list.innerHTML = `<article class="crm-nakladnaya-sale-empty">Әзірге накладной арқылы складтан шыққан сатылым жоқ. Checkbox қосып, "CRM-ге сақтау" басқанда осы жерде отчет пайда болады.</article>`;
+    return;
+  }
+  list.innerHTML = rows.slice(0, 20).map(row => `
+    <article class="crm-nakladnaya-sale-row">
+      <div>
+        <strong>${escapeHtml(row.productName || row.sku || "Тауар")}</strong>
+        <span>${escapeHtml(formatDate(row.date))} · ${escapeHtml(row.comment || "Накладной")} · ${escapeHtml(row.counterparty || "клиент жоқ")}</span>
+      </div>
+      <div>
+        <span>${escapeHtml(String(row.qty || 0))} ${escapeHtml(row.unit || "")}</span>
+        <strong>${money(row.total)}</strong>
+      </div>
+      <div>
+        <span>Маржа</span>
+        <strong>${money(row.margin)} · ${row.marginPercent}%</strong>
+      </div>
+    </article>
+  `).join("");
 }
 
 function crmNakladnayaPrintCss() {

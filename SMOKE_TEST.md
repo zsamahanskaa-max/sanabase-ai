@@ -699,6 +699,23 @@ Frontend manifest version was updated to `20260708-01`. Manual checks to run:
 7. Confirm app shortcuts with `?view=electro`, `?view=crm`, and `?view=tasks` open the correct section.
 8. Confirm normal browser mode still works.
 
+## 35. ElectroPro sales and stock workflow
+
+Frontend asset query versions were updated to `20260708-02`. Manual checks to run:
+
+1. Open `Электро Кеңесші` -> `Каталог`.
+2. Add product with SKU/barcode/name, sale price, purchase price, and stock quantity.
+3. Open `Сату / Склад`.
+4. Type SKU, barcode, or product name in sale search and confirm the product appears automatically.
+5. Enter sale quantity and click `Саттым деп енгізу`.
+6. Confirm product stock decreases and sale appears in movement history.
+7. Type the same product in stock-in search, enter received quantity, and click `Складқа қосу`.
+8. Confirm product stock increases and stock-in appears in movement history.
+9. In stock-in form, type a new product name that does not exist and confirm it creates a new product.
+10. Refresh page and confirm products, stock, and movement history remain saved.
+11. Confirm Sana CFO receives retail sale income entry.
+12. Confirm Console error is empty.
+
 ## Pass criteria
 
 - `public/js/utils.js` loads before `public/app.js`.

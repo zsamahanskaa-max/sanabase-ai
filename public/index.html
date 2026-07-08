@@ -9,9 +9,9 @@
   <meta name="apple-mobile-web-app-title" content="SanaBase">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>SanaBase AI</title>
-  <link rel="manifest" href="manifest.json?v=20260708-01">
+  <link rel="manifest" href="manifest.json?v=20260708-02">
   <link rel="apple-touch-icon" href="icons/sanabase-icon.svg">
-  <link rel="stylesheet" href="styles.css?v=20260704-06">
+  <link rel="stylesheet" href="styles.css?v=20260708-02">
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs" type="module"></script>
@@ -422,6 +422,7 @@
         <div class="electro-tabs">
           <button type="button" data-electro-tab="consult">Клиент кеңесі</button>
           <button type="button" data-electro-tab="catalog">Каталог</button>
+          <button type="button" data-electro-tab="inventory">Сату / Склад</button>
           <button type="button" data-electro-tab="brands">Брендтер</button>
           <button type="button" data-electro-tab="china">Қытай тауарлары</button>
           <button type="button" data-electro-tab="compare">Салыстыру</button>
@@ -469,6 +470,38 @@
             <button id="electroImportBtn" type="button">Preview / Import</button>
           </div>
           <div class="electro-list" id="electroProductList"></div>
+        </section>
+
+        <section class="electro-panel" data-electro-panel="inventory">
+          <div class="electro-inventory-layout">
+            <form class="electro-grid" id="electroSaleForm">
+              <label class="wide"><span>Код / barcode / атау бойынша іздеу</span><input id="electroSaleSearch" list="electroProductSuggestions" placeholder="Мысалы: VIKO-001 немесе розетка"></label>
+              <datalist id="electroProductSuggestions"></datalist>
+              <input id="electroSaleProductId" type="hidden">
+              <label><span>Табылған тауар</span><input id="electroSaleProductName" readonly placeholder="Тауар таңдалмады"></label>
+              <label><span>Қазіргі қалдық</span><input id="electroSaleCurrentStock" readonly></label>
+              <label><span>Сатылған саны</span><input id="electroSaleQty" type="number" min="1" step="1" value="1"></label>
+              <label><span>Сату бағасы</span><input id="electroSalePriceInput" type="number" min="0" step="1"></label>
+              <label><span>Клиент</span><input id="electroSaleClient" placeholder="Клиент аты / Kaspi / дүкен"></label>
+              <label class="wide"><span>Комментарий</span><textarea id="electroSaleComment" placeholder="Чек, WhatsApp, заказ номері..."></textarea></label>
+              <button type="submit">Саттым деп енгізу</button>
+            </form>
+
+            <form class="electro-grid" id="electroStockInForm">
+              <label class="wide"><span>Приход: код / barcode / атау</span><input id="electroStockSearch" list="electroProductSuggestions" placeholder="Бар тауарды табу немесе жаңа тауар атауын жазу"></label>
+              <input id="electroStockProductId" type="hidden">
+              <label><span>Жаңа SKU</span><input id="electroStockSku" placeholder="Егер жаңа тауар болса"></label>
+              <label><span>Жаңа barcode</span><input id="electroStockBarcode" placeholder="Егер жаңа тауар болса"></label>
+              <label><span>Келген саны</span><input id="electroStockQtyIn" type="number" min="1" step="1" value="1"></label>
+              <label><span>Сатып алу бағасы</span><input id="electroStockPurchaseInput" type="number" min="0" step="1"></label>
+              <label><span>Сату бағасы</span><input id="electroStockSaleInput" type="number" min="0" step="1"></label>
+              <label><span>Поставщик</span><input id="electroStockSupplier" placeholder="Tekled / Viko / поставщик"></label>
+              <label class="wide"><span>Комментарий</span><textarea id="electroStockComment" placeholder="Накладной, дата, коробка..."></textarea></label>
+              <button type="submit">Складқа қосу</button>
+            </form>
+          </div>
+          <div class="electro-output" id="electroInventoryOut">Кодты немесе атауды жазыңыз. Товар базада болса өзі табылады, сатсаңыз қалдық азаяды, приход болса қалдық көбейеді.</div>
+          <div class="electro-list" id="electroMovementList"></div>
         </section>
 
         <section class="electro-panel" data-electro-panel="brands">
@@ -1214,19 +1247,19 @@
     </section>
   </div>
 
-  <script src="js/utils.js?v=20260704-06"></script>
-  <script src="js/storage.js?v=20260704-06"></script>
-  <script src="js/api.js?v=20260704-06"></script>
-  <script src="js/spreadsheet.js?v=20260704-06"></script>
-  <script src="js/documents.js?v=20260704-06"></script>
-  <script src="js/priceMatching.js?v=20260704-06"></script>
+  <script src="js/utils.js?v=20260708-02"></script>
+  <script src="js/storage.js?v=20260708-02"></script>
+  <script src="js/api.js?v=20260708-02"></script>
+  <script src="js/spreadsheet.js?v=20260708-02"></script>
+  <script src="js/documents.js?v=20260708-02"></script>
+  <script src="js/priceMatching.js?v=20260708-02"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     window.SANABASE_SUPABASE_URL = window.SANABASE_SUPABASE_URL || "https://koszjmsanlxdakqvdkgc.supabase.co";
     window.SANABASE_SUPABASE_ANON_KEY = window.SANABASE_SUPABASE_ANON_KEY || "sb_publishable_y7IIJav4n99Z1dbfROh3SA_TtlAn5tO";
   </script>
-  <script src="js/cloudSync.js?v=20260704-06"></script>
-  <script src="app.js?v=20260704-06"></script>
+  <script src="js/cloudSync.js?v=20260708-02"></script>
+  <script src="app.js?v=20260708-02"></script>
   <script>
     if ("serviceWorker" in navigator && location.protocol !== "file:") {
       window.addEventListener("load", () => {

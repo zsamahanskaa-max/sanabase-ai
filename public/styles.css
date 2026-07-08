@@ -1112,6 +1112,12 @@ textarea:focus, input:focus, select:focus { border-color: var(--leaf); }
   gap: 12px;
 }
 
+.electro-inventory-layout {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
 .electro-card {
   display: grid;
   gap: 8px;
@@ -1130,9 +1136,20 @@ textarea:focus, input:focus, select:focus { border-color: var(--leaf); }
   font-size: 12px;
 }
 
+.electro-sale {
+  border-color: rgba(22, 163, 74, .25);
+  background: rgba(240, 253, 244, .82);
+}
+
+.electro-stock-in {
+  border-color: rgba(37, 99, 235, .25);
+  background: rgba(239, 246, 255, .82);
+}
+
 @media (max-width: 900px) {
   .electro-hero,
   .electro-grid,
+  .electro-inventory-layout,
   .electro-list,
   .electro-stats {
     grid-template-columns: 1fr;

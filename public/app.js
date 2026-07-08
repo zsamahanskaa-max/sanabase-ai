@@ -153,6 +153,8 @@ on("crmClientForm", "submit", saveCrmClientCard);
 on("crmClientSearch", "input", render);
 on("crmClientStatusFilter", "change", render);
 document.addEventListener("click", handleCrmClientCardAction);
+document.addEventListener("input", handleCrmNakladnayaProductLookupInput);
+document.addEventListener("change", handleCrmNakladnayaProductLookupInput);
 on("crmQuickForm", "submit", saveCrmQuickDeal);
 on("crmOrderClientSelect", "change", fillCrmOrderClientFromSelect);
 on("crmNakladnayaOrderSelect", "change", fillCrmNakladnayaFromSelectedOrder);
@@ -731,6 +733,7 @@ function renderCrmNakladnayaBuilder() {
     $("crmNakladnayaPreview").innerHTML = crmNakladnayaEmptyPreview();
   }
   ensureCrmNakladnayaItemRows();
+  renderCrmNakladnayaProductDatalist();
 }
 
 function crmNakladnayaEmptyPreview() {
@@ -844,6 +847,20 @@ function setCrmNakladnayaItemRows(items = []) {
   node.innerHTML = rows.map((item, index) => crmNakladnayaItemRowHtml(item, index)).join("");
 }
 
+function renderCrmNakladnayaProductDatalist() {
+  const node = $("crmNakladnayaProductDatalist");
+  if (!node) return;
+  state.electro = normalizeElectro(state.electro || {});
+  const options = [];
+  state.electro.products.slice(0, 300).forEach(item => {
+    const label = [item.name, item.brand, item.stockQty ? `${item.stockQty} ${item.unit}` : "", item.salePrice ? money(item.salePrice) : ""].filter(Boolean).join(" · ");
+    [item.sku, item.barcode, item.name].filter(Boolean).forEach(value => {
+      options.push(`<option value="${escapeHtml(value)}" label="${escapeHtml(label)}"></option>`);
+    });
+  });
+  node.innerHTML = options.join("");
+}
+
 function addCrmNakladnayaItemRow() {
   const rows = readCrmNakladnayaItemRows();
   rows.push(emptyCrmNakladnayaItem());
@@ -859,8 +876,8 @@ function crmNakladnayaItemRowHtml(item, index) {
   return `
     <div class="crm-nakladnaya-item-row" data-nakladnaya-item-row>
       <span>${index + 1}</span>
-      <input data-nakladnaya-item="code" value="${escapeHtml(item.code || "")}" placeholder="код">
-      <input data-nakladnaya-item="name" value="${escapeHtml(item.name || "")}" placeholder="тауар атауы">
+      <input data-nakladnaya-item="code" list="crmNakladnayaProductDatalist" value="${escapeHtml(item.code || "")}" placeholder="код">
+      <input data-nakladnaya-item="name" list="crmNakladnayaProductDatalist" value="${escapeHtml(item.name || "")}" placeholder="тауар атауы">
       <input data-nakladnaya-item="serial" value="${escapeHtml(item.serial || "")}" placeholder="серия / IMEI">
       <input data-nakladnaya-item="quantity" type="number" step="0.001" value="${escapeHtml(String(item.quantity || ""))}" placeholder="саны">
       <input data-nakladnaya-item="unit" value="${escapeHtml(item.unit || "дана")}" placeholder="өлшем">
@@ -878,6 +895,54 @@ function readCrmNakladnayaItemRows() {
     unit: row.querySelector('[data-nakladnaya-item="unit"]')?.value?.trim() || "дана",
     price: row.querySelector('[data-nakladnaya-item="price"]')?.value || ""
   }));
+}
+
+function handleCrmNakladnayaProductLookupInput(event) {
+  const input = event.target.closest?.('[data-nakladnaya-item="code"], [data-nakladnaya-item="name"], #crmNakladnayaProductCode, #crmNakladnayaProductName');
+  if (!input) return;
+  const query = input.value || "";
+  if (normalizeText(query).length < 2) return;
+  const product = findCrmNakladnayaProductByQuery(query);
+  if (!product) return;
+  const row = input.closest("[data-nakladnaya-item-row]");
+  if (row) {
+    fillCrmNakladnayaItemRowFromProduct(row, product, input.dataset.nakladnayaItem);
+    if ($("crmNakladnayaStatus")) $("crmNakladnayaStatus").textContent = `Тауар табылды: ${product.name || product.sku || product.barcode}. Накладной жолы автомат толды.`;
+    return;
+  }
+  fillCrmNakladnayaMainProductFromProduct(product, input.id);
+  if ($("crmNakladnayaStatus")) $("crmNakladnayaStatus").textContent = `Тауар табылды: ${product.name || product.sku || product.barcode}.`;
+}
+
+function findCrmNakladnayaProductByQuery(query = "") {
+  const text = normalizeText(query);
+  if (!text) return null;
+  state.electro = normalizeElectro(state.electro || {});
+  const products = state.electro.products || [];
+  const exact = products.find(item => [item.sku, item.barcode, item.name].some(value => normalizeText(value) === text));
+  if (exact) return exact;
+  if (text.length < 3) return null;
+  return products.find(item => normalizeText(`${item.sku} ${item.barcode} ${item.name} ${item.brand} ${item.model}`).includes(text)) || null;
+}
+
+function fillCrmNakladnayaItemRowFromProduct(row, product, sourceField = "") {
+  const code = product.sku || product.barcode || "";
+  const setRowValue = (field, value, force = false) => {
+    const node = row.querySelector(`[data-nakladnaya-item="${field}"]`);
+    if (node && (force || !node.value)) node.value = value ?? "";
+  };
+  setRowValue("code", code, sourceField === "code");
+  setRowValue("name", product.name || "", sourceField === "name");
+  setRowValue("unit", product.unit || "дана", true);
+  setRowValue("price", product.salePrice || "", true);
+}
+
+function fillCrmNakladnayaMainProductFromProduct(product, sourceId = "") {
+  const code = product.sku || product.barcode || "";
+  if (sourceId !== "crmNakladnayaProductCode" || !$("crmNakladnayaProductCode")?.value) setValue("crmNakladnayaProductCode", code);
+  if (sourceId !== "crmNakladnayaProductName" || !$("crmNakladnayaProductName")?.value) setValue("crmNakladnayaProductName", product.name || "");
+  if (!$("crmNakladnayaUnit")?.value) setValue("crmNakladnayaUnit", product.unit || "дана");
+  setValue("crmNakladnayaPrice", product.salePrice || "");
 }
 
 function collectCrmNakladnayaItems(fallbackItem) {

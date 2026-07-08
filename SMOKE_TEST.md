@@ -686,6 +686,19 @@ Frontend asset query versions were updated to `20260704-06`. Manual checks to ru
 14. Confirm mobile layout does not overflow.
 15. Confirm Console error is empty.
 
+## 34. PWA / App-like install
+
+Frontend manifest version was updated to `20260708-01`. Manual checks to run:
+
+1. Open the live site on phone: `https://zsamahanskaa-max.github.io/sanabase-ai/`.
+2. Android Chrome: open menu and choose `Add to Home screen` / `Install app`.
+3. iPhone Safari: tap Share and choose `Add to Home Screen`.
+4. Launch SanaBase from the home screen and confirm it opens without browser toolbar when supported.
+5. Confirm icon appears as SanaBase `SB`.
+6. Confirm `/public/manifest.json?v=20260708-01`, `/sw.js`, and `/public/icons/sanabase-icon.svg` return 200.
+7. Confirm app shortcuts with `?view=electro`, `?view=crm`, and `?view=tasks` open the correct section.
+8. Confirm normal browser mode still works.
+
 ## Pass criteria
 
 - `public/js/utils.js` loads before `public/app.js`.

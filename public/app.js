@@ -268,6 +268,8 @@ render();
 renderCloudSettings();
 initMimo();
 startReminderEngine();
+const initialView = new URLSearchParams(window.location.search).get("view");
+if (initialView && titles[initialView]) setView(initialView);
 addMessage("ai", "Сәлем! Прайс салыстыру бөлімі 1-құжаттың формуласы бар қорап/саны бағандарын сақтап, бағаны almat company price арқылы қояды.");
 
 function setView(view) {

@@ -1,10 +1,40 @@
 {
   "name": "SanaBase AI",
   "short_name": "SanaBase",
+  "id": "/sanabase-ai/",
   "start_url": "/sanabase-ai/index.html",
   "scope": "/sanabase-ai/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#f7f5ef",
   "theme_color": "#28433f",
-  "icons": []
+  "description": "SanaBase AI OS: CRM, CFO, Tasks, Brain, ElectroPro and Mimo assistant.",
+  "icons": [
+    {
+      "src": "icons/sanabase-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Электро Кеңесші",
+      "short_name": "ElectroPro",
+      "url": "/sanabase-ai/?view=electro",
+      "description": "Электр дүкеніне арналған кеңесші"
+    },
+    {
+      "name": "CRM",
+      "short_name": "CRM",
+      "url": "/sanabase-ai/?view=crm",
+      "description": "Клиенттер және заказдар"
+    },
+    {
+      "name": "Тапсырмалар",
+      "short_name": "Tasks",
+      "url": "/sanabase-ai/?view=tasks",
+      "description": "Күндік тапсырмалар"
+    }
+  ]
 }

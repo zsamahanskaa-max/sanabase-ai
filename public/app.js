@@ -1119,6 +1119,8 @@ function saveCrmNakladnayaDocument() {
   const data = generateCrmNakladnaya();
   const title = `${crmNakladnayaTitle(data.type)} ${data.number}`;
   const text = crmNakladnayaText(data);
+  const stockResult = $("crmNakladnayaApplyStock")?.checked ? applyCrmNakladnayaStockSale(data) : null;
+  if (stockResult?.cancelled) return;
   state.docs.unshift(normalizeDoc({
     name: `${title}.txt`,
     type: "nakladnaya",
@@ -1137,7 +1139,61 @@ function saveCrmNakladnayaDocument() {
   createCrmCalendarDocument(title, text);
   persist();
   render();
-  if ($("crmNakladnayaStatus")) $("crmNakladnayaStatus").textContent = `${title} CRM, Екінші ми және Күнтізбе / Құжаттар ішіне сақталды.`;
+  const stockText = stockResult
+    ? ` Склад: ${stockResult.updated} тауар азайды${stockResult.notFound.length ? `, ${stockResult.notFound.length} табылмады` : ""}${stockResult.lowStock.length ? `, ${stockResult.lowStock.length} қалдық жетпеді` : ""}.`
+    : "";
+  if ($("crmNakladnayaStatus")) $("crmNakladnayaStatus").textContent = `${title} CRM, Екінші ми және Күнтізбе / Құжаттар ішіне сақталды.${stockText}`;
+}
+
+function applyCrmNakladnayaStockSale(data) {
+  const items = (data.items || []).filter(item => item.quantity > 0 && (item.code || item.name));
+  if (!items.length) {
+    if ($("crmNakladnayaStatus")) $("crmNakladnayaStatus").textContent = "Складтан азайту үшін тауар коды/атауы және саны керек.";
+    return { cancelled: true };
+  }
+  const message = [
+    "Бұл накладнойдағы тауарларды ElectroPro складынан сатылды деп азайтады.",
+    "",
+    ...items.map((item, index) => `${index + 1}. ${item.code || "-"} · ${item.name || "-"} · ${item.quantity} ${item.unit || ""}`),
+    "",
+    "Жалғастырамыз ба?"
+  ].join("\n");
+  if (!confirm(message)) return { cancelled: true };
+
+  state.electro = normalizeElectro(state.electro || {});
+  const result = { updated: 0, notFound: [], lowStock: [] };
+  items.forEach(item => {
+    const product = findCrmNakladnayaProductByQuery(item.code || item.name);
+    if (!product) {
+      result.notFound.push(item);
+      return;
+    }
+    const stockBefore = Number(product.stockQty || 0);
+    const qty = Number(item.quantity || 0);
+    const stockAfter = stockBefore - qty;
+    product.stockQty = Math.max(0, stockAfter);
+    product.updatedAt = nowIso();
+    if (stockAfter < 0) result.lowStock.push({ item, product, stockBefore });
+    state.electro.movements.unshift(normalizeElectroMovement({
+      productId: product.id,
+      type: "sale",
+      date: nowIso(),
+      sku: product.sku || item.code || "",
+      barcode: product.barcode || "",
+      productName: product.name || item.name || "",
+      qty,
+      unit: product.unit || item.unit || "дана",
+      purchasePrice: product.purchasePrice || 0,
+      salePrice: item.price || product.salePrice || 0,
+      totalAmount: Number(item.total || 0),
+      counterparty: data.buyerName || "",
+      comment: `Накладной ${data.number}`,
+      stockBefore,
+      stockAfter: product.stockQty
+    }));
+    result.updated += 1;
+  });
+  return result;
 }
 
 function crmNakladnayaPrintCss() {

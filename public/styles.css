@@ -392,6 +392,22 @@ textarea:focus, input:focus, select:focus { border-color: var(--leaf); }
   color: var(--muted);
 }
 
+.crm-nakladnaya-stock-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(43, 122, 108, 0.28);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: rgba(43, 122, 108, 0.08);
+  color: var(--sage);
+  font-weight: 700;
+}
+
+.crm-nakladnaya-stock-option input {
+  width: auto;
+}
+
 .crm-nakladnaya-preview {
   overflow-x: auto;
 }

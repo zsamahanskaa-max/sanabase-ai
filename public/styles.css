@@ -324,6 +324,11 @@ textarea:focus, input:focus, select:focus { border-color: var(--leaf); }
   min-width: min(100%, 460px);
 }
 
+.crm-nakladnaya-report-toolbar {
+  grid-template-columns: 170px minmax(220px, 1fr) 140px;
+  min-width: 100%;
+}
+
 .crm-quick-form {
   grid-template-columns: repeat(5, minmax(150px, 1fr));
 }

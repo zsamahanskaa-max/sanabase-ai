@@ -165,6 +165,9 @@ on("crmNakladnayaClearItemsBtn", "click", clearCrmNakladnayaItemRows);
 on("crmNakladnayaGenerateBtn", "click", generateCrmNakladnaya);
 on("crmNakladnayaPrintBtn", "click", printCrmNakladnaya);
 on("crmNakladnayaSaveBtn", "click", saveCrmNakladnayaDocument);
+on("crmNakladnayaSalesPeriod", "change", renderCrmNakladnayaSalesReport);
+on("crmNakladnayaSalesSearch", "input", renderCrmNakladnayaSalesReport);
+on("crmNakladnayaSalesExportBtn", "click", exportCrmNakladnayaSalesReport);
 on("crmSearch", "input", render);
 on("crmStatusFilter", "change", render);
 on("crmReportBtn", "click", buildCrmBusinessReport);
@@ -1217,11 +1220,32 @@ function crmNakladnayaSalesRows() {
     });
 }
 
+function filteredCrmNakladnayaSalesRows() {
+  const period = $("crmNakladnayaSalesPeriod")?.value || "all";
+  const query = normalizeText($("crmNakladnayaSalesSearch")?.value || "");
+  const today = isoDate();
+  const month = today.slice(0, 7);
+  const weekStart = new Date(today);
+  weekStart.setDate(weekStart.getDate() - 6);
+  return crmNakladnayaSalesRows().filter(row => {
+    const date = String(row.date || "").slice(0, 10);
+    if (period === "today" && date !== today) return false;
+    if (period === "month" && !date.startsWith(month)) return false;
+    if (period === "week") {
+      const rowDate = new Date(date || row.date || 0);
+      if (!Number.isFinite(rowDate.getTime()) || rowDate < weekStart) return false;
+    }
+    if (!query) return true;
+    const haystack = normalizeText(`${row.productName || ""} ${row.sku || ""} ${row.barcode || ""} ${row.counterparty || ""} ${row.comment || ""}`);
+    return haystack.includes(query);
+  });
+}
+
 function renderCrmNakladnayaSalesReport() {
   const kpis = $("crmNakladnayaSalesKpis");
   const list = $("crmNakladnayaSalesRows");
   if (!kpis || !list) return;
-  const rows = crmNakladnayaSalesRows();
+  const rows = filteredCrmNakladnayaSalesRows();
   const total = rows.reduce((sum, row) => sum + row.total, 0);
   const margin = rows.reduce((sum, row) => sum + row.margin, 0);
   const qty = rows.reduce((sum, row) => sum + Number(row.qty || 0), 0);
@@ -1253,6 +1277,48 @@ function renderCrmNakladnayaSalesReport() {
       </div>
     </article>
   `).join("");
+}
+
+function exportCrmNakladnayaSalesReport() {
+  const rows = filteredCrmNakladnayaSalesRows();
+  if (!rows.length) {
+    if ($("crmNakladnayaStatus")) $("crmNakladnayaStatus").textContent = "Export үшін сатылым жолдары табылмады.";
+    return;
+  }
+  const exportRows = rows.map(row => ({
+    date: String(row.date || "").slice(0, 10),
+    nakladnaya: row.comment || "",
+    client: row.counterparty || "",
+    sku: row.sku || "",
+    barcode: row.barcode || "",
+    productName: row.productName || "",
+    quantity: Number(row.qty || 0),
+    unit: row.unit || "",
+    purchasePrice: Number(row.purchasePrice || 0),
+    salePrice: Number(row.salePrice || 0),
+    totalAmount: Number(row.total || 0),
+    costAmount: Number(row.cost || 0),
+    marginAmount: Number(row.margin || 0),
+    marginPercent: Number(row.marginPercent || 0),
+    stockBefore: Number(row.stockBefore || 0),
+    stockAfter: Number(row.stockAfter || 0)
+  }));
+  const filename = `nakladnaya_sales_${isoDate()}.xlsx`;
+  if (window.XLSX) {
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(exportRows), "sales");
+    XLSX.writeFile(workbook, filename);
+  } else {
+    downloadText(filename.replace(/\.xlsx$/i, ".csv"), csvFromRows(exportRows));
+  }
+  if ($("crmNakladnayaStatus")) $("crmNakladnayaStatus").textContent = `${exportRows.length} сатылым жолы Excel export болды.`;
+}
+
+function csvFromRows(rows) {
+  if (!rows.length) return "";
+  const headers = Object.keys(rows[0]);
+  const cell = (value) => `"${String(value ?? "").replace(/"/g, '""')}"`;
+  return [headers.map(cell).join(","), ...rows.map(row => headers.map(key => cell(row[key])).join(","))].join("\n");
 }
 
 function crmNakladnayaPrintCss() {

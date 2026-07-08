@@ -9,9 +9,9 @@
   <meta name="apple-mobile-web-app-title" content="SanaBase">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>SanaBase AI</title>
-  <link rel="manifest" href="public/manifest.json?v=20260708-04">
+  <link rel="manifest" href="public/manifest.json?v=20260708-05">
   <link rel="apple-touch-icon" href="public/icons/sanabase-icon.svg">
-  <link rel="stylesheet" href="public/styles.css?v=20260708-04">
+  <link rel="stylesheet" href="public/styles.css?v=20260708-05">
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs" type="module"></script>
@@ -663,6 +663,54 @@
               <button type="submit">CRM order сақтау</button>
             </form>
             <div id="crmPipelineSummary" class="crm-pipeline-summary"></div>
+            <section class="crm-panel crm-nakladnaya-panel">
+              <div class="crm-panel-head">
+                <div>
+                  <h3>Накладной / Гарантия жасау</h3>
+                  <p>CRM order-ден автомат толтырыңыз немесе бос шаблон жасап, печать етіп алыңыз.</p>
+                </div>
+                <select id="crmNakladnayaType">
+                  <option value="nakladnaya">Накладной</option>
+                  <option value="warranty">Гарантия</option>
+                  <option value="both">Накладной + гарантия</option>
+                </select>
+              </div>
+              <div class="crm-toolbar">
+                <select id="crmNakladnayaOrderSelect">
+                  <option value="">Order таңдамау / бос шаблон</option>
+                </select>
+                <button id="crmNakladnayaLoadOrderBtn" type="button">Order-ден толтыру</button>
+                <button id="crmNakladnayaClearBtn" type="button">Бос шаблон</button>
+              </div>
+              <form id="crmNakladnayaForm" class="crm-quick-form crm-nakladnaya-form">
+                <input id="crmNakladnayaSellerName" placeholder="Менің атым / ИП / компания">
+                <input id="crmNakladnayaSellerBin" placeholder="Менің ИИН/БИН">
+                <input id="crmNakladnayaSellerPhone" placeholder="Телефон / WhatsApp">
+                <input id="crmNakladnayaSellerAddress" placeholder="Адрес">
+                <input id="crmNakladnayaSellerBank" placeholder="Банк реквизиті / Kaspi / счет">
+                <input id="crmNakladnayaNumber" placeholder="Накладной №">
+                <input id="crmNakladnayaDate" type="date">
+                <input id="crmNakladnayaBuyerName" placeholder="Сатып алушы / клиент">
+                <input id="crmNakladnayaBuyerBin" placeholder="Клиент ИИН/БИН">
+                <input id="crmNakladnayaBuyerPhone" placeholder="Клиент телефон">
+                <input id="crmNakladnayaBuyerAddress" placeholder="Клиент адрес">
+                <input id="crmNakladnayaProductCode" placeholder="Тауар коды / артикул / barcode">
+                <input id="crmNakladnayaProductName" placeholder="Тауар атауы">
+                <input id="crmNakladnayaSerial" placeholder="Сериялық номер / IMEI / партия">
+                <input id="crmNakladnayaQuantity" type="number" step="0.001" placeholder="Саны">
+                <input id="crmNakladnayaUnit" placeholder="Өлшемі: дана, шт, қорап">
+                <input id="crmNakladnayaPrice" type="number" step="0.01" placeholder="Бағасы">
+                <input id="crmNakladnayaWarrantyMonths" type="number" step="1" placeholder="Гарантия айы">
+                <textarea id="crmNakladnayaComment" placeholder="Комментарий / гарантия шарты / ескерту"></textarea>
+              </form>
+              <div class="crm-actions">
+                <button id="crmNakladnayaGenerateBtn" type="button">Құжат жасау</button>
+                <button id="crmNakladnayaPrintBtn" type="button">Печать</button>
+                <button id="crmNakladnayaSaveBtn" type="button">CRM-ге сақтау</button>
+              </div>
+              <div id="crmNakladnayaStatus" class="crm-nakladnaya-status">Менің реквизиттерім осы браузерде сақталады. Құжатты тауармен де, бос күйінде де жасауға болады.</div>
+              <div id="crmNakladnayaPreview" class="crm-nakladnaya-preview"></div>
+            </section>
             <div id="crmOrderActionPanel" class="crm-order-action-panel" hidden></div>
             <div id="crmPipeline" class="crm-pipeline"></div>
             <div id="crmTable" class="crm-table"></div>
@@ -1260,19 +1308,19 @@
     </section>
   </div>
 
-  <script src="public/js/utils.js?v=20260708-04"></script>
-  <script src="public/js/storage.js?v=20260708-04"></script>
-  <script src="public/js/api.js?v=20260708-04"></script>
-  <script src="public/js/spreadsheet.js?v=20260708-04"></script>
-  <script src="public/js/documents.js?v=20260708-04"></script>
-  <script src="public/js/priceMatching.js?v=20260708-04"></script>
+  <script src="public/js/utils.js?v=20260708-05"></script>
+  <script src="public/js/storage.js?v=20260708-05"></script>
+  <script src="public/js/api.js?v=20260708-05"></script>
+  <script src="public/js/spreadsheet.js?v=20260708-05"></script>
+  <script src="public/js/documents.js?v=20260708-05"></script>
+  <script src="public/js/priceMatching.js?v=20260708-05"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     window.SANABASE_SUPABASE_URL = window.SANABASE_SUPABASE_URL || "https://koszjmsanlxdakqvdkgc.supabase.co";
     window.SANABASE_SUPABASE_ANON_KEY = window.SANABASE_SUPABASE_ANON_KEY || "sb_publishable_y7IIJav4n99Z1dbfROh3SA_TtlAn5tO";
   </script>
-  <script src="public/js/cloudSync.js?v=20260708-04"></script>
-  <script src="public/app.js?v=20260708-04"></script>
+  <script src="public/js/cloudSync.js?v=20260708-05"></script>
+  <script src="public/app.js?v=20260708-05"></script>
   <script>
     if ("serviceWorker" in navigator && location.protocol !== "file:") {
       window.addEventListener("load", () => {

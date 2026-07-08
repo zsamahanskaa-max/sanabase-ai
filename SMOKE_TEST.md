@@ -746,6 +746,22 @@ Frontend asset query versions were updated to `20260708-04`. Service worker navi
 9. Confirm ElectroPro opens with `?view=electro`.
 10. Confirm Console error is empty.
 
+## 38. CRM Nakladnaya / Warranty generator
+
+Frontend asset query versions were updated to `20260708-05`. Manual checks to run:
+
+1. Open CRM.
+2. In `Накладной / Гарантия жасау`, enter seller data once and click `Құжат жасау`.
+3. Refresh page and confirm seller data stays saved.
+4. Create a CRM quick order, then select it in `Order таңдамау / бос шаблон`.
+5. Click `Order-ден толтыру` and confirm buyer/product/quantity/price fields are filled.
+6. Select `Накладной`, `Гарантия`, and `Накладной + гарантия` and confirm preview title changes.
+7. Click `Печать` and confirm print window opens.
+8. Click `CRM-ге сақтау` and confirm document appears in CRM docs / knowledge base.
+9. Click `Бос шаблон` and confirm blank printable document can be generated.
+10. Confirm existing CRM quick order save still works.
+11. Confirm Console error is empty.
+
 ## Pass criteria
 
 - `public/js/utils.js` loads before `public/app.js`.

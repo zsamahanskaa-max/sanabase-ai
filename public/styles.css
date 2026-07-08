@@ -334,6 +334,127 @@ textarea:focus, input:focus, select:focus { border-color: var(--leaf); }
   resize: vertical;
 }
 
+.crm-nakladnaya-panel {
+  border-left: 4px solid #2b7a6c;
+}
+
+.crm-nakladnaya-form {
+  grid-template-columns: repeat(4, minmax(160px, 1fr));
+}
+
+.crm-nakladnaya-form textarea {
+  grid-column: 1 / -1;
+  min-height: 72px;
+  resize: vertical;
+}
+
+.crm-nakladnaya-status {
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--muted);
+}
+
+.crm-nakladnaya-preview {
+  overflow-x: auto;
+}
+
+.crm-nakladnaya-empty {
+  display: grid;
+  gap: 6px;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  padding: 18px;
+  background: rgba(255, 255, 255, 0.8);
+  color: var(--muted);
+}
+
+.crm-nakladnaya-doc {
+  min-width: 760px;
+  padding: 24px;
+  border: 1px solid #d8dfd9;
+  border-radius: 10px;
+  background: #fff;
+  color: #16231f;
+  box-shadow: 0 18px 50px rgba(20, 48, 42, 0.08);
+}
+
+.crm-nakladnaya-doc-head,
+.crm-nakladnaya-parties,
+.crm-nakladnaya-signatures {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.crm-nakladnaya-doc-head {
+  align-items: center;
+  border-bottom: 2px solid #173d35;
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+}
+
+.crm-nakladnaya-doc-head h2 {
+  margin: 0 0 6px;
+}
+
+.crm-nakladnaya-doc-head p,
+.crm-nakladnaya-parties p,
+.crm-nakladnaya-comment p,
+.crm-nakladnaya-warranty p {
+  margin: 4px 0;
+}
+
+.crm-nakladnaya-stamp {
+  display: grid;
+  place-items: center;
+  width: 78px;
+  height: 78px;
+  border: 2px solid #173d35;
+  border-radius: 50%;
+  color: #173d35;
+  font-weight: 800;
+}
+
+.crm-nakladnaya-parties > div,
+.crm-nakladnaya-warranty,
+.crm-nakladnaya-comment {
+  flex: 1;
+  border: 1px solid #d8dfd9;
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.crm-nakladnaya-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 18px 0;
+}
+
+.crm-nakladnaya-table th,
+.crm-nakladnaya-table td {
+  border: 1px solid #9aa79f;
+  padding: 8px;
+  text-align: left;
+}
+
+.crm-nakladnaya-table th {
+  background: #eef4ef;
+}
+
+.crm-nakladnaya-total {
+  display: flex;
+  justify-content: flex-end;
+  gap: 18px;
+  margin: 12px 0;
+  font-size: 18px;
+}
+
+.crm-nakladnaya-signatures {
+  margin-top: 28px;
+}
+
 .crm-order-row {
   grid-template-columns: 120px 100px 150px 160px 190px 80px 120px 120px 120px 120px 150px 140px 110px 130px minmax(180px, 1fr) 140px;
   min-width: 1940px;

@@ -29,6 +29,8 @@ jobs:
         run: |
           mkdir -p site
           cp index.html site/index.html
+          cp sw.js site/sw.js
+          cp reset.html site/reset.html
           cp -R public site/public
           touch site/.nojekyll
 

@@ -1118,6 +1118,35 @@ textarea:focus, input:focus, select:focus { border-color: var(--leaf); }
   gap: 14px;
 }
 
+.electro-scanner {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255,255,255,.82);
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.electro-scanner span,
+.electro-scan-status {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.electro-scanner video {
+  display: none;
+  width: min(100%, 520px);
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: #061612;
+}
+
+.electro-scanner video.active {
+  display: block;
+}
+
 .electro-card {
   display: grid;
   gap: 8px;

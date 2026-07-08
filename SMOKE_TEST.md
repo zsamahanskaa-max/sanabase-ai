@@ -716,6 +716,21 @@ Frontend asset query versions were updated to `20260708-02`. Manual checks to ru
 11. Confirm Sana CFO receives retail sale income entry.
 12. Confirm Console error is empty.
 
+## 36. ElectroPro barcode scanner
+
+Frontend asset query versions were updated to `20260708-03`. Manual checks to run:
+
+1. Open `Электро Кеңесші` -> `Сату / Склад` on phone.
+2. Click `Сатылымға сканер` and allow camera permission.
+3. Scan a barcode that exists in catalog and confirm sale search fills automatically.
+4. Click `Сканер тоқтату` and confirm camera closes.
+5. Click `Приходқа сканер` and scan a barcode.
+6. If barcode exists, confirm stock-in form is filled with SKU/barcode/prices.
+7. If barcode does not exist, confirm the scanned code stays in the search field for creating a new product.
+8. On unsupported browsers, confirm the UI shows fallback text and manual code input still works.
+9. Confirm mobile layout stays inside viewport.
+10. Confirm Console error is empty.
+
 ## Pass criteria
 
 - `public/js/utils.js` loads before `public/app.js`.

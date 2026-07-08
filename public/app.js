@@ -108,6 +108,9 @@ let lastMimoAnswer = "";
 let lastMimoAction = "chat";
 let sanaBotRoamTimer = null;
 let activeReaderNoteId = null;
+let electroScanStream = null;
+let electroScanTimer = null;
+let electroScanTarget = "sale";
 const titles = {
   chat: ["AI чат", "Құжаттарыңызға сүйеніп жауап береді."],
   library: ["Білім базасы", "PDF, Word, Excel және мәтін материалдары."],
@@ -193,6 +196,9 @@ on("electroSaleSearch", "input", fillElectroSaleProductFromSearch);
 on("electroStockSearch", "input", fillElectroStockProductFromSearch);
 on("electroSaleForm", "submit", saveElectroSale);
 on("electroStockInForm", "submit", saveElectroStockIn);
+on("electroScanSaleBtn", "click", () => startElectroBarcodeScanner("sale"));
+on("electroScanStockBtn", "click", () => startElectroBarcodeScanner("stock"));
+on("electroScanStopBtn", "click", stopElectroBarcodeScanner);
 on("electroBrandForm", "submit", saveElectroBrand);
 on("electroChinaForm", "submit", saveElectroChinaProduct);
 on("electroImportBtn", "click", importElectroProducts);
@@ -7761,6 +7767,84 @@ function fillElectroStockProductFromSearch() {
     if ($("electroStockPurchaseInput")) $("electroStockPurchaseInput").value = item.purchasePrice || "";
     if ($("electroStockSaleInput")) $("electroStockSaleInput").value = item.salePrice || "";
   }
+}
+
+async function startElectroBarcodeScanner(target = "sale") {
+  const status = $("electroScanStatus");
+  const video = $("electroScannerVideo");
+  electroScanTarget = target;
+  if (!video) return;
+  if (!("BarcodeDetector" in window)) {
+    if (status) status.textContent = "Бұл браузер BarcodeDetector қолдамайды. Кодты қолмен жазыңыз немесе Android Chrome қолданып көріңіз.";
+    return;
+  }
+  if (!navigator.mediaDevices?.getUserMedia) {
+    if (status) status.textContent = "Камераға доступ жоқ. HTTPS live сайттан немесе телефон браузерінен ашып көріңіз.";
+    return;
+  }
+  stopElectroBarcodeScanner(false);
+  try {
+    electroScanStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: "environment" } },
+      audio: false
+    });
+    video.srcObject = electroScanStream;
+    video.classList.add("active");
+    await video.play();
+    const detector = new BarcodeDetector({
+      formats: ["ean_13", "ean_8", "code_128", "code_39", "qr_code", "upc_a", "upc_e"]
+    });
+    if (status) status.textContent = `${target === "sale" ? "Сатылым" : "Приход"} үшін сканер жүріп тұр. Barcode-ты камераға жақындатыңыз.`;
+    electroScanTimer = window.setInterval(async () => {
+      if (!video.videoWidth) return;
+      try {
+        const codes = await detector.detect(video);
+        if (!codes.length) return;
+        const value = codes[0].rawValue || "";
+        applyElectroScannedCode(value, target);
+      } catch (error) {
+        if (status) status.textContent = `Scanner қатесі: ${shortError(error)}. Кодты қолмен енгізуге болады.`;
+      }
+    }, 650);
+  } catch (error) {
+    if (status) status.textContent = `Камера ашылмады: ${shortError(error)}. Телефоннан камера рұқсатын беріңіз немесе кодты қолмен жазыңыз.`;
+  }
+}
+
+function applyElectroScannedCode(value, target = electroScanTarget) {
+  const code = String(value || "").trim();
+  if (!code) return;
+  if (target === "stock") {
+    if ($("electroStockSearch")) $("electroStockSearch").value = code;
+    fillElectroStockProductFromSearch();
+  } else {
+    if ($("electroSaleSearch")) $("electroSaleSearch").value = code;
+    fillElectroSaleProductFromSearch();
+  }
+  const item = findElectroProductByQuery(code);
+  const status = $("electroScanStatus");
+  if (status) status.textContent = item
+    ? `Barcode оқылды: ${code}. Табылды: ${item.name}.`
+    : `Barcode оқылды: ${code}. Базадан табылмады, приход формасында жаңа тауар ретінде қоса аласыз.`;
+  stopElectroBarcodeScanner(false);
+}
+
+function stopElectroBarcodeScanner(updateStatus = true) {
+  if (electroScanTimer) {
+    window.clearInterval(electroScanTimer);
+    electroScanTimer = null;
+  }
+  if (electroScanStream) {
+    electroScanStream.getTracks().forEach(track => track.stop());
+    electroScanStream = null;
+  }
+  const video = $("electroScannerVideo");
+  if (video) {
+    video.pause();
+    video.srcObject = null;
+    video.classList.remove("active");
+  }
+  if (updateStatus && $("electroScanStatus")) $("electroScanStatus").textContent = "Scanner тоқтады.";
 }
 
 function saveElectroSale(event) {

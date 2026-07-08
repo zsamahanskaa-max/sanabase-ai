@@ -731,6 +731,21 @@ Frontend asset query versions were updated to `20260708-03`. Manual checks to ru
 9. Confirm mobile layout stays inside viewport.
 10. Confirm Console error is empty.
 
+## 37. PWA cache recovery / phone open fix
+
+Frontend asset query versions were updated to `20260708-04`. Service worker navigation now uses network-first behavior so phone browsers receive the latest HTML before falling back to cache. Manual checks to run:
+
+1. Open live reset page: `https://zsamahanskaa-max.github.io/sanabase-ai/reset.html`.
+2. Confirm it redirects to `https://zsamahanskaa-max.github.io/sanabase-ai/?fresh=20260708-04`.
+3. Confirm localStorage business data is not deleted.
+4. Confirm `/sw.js` and `/public/sw.js` return 200.
+5. Confirm `/public/app.js?v=20260708-04` returns 200.
+6. Confirm `/public/styles.css?v=20260708-04` returns 200.
+7. On phone, close the old tab and open the live link again.
+8. If installed as app, remove the old home-screen app and add it again after reset.
+9. Confirm ElectroPro opens with `?view=electro`.
+10. Confirm Console error is empty.
+
 ## Pass criteria
 
 - `public/js/utils.js` loads before `public/app.js`.

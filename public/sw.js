@@ -1,18 +1,18 @@
-const SANABASE_CACHE = "sanabase-ai-pwa-20260708-03";
+const SANABASE_CACHE = "sanabase-ai-pwa-20260708-04";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=20260708-03",
-  "./app.js?v=20260708-03",
-  "./manifest.json?v=20260708-03",
+  "./styles.css?v=20260708-04",
+  "./app.js?v=20260708-04",
+  "./manifest.json?v=20260708-04",
   "./icons/sanabase-icon.svg",
-  "./js/utils.js?v=20260708-03",
-  "./js/storage.js?v=20260708-03",
-  "./js/api.js?v=20260708-03",
-  "./js/spreadsheet.js?v=20260708-03",
-  "./js/documents.js?v=20260708-03",
-  "./js/priceMatching.js?v=20260708-03",
-  "./js/cloudSync.js?v=20260708-03"
+  "./js/utils.js?v=20260708-04",
+  "./js/storage.js?v=20260708-04",
+  "./js/api.js?v=20260708-04",
+  "./js/spreadsheet.js?v=20260708-04",
+  "./js/documents.js?v=20260708-04",
+  "./js/priceMatching.js?v=20260708-04",
+  "./js/cloudSync.js?v=20260708-04"
 ];
 
 self.addEventListener("install", event => {
@@ -33,16 +33,32 @@ self.addEventListener("activate", event => {
 
 self.addEventListener("fetch", event => {
   if (event.request.method !== "GET") return;
-  event.respondWith(
-    caches.match(event.request).then(cached => {
-      if (cached) return cached;
-      return fetch(event.request)
+
+  if (event.request.mode === "navigate") {
+    event.respondWith(
+      fetch(event.request)
         .then(response => {
           const copy = response.clone();
-          caches.open(SANABASE_CACHE).then(cache => cache.put(event.request, copy));
+          caches.open(SANABASE_CACHE).then(cache => cache.put("./index.html", copy));
           return response;
         })
-        .catch(() => caches.match("./index.html"));
+        .catch(() => caches.match("./index.html"))
+    );
+    return;
+  }
+
+  event.respondWith(
+    caches.match(event.request).then(cached => {
+      const network = fetch(event.request)
+        .then(response => {
+          if (response && response.ok) {
+            const copy = response.clone();
+            caches.open(SANABASE_CACHE).then(cache => cache.put(event.request, copy));
+          }
+          return response;
+        })
+        .catch(() => cached);
+      return cached || network;
     })
   );
 });

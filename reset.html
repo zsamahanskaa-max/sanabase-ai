@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="kk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SanaBase cache reset</title>
+  <style>
+    body {
+      min-height: 100vh;
+      margin: 0;
+      display: grid;
+      place-items: center;
+      background: #eef4ef;
+      color: #193c35;
+      font-family: Arial, sans-serif;
+    }
+    main {
+      width: min(420px, calc(100vw - 32px));
+      padding: 28px;
+      border: 1px solid rgba(25, 60, 53, 0.18);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.82);
+      box-shadow: 0 18px 50px rgba(25, 60, 53, 0.14);
+    }
+    h1 { margin: 0 0 12px; font-size: 24px; }
+    p { line-height: 1.55; }
+    a {
+      display: inline-flex;
+      margin-top: 14px;
+      padding: 12px 16px;
+      border-radius: 12px;
+      background: #244c43;
+      color: #fff;
+      text-decoration: none;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>SanaBase жаңарту</h1>
+    <p id="status">Cache тазаланып жатыр...</p>
+    <p>Бұл тек browser cache және service worker-ды тазалайды. LocalStorage-тағы клиенттер, заказдар, тапсырмалар өшпейді.</p>
+    <a href="./?fresh=20260708-04">SanaBase ашу</a>
+  </main>
+  <script>
+    (async () => {
+      const status = document.getElementById("status");
+      try {
+        if ("serviceWorker" in navigator) {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(registrations.map(registration => registration.unregister()));
+        }
+        if ("caches" in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.filter(key => key.includes("sanabase")).map(key => caches.delete(key)));
+        }
+        status.textContent = "Дайын. SanaBase қайта ашылып жатыр...";
+        window.setTimeout(() => window.location.replace("./?fresh=20260708-04"), 700);
+      } catch (error) {
+        status.textContent = "Reset қатесі: " + (error && error.message ? error.message : error);
+      }
+    })();
+  </script>
+</body>
+</html>

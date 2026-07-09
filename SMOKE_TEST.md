@@ -805,6 +805,19 @@ Frontend asset query versions were updated to `20260709-05`. Manual checks to ru
 15. Click `Күндік Excel export` and confirm an `.xlsx` file downloads.
 17. Confirm Console error is empty.
 
+## 41. Electro sales and product base split
+
+Frontend asset query versions were updated to `20260709-06`. Manual checks to run:
+
+1. Open `/?view=electro&electro=inventory&fresh=20260709-06`.
+2. Confirm the top menu has separate `Сату` and `Тауар базасы` buttons.
+3. In `Сату`, type a product code/name that does not exist.
+4. Confirm the app warns that the product must be added to stock first.
+5. Press `Тауар базада жоқ па? Складқа қосу`.
+6. Confirm the same code/name is moved into the stock-in form.
+7. Save the stock-in product, then search it again in the sale form.
+8. Confirm sale saves, stock decreases, and movement history updates.
+
 ## Pass criteria
 
 - `public/js/utils.js` loads before `public/app.js`.

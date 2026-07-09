@@ -211,6 +211,7 @@ on("electroProductForm", "submit", saveElectroProduct);
 on("electroProductResetBtn", "click", resetElectroProductForm);
 on("electroSaleSearch", "input", fillElectroSaleProductFromSearch);
 on("electroStockSearch", "input", fillElectroStockProductFromSearch);
+on("electroSaleToStockBtn", "click", moveElectroSaleSearchToStockIn);
 on("electroSaleForm", "submit", saveElectroSale);
 on("electroStockInForm", "submit", saveElectroStockIn);
 on("electroPrintLastSaleBtn", "click", printLastElectroSale);
@@ -8653,6 +8654,10 @@ function fillElectroSaleProductFromSearch() {
   if ($("electroSaleProductName")) $("electroSaleProductName").value = item ? `${item.name} · ${item.sku || item.barcode || "код жоқ"}` : "";
   if ($("electroSaleCurrentStock")) $("electroSaleCurrentStock").value = item ? `${item.stockQty} ${item.unit}` : "";
   if (item && $("electroSalePriceInput") && !$("electroSalePriceInput").value) $("electroSalePriceInput").value = item.salePrice || "";
+  const query = $("electroSaleSearch")?.value?.trim() || "";
+  if (!item && query && $("electroInventoryOut")) {
+    $("electroInventoryOut").textContent = "Тауар базадан табылмады. Оны сату үшін алдымен 'Тауар базада жоқ па? Складқа қосу' батырмасын басып, приход арқылы базаға қосыңыз.";
+  }
 }
 
 function fillElectroStockProductFromSearch() {
@@ -8663,6 +8668,20 @@ function fillElectroStockProductFromSearch() {
     if ($("electroStockBarcode")) $("electroStockBarcode").value = item.barcode || "";
     if ($("electroStockPurchaseInput")) $("electroStockPurchaseInput").value = item.purchasePrice || "";
     if ($("electroStockSaleInput")) $("electroStockSaleInput").value = item.salePrice || "";
+  }
+}
+
+function moveElectroSaleSearchToStockIn() {
+  const query = $("electroSaleSearch")?.value?.trim() || "";
+  if ($("electroStockSearch")) $("electroStockSearch").value = query;
+  if ($("electroStockProductId")) $("electroStockProductId").value = "";
+  if ($("electroStockSku") && /^[A-Za-z0-9._-]{3,}$/i.test(query)) $("electroStockSku").value = query;
+  if ($("electroStockQtyIn") && !$("electroStockQtyIn").value) $("electroStockQtyIn").value = "1";
+  fillElectroStockProductFromSearch();
+  const stockForm = $("electroStockInForm");
+  if (stockForm?.scrollIntoView) stockForm.scrollIntoView({ behavior: "smooth", block: "start" });
+  if ($("electroInventoryOut")) {
+    $("electroInventoryOut").textContent = "Енді осы тауарды складқа қосыңыз: атауы/коды, саны, сатып алу бағасы және сату бағасын толтырыңыз. Сақталғаннан кейін ол сатылым іздеуінде шығады.";
   }
 }
 

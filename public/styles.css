@@ -1388,6 +1388,14 @@ textarea:focus, input:focus, select:focus { border-color: var(--leaf); }
   background: rgba(239, 246, 255, .82);
 }
 
+.electro-form-title {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--text);
+  font-size: 1rem;
+  letter-spacing: 0;
+}
+
 .electro-report-actions {
   justify-content: flex-start;
 }

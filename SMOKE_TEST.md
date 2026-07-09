@@ -831,6 +831,20 @@ Frontend asset query versions were updated to `20260709-07`. Manual checks to ru
 7. Confirm `Сумма` and `Оплачено` columns appear in 1C report/CFO import.
 8. Confirm general document import still works for TXT/CSV/XLSX/DOCX/PDF fallback.
 
+## 43. Electro catalog import and camera fallback
+
+Frontend asset query versions were updated to `20260709-09`. Manual checks to run:
+
+1. Open `/?view=electro&electro=catalog&fresh=20260709-09`.
+2. Upload an Excel/CSV catalog and click `Preview / Import`.
+3. Confirm import result appears inside `Тауар базасы`, not only in compare/output area.
+4. Confirm header row is detected even if 1C/export title rows are above the table.
+5. Confirm rows with code/barcode but missing product name still import using code as fallback name.
+6. Open `Сату`, press scanner button on phone.
+7. Confirm camera preview opens even if auto barcode detection is unsupported.
+8. Confirm stop scanner closes the camera preview.
+9. Confirm fractional stock such as `25,3` or `1,63` is shown with a `1C fractional stock` explanation instead of looking like a random broken value.
+
 ## Pass criteria
 
 - `public/js/utils.js` loads before `public/app.js`.

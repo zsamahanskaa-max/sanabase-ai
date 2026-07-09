@@ -8675,7 +8675,7 @@ function fillElectroSaleProductFromSearch() {
   const item = findElectroProductByQuery($("electroSaleSearch")?.value || "");
   if ($("electroSaleProductId")) $("electroSaleProductId").value = item?.id || "";
   if ($("electroSaleProductName")) $("electroSaleProductName").value = item ? `${item.name} · ${item.sku || item.barcode || "код жоқ"}` : "";
-  if ($("electroSaleCurrentStock")) $("electroSaleCurrentStock").value = item ? `${item.stockQty} ${item.unit}` : "";
+  if ($("electroSaleCurrentStock")) $("electroSaleCurrentStock").value = item ? formatElectroQty(item.stockQty, item.unit, { explain: true }) : "";
   if (item && $("electroSalePriceInput") && !$("electroSalePriceInput").value) $("electroSalePriceInput").value = item.salePrice || "";
   const query = $("electroSaleSearch")?.value?.trim() || "";
   if (!item && query && $("electroInventoryOut")) {
@@ -8713,10 +8713,6 @@ async function startElectroBarcodeScanner(target = "sale") {
   const video = $("electroScannerVideo");
   electroScanTarget = target;
   if (!video) return;
-  if (!("BarcodeDetector" in window)) {
-    if (status) status.textContent = "Бұл браузер BarcodeDetector қолдамайды. Кодты қолмен жазыңыз немесе Android Chrome қолданып көріңіз.";
-    return;
-  }
   if (!navigator.mediaDevices?.getUserMedia) {
     if (status) status.textContent = "Камераға доступ жоқ. HTTPS live сайттан немесе телефон браузерінен ашып көріңіз.";
     return;
@@ -8730,6 +8726,10 @@ async function startElectroBarcodeScanner(target = "sale") {
     video.srcObject = electroScanStream;
     video.classList.add("active");
     await video.play();
+    if (!("BarcodeDetector" in window)) {
+      if (status) status.textContent = "Камера ашылды, бірақ бұл браузер auto barcode оқуды қолдамайды. Кодты камерадан қарап, төмендегі код/атау жолына қолмен жазыңыз немесе Android Chrome қолданыңыз.";
+      return;
+    }
     const detector = new BarcodeDetector({
       formats: ["ean_13", "ean_8", "code_128", "code_39", "qr_code", "upc_a", "upc_e"]
     });
@@ -8797,7 +8797,7 @@ function saveElectroSale(event) {
     return;
   }
   const qty = Math.max(1, Number($("electroSaleQty")?.value || 1));
-  if (qty > product.stockQty && !confirm(`Қалдық ${product.stockQty} ғана. Минусқа сатуды жалғастырамыз ба?`)) return;
+  if (qty > product.stockQty && !confirm(`Қалдық ${formatElectroQty(product.stockQty, product.unit)} ғана. Минусқа сатуды жалғастырамыз ба?`)) return;
   const salePrice = Number($("electroSalePriceInput")?.value || product.salePrice || 0);
   const before = Number(product.stockQty || 0);
   product.stockQty = before - qty;
@@ -8826,7 +8826,7 @@ function saveElectroSale(event) {
   event.target.reset();
   persist();
   render();
-  if (out) out.textContent = `Сатылым сақталды: ${product.name}\nСаны: ${qty} ${product.unit}\nСома: ${money(movement.totalAmount)}\nҚалдық: ${before} -> ${product.stockQty}`;
+  if (out) out.textContent = `Сатылым сақталды: ${product.name}\nСаны: ${formatElectroQty(qty, product.unit)}\nСома: ${money(movement.totalAmount)}\nҚалдық: ${formatElectroQty(before, product.unit)} -> ${formatElectroQty(product.stockQty, product.unit, { explain: true })}`;
   renderElectroSaleReceipt(movement);
 }
 
@@ -8884,7 +8884,7 @@ function saveElectroStockIn(event) {
   event.target.reset();
   persist();
   render();
-  if (out) out.textContent = `Приход сақталды: ${product.name}\nКелгені: ${qty} ${product.unit}\nҚалдық: ${before} -> ${product.stockQty}`;
+  if (out) out.textContent = `Приход сақталды: ${product.name}\nКелгені: ${formatElectroQty(qty, product.unit)}\nҚалдық: ${formatElectroQty(before, product.unit)} -> ${formatElectroQty(product.stockQty, product.unit, { explain: true })}`;
 }
 
 function addElectroSaleToCfo(product, movement) {
@@ -8925,6 +8925,17 @@ function electroPaymentMethodLabel(method = "cash") {
     bank: "Банк аударым",
     kaspi: "Kaspi магазин"
   }[method] || method || "Касса / наличный";
+}
+
+function formatElectroQty(value, unit = "", options = {}) {
+  const number = Number(value || 0);
+  if (!Number.isFinite(number)) return `0${unit ? ` ${unit}` : ""}`;
+  const isFractional = Math.abs(number - Math.round(number)) >= 0.001;
+  const formatted = isFractional
+    ? number.toLocaleString("kk-KZ", { maximumFractionDigits: 2 })
+    : String(Math.round(number));
+  const label = `${formatted}${unit ? ` ${unit}` : ""}`;
+  return options.explain && isFractional ? `${label} · 1С бөлшек қалдық` : label;
 }
 
 function electroSalesRows(date = isoDate()) {
@@ -9243,7 +9254,7 @@ function saveElectroChinaProduct(event) {
 }
 
 async function importElectroProducts() {
-  const out = $("electroCompareOut");
+  const out = $("electroImportOut") || $("electroCompareOut");
   const file = $("electroImportFile")?.files?.[0];
   if (!file) {
     if (out) out.textContent = "Алдымен Excel/CSV каталог файлын таңдаңыз.";
@@ -9251,32 +9262,40 @@ async function importElectroProducts() {
   }
   try {
     const table = await readTableFile(file);
-    const headers = normalizeHeader(table.rows[0] || []);
-    const rows = table.rows.slice(1).filter(row => row.some(cell => String(cell || "").trim()));
+    const headerInfo = findElectroCatalogHeaderRow(table.rows || []);
+    const headers = normalizeHeader(table.rows[headerInfo.index] || table.rows[0] || []);
+    const rows = table.rows.slice(headerInfo.index + 1).filter(row => row.some(cell => String(cell || "").trim()));
     const col = {
-      sku: findColumn(headers, "", ["sku", "код", "артикул"]),
-      barcode: findColumn(headers, "", ["barcode", "штрихкод"]),
-      name: findColumn(headers, "", ["name", "атауы", "наименование", "товар"]),
+      sku: findColumn(headers, "", ["sku", "код", "артикул", "кодтовара", "номеркод"]),
+      barcode: findColumn(headers, "", ["barcode", "штрихкод", "ean"]),
+      name: findColumn(headers, "", ["name", "атауы", "наименование", "номенклатура", "товар", "тауар"]),
       brand: findColumn(headers, "", ["brand", "бренд"]),
       category: findColumn(headers, "", ["category", "категория"]),
       purchase: findColumn(headers, "", ["purchaseprice", "закуп", "сатып"]),
       sale: findColumn(headers, "", ["saleprice", "цена", "сату", "баға"]),
       stock: findColumn(headers, "", ["stockqty", "остаток", "қалдық", "количество"]),
+      unit: findColumn(headers, "", ["единица", "ед", "едизм", "бірлік", "unit"]),
       voltage: findColumn(headers, "", ["voltage", "вольт", "напряжение"]),
       ip: findColumn(headers, "", ["iprating", "ip"])
     };
-    const imported = rows.map(row => normalizeElectroProduct({
-      sku: col.sku >= 0 ? row[col.sku] : "",
-      barcode: col.barcode >= 0 ? row[col.barcode] : "",
-      name: col.name >= 0 ? row[col.name] : "",
-      brand: col.brand >= 0 ? row[col.brand] : "",
-      categoryId: electroCategoryIdByName(col.category >= 0 ? row[col.category] : ""),
-      purchasePrice: col.purchase >= 0 ? parseMoney(row[col.purchase]) : 0,
-      salePrice: col.sale >= 0 ? parseMoney(row[col.sale]) : 0,
-      stockQty: col.stock >= 0 ? parseMoney(row[col.stock]) : 0,
-      specs: { voltage: col.voltage >= 0 ? String(row[col.voltage] || "") : "", ipRating: col.ip >= 0 ? String(row[col.ip] || "") : "" },
-      source: "Import"
-    })).filter(item => item.name);
+    const imported = rows.map(row => {
+      const sku = col.sku >= 0 ? row[col.sku] : "";
+      const barcode = col.barcode >= 0 ? row[col.barcode] : "";
+      const name = col.name >= 0 ? row[col.name] : "";
+      return normalizeElectroProduct({
+        sku,
+        barcode,
+        name: name || sku || barcode,
+        brand: col.brand >= 0 ? row[col.brand] : "",
+        categoryId: electroCategoryIdByName(col.category >= 0 ? row[col.category] : ""),
+        purchasePrice: col.purchase >= 0 ? parseMoney(row[col.purchase]) : 0,
+        salePrice: col.sale >= 0 ? parseMoney(row[col.sale]) : 0,
+        stockQty: col.stock >= 0 ? parseMoney(row[col.stock]) : 0,
+        unit: col.unit >= 0 ? String(row[col.unit] || "").trim() || "шт" : "шт",
+        specs: { voltage: col.voltage >= 0 ? String(row[col.voltage] || "") : "", ipRating: col.ip >= 0 ? String(row[col.ip] || "") : "" },
+        source: "Import"
+      });
+    }).filter(item => item.name || item.sku || item.barcode);
     state.electro = normalizeElectro(state.electro || {});
     const existing = new Set(state.electro.products.map(item => normalizeText(item.sku || item.barcode || item.name)));
     let added = 0;
@@ -9289,10 +9308,25 @@ async function importElectroProducts() {
     });
     persist();
     render();
-    if (out) out.textContent = `Каталог импорт: ${imported.length} жол оқылды, ${added} жаңа тауар қосылды. Duplicate SKU/barcode/name қайта қосылмады.`;
+    if (out) out.textContent = `Каталог импорт: ${imported.length} жол оқылды, ${added} жаңа тауар қосылды. Header: ${headerInfo.index + 1}-жол. Sheet: ${table.sheetName || "бірінші"}. Duplicate SKU/barcode/name қайта қосылмады.`;
   } catch (error) {
     if (out) out.textContent = `Каталог импорт қатесі: ${shortError(error)}`;
   }
+}
+
+function findElectroCatalogHeaderRow(rows = []) {
+  const candidates = rows.slice(0, 25).map((row, index) => {
+    const headers = normalizeHeader(row);
+    const source = headers.map(normalizeText).join(" ");
+    const nonEmpty = headers.filter(Boolean).length;
+    let score = nonEmpty;
+    [/код|артикул|sku|штрихкод|barcode|ean/, /номенклатура|наименование|товар|тауар|атауы|name/, /остаток|қалдық|количество|stock|qty/, /цена|баға|закуп|сату|purchase|sale/, /бренд|brand|категория|category/].forEach(pattern => {
+      if (pattern.test(source)) score += 10;
+    });
+    return { index, score, nonEmpty };
+  });
+  const best = candidates.sort((a, b) => b.score - a.score || b.nonEmpty - a.nonEmpty)[0] || { index: 0, score: 0 };
+  return best.score >= 12 ? best : { index: 0, score: best.score || 0 };
 }
 
 function electroCategoryIdByName(name = "") {
@@ -9433,7 +9467,7 @@ function renderElectroSelects() {
   if ($("electroBrandSelect")) $("electroBrandSelect").innerHTML = `<option value="">Авто</option>${state.electro.brands.map(item => `<option>${escapeHtml(item.name)}</option>`).join("")}`;
   if ($("electroProductSuggestions")) {
     $("electroProductSuggestions").innerHTML = state.electro.products.map(item => {
-      const label = [item.sku, item.barcode, item.name, item.brand].filter(Boolean).join(" · ");
+      const label = [item.sku, item.barcode, item.name, item.brand, formatElectroQty(item.stockQty, item.unit)].filter(Boolean).join(" · ");
       return `<option value="${escapeHtml(item.sku || item.barcode || item.name)}">${escapeHtml(label)}</option>`;
     }).join("");
   }
@@ -9450,7 +9484,7 @@ function renderElectroProducts() {
     <article class="electro-card">
       <label class="electro-compare"><input type="checkbox" data-electro-compare value="${escapeHtml(item.id)}"> Compare</label>
       <h4>${escapeHtml(item.name)}</h4>
-      <p>${escapeHtml(item.brand || "Бренд жоқ")} · ${money(item.salePrice)} · ${item.stockQty} ${escapeHtml(item.unit)}</p>
+      <p>${escapeHtml(item.brand || "Бренд жоқ")} · ${money(item.salePrice)} · ${escapeHtml(formatElectroQty(item.stockQty, item.unit, { explain: true }))}</p>
       <p>SKU: ${escapeHtml(item.sku || "-")} · Barcode: ${escapeHtml(item.barcode || "-")}</p>
       <p>${escapeHtml(item.descriptionKaz || "Сипаттама жоқ")}</p>
       <div class="electro-card-actions">
@@ -9473,9 +9507,9 @@ function renderElectroMovements() {
   node.innerHTML = rows.map(item => `
     <article class="electro-card ${item.type === "sale" ? "electro-sale" : "electro-stock-in"}">
       <h4>${item.type === "sale" ? "Сатылым" : "Приход"} · ${escapeHtml(item.productName)}</h4>
-      <p>${formatDate(item.date)} · ${item.qty} ${escapeHtml(item.unit)} · ${money(item.totalAmount)}</p>
+      <p>${formatDate(item.date)} · ${escapeHtml(formatElectroQty(item.qty, item.unit))} · ${money(item.totalAmount)}</p>
       <p>Төлем: ${escapeHtml(electroPaymentMethodLabel(item.paymentMethod))}</p>
-      <p>Қалдық: ${item.stockBefore} -> ${item.stockAfter} · ${escapeHtml(item.counterparty || "-")}</p>
+      <p>Қалдық: ${escapeHtml(formatElectroQty(item.stockBefore, item.unit))} -> ${escapeHtml(formatElectroQty(item.stockAfter, item.unit, { explain: true }))} · ${escapeHtml(item.counterparty || "-")}</p>
       <p>${escapeHtml(item.comment || "")}</p>
     </article>
   `).join("");

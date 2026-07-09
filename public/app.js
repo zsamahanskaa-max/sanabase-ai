@@ -214,6 +214,8 @@ on("electroStockSearch", "input", fillElectroStockProductFromSearch);
 on("electroSaleForm", "submit", saveElectroSale);
 on("electroStockInForm", "submit", saveElectroStockIn);
 on("electroPrintLastSaleBtn", "click", printLastElectroSale);
+on("electroReceiptPdfBtn", "click", printLastElectroSale);
+on("electroWhatsappLastSaleBtn", "click", copyLastElectroSaleWhatsapp);
 on("electroDailyReportBtn", "click", showElectroDailySalesReport);
 on("electroDailyExportBtn", "click", exportElectroDailySalesReport);
 on("electroReceiptProfileForm", "submit", saveElectroReceiptProfile);
@@ -9035,6 +9037,44 @@ function printLastElectroSale() {
   win.document.close();
   win.focus();
   win.print();
+}
+
+function electroSaleWhatsappText(movement) {
+  if (!movement) return "Сатылым табылмады.";
+  const profile = electroReceiptProfile();
+  return [
+    `Сәлеметсіз бе${movement.counterparty ? `, ${movement.counterparty}` : ""}!`,
+    "",
+    "Сіздің сатып алған тауарыңыз:",
+    `- ${movement.productName}`,
+    `- Саны: ${movement.qty} ${movement.unit || "шт"}`,
+    `- Бағасы: ${money(movement.salePrice)}`,
+    `- Жалпы сумма: ${money(movement.totalAmount)}`,
+    movement.sku || movement.barcode ? `- Код: ${movement.sku || movement.barcode}` : "",
+    "",
+    profile.sellerName ? `${profile.sellerName}` : "SanaBase / Электр дүкені",
+    profile.sellerPhone ? `Телефон: ${profile.sellerPhone}` : "",
+    profile.sellerAddress ? `Адрес: ${profile.sellerAddress}` : "",
+    "",
+    "Рахмет! Қажет болса чек/накладнойды PDF ретінде дайындап береміз."
+  ].filter(Boolean).join("\n");
+}
+
+async function copyLastElectroSaleWhatsapp() {
+  const movement = latestElectroSale();
+  const text = electroSaleWhatsappText(movement);
+  if ($("electroSaleReportOut")) $("electroSaleReportOut").textContent = text;
+  if (!movement) return;
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      if ($("electroInventoryOut")) $("electroInventoryOut").textContent = "WhatsApp мәтіні clipboard-қа көшірілді.";
+    } else {
+      throw new Error("Clipboard unavailable");
+    }
+  } catch (error) {
+    if ($("electroInventoryOut")) $("electroInventoryOut").textContent = "Clipboard автомат жұмыс істемеді. Мәтін төменде дайын тұр, қолмен көшіріп жіберіңіз.";
+  }
 }
 
 function showElectroDailySalesReport() {

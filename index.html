@@ -9,9 +9,9 @@
   <meta name="apple-mobile-web-app-title" content="SanaBase">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>SanaBase AI</title>
-  <link rel="manifest" href="public/manifest.json?v=20260709-06">
+  <link rel="manifest" href="public/manifest.json?v=20260709-07">
   <link rel="apple-touch-icon" href="public/icons/sanabase-icon.svg">
-  <link rel="stylesheet" href="public/styles.css?v=20260709-06">
+  <link rel="stylesheet" href="public/styles.css?v=20260709-07">
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs" type="module"></script>
@@ -498,6 +498,7 @@
               <label><span>Қазіргі қалдық</span><input id="electroSaleCurrentStock" readonly></label>
               <label><span>Сатылған саны</span><input id="electroSaleQty" type="number" min="1" step="1" value="1"></label>
               <label><span>Сату бағасы</span><input id="electroSalePriceInput" type="number" min="0" step="1"></label>
+              <label><span>Төлем түрі</span><select id="electroSalePaymentMethod"><option value="cash">Касса / наличный</option><option value="bank">Банк аударым</option><option value="kaspi">Kaspi магазин</option></select></label>
               <label><span>Клиент</span><input id="electroSaleClient" placeholder="Клиент аты / Kaspi / дүкен"></label>
               <label class="wide"><span>Комментарий</span><textarea id="electroSaleComment" placeholder="Чек, WhatsApp, заказ номері..."></textarea></label>
               <button id="electroSaleToStockBtn" type="button">Тауар базада жоқ па? Складқа қосу</button>
@@ -1368,19 +1369,19 @@
     </section>
   </div>
 
-  <script src="public/js/utils.js?v=20260709-06"></script>
-  <script src="public/js/storage.js?v=20260709-06"></script>
-  <script src="public/js/api.js?v=20260709-06"></script>
-  <script src="public/js/spreadsheet.js?v=20260709-06"></script>
-  <script src="public/js/documents.js?v=20260709-06"></script>
-  <script src="public/js/priceMatching.js?v=20260709-06"></script>
+  <script src="public/js/utils.js?v=20260709-07"></script>
+  <script src="public/js/storage.js?v=20260709-07"></script>
+  <script src="public/js/api.js?v=20260709-07"></script>
+  <script src="public/js/spreadsheet.js?v=20260709-07"></script>
+  <script src="public/js/documents.js?v=20260709-07"></script>
+  <script src="public/js/priceMatching.js?v=20260709-07"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     window.SANABASE_SUPABASE_URL = window.SANABASE_SUPABASE_URL || "https://koszjmsanlxdakqvdkgc.supabase.co";
     window.SANABASE_SUPABASE_ANON_KEY = window.SANABASE_SUPABASE_ANON_KEY || "sb_publishable_y7IIJav4n99Z1dbfROh3SA_TtlAn5tO";
   </script>
-  <script src="public/js/cloudSync.js?v=20260709-06"></script>
-  <script src="public/app.js?v=20260709-06"></script>
+  <script src="public/js/cloudSync.js?v=20260709-07"></script>
+  <script src="public/app.js?v=20260709-07"></script>
   <script>
     if ("serviceWorker" in navigator && location.protocol !== "file:") {
       window.addEventListener("load", () => {

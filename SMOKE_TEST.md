@@ -818,6 +818,19 @@ Frontend asset query versions were updated to `20260709-06`. Manual checks to ru
 7. Save the stock-in product, then search it again in the sale form.
 8. Confirm sale saves, stock decreases, and movement history updates.
 
+## 42. Sale payment method and 1C document reading hardening
+
+Frontend asset query versions were updated to `20260709-07`. Manual checks to run:
+
+1. Open `/?view=electro&electro=inventory&fresh=20260709-07`.
+2. Create a sale with `Касса / наличный`, then confirm CFO payment category is cash retail sale.
+3. Create a sale with `Банк аударым`, then confirm CFO payment method is bank.
+4. Create a sale with `Kaspi магазин`, then confirm CFO business is Kaspi and category is Kaspi sale.
+5. Upload a 1C Excel file with multiple sheets and confirm the non-empty/data sheet is read.
+6. Upload a semicolon CSV export from 1C and confirm columns split correctly.
+7. Confirm `Сумма` and `Оплачено` columns appear in 1C report/CFO import.
+8. Confirm general document import still works for TXT/CSV/XLSX/DOCX/PDF fallback.
+
 ## Pass criteria
 
 - `public/js/utils.js` loads before `public/app.js`.

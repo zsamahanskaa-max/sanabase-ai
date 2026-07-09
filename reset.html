@@ -41,7 +41,7 @@
     <h1>SanaBase жаңарту</h1>
     <p id="status">Cache тазаланып жатыр...</p>
     <p>Бұл тек browser cache және service worker-ды тазалайды. LocalStorage-тағы клиенттер, заказдар, тапсырмалар өшпейді.</p>
-    <a href="./?fresh=20260709-06">SanaBase ашу</a>
+    <a href="./?fresh=20260709-07">SanaBase ашу</a>
   </main>
   <script>
     (async () => {
@@ -56,7 +56,7 @@
           await Promise.all(keys.filter(key => key.includes("sanabase")).map(key => caches.delete(key)));
         }
         status.textContent = "Дайын. SanaBase қайта ашылып жатыр...";
-        window.setTimeout(() => window.location.replace("./?fresh=20260709-06"), 700);
+        window.setTimeout(() => window.location.replace("./?fresh=20260709-07"), 700);
       } catch (error) {
         status.textContent = "Reset қатесі: " + (error && error.message ? error.message : error);
       }

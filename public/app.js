@@ -3287,7 +3287,7 @@ function analyzeOneCTable(table, forcedKind = "auto") {
   const data = rows.slice(headerInfo.index + 1).filter(row => row.some(cell => String(cell || "").trim()));
   const kind = forcedKind === "auto" ? detectOneCKind(headers) : forcedKind;
   const cols = oneCColumns(headers);
-  const parsed = data.map(row => oneCRow(row, cols)).filter(row => Object.values(row).some(Boolean));
+  const parsed = data.map(row => oneCRow(row, cols)).filter(oneCMeaningfulRow);
   const summary = oneCSummary(parsed, kind);
   const warnings = oneCWarnings(headers, parsed, summary, cols, headerInfo);
   const preview = parsed.slice(0, 8);
@@ -3332,6 +3332,8 @@ function oneCColumns(headers) {
     stock: findColumn(headers, "", ["остаток", "остат", "қалдық", "калдык", "склад", "саны", "количество", "кол-во", "qty"]),
     buyPrice: findColumn(headers, "", ["закуп", "сатыпалу", "себестоимость", "кірісбаға", "покуп", "приход"]),
     sellPrice: findColumn(headers, "", ["продаж", "сату", "цена", "баға", "бага", "розниц", "розничная", "прайс"]),
+    amount: findColumn(headers, "", ["сумма", "сомасы", "құны", "итого", "всего", "оборот", "amount", "total"]),
+    paid: findColumn(headers, "", ["оплачено", "төленді", "толенди", "оплата", "платеж", "payment", "paid"]),
     client: findColumn(headers, "", ["клиент", "контрагент", "покупатель", "сатыпалушы"]),
     debt: findColumn(headers, "", ["долг", "қарыз", "карыз", "задолж", "дебет", "debt"]),
     date: findColumn(headers, "", ["дата", "күн", "куні", "date"]),
@@ -3348,6 +3350,8 @@ function oneCRow(row, cols) {
     stock: parseMoney(get("stock")),
     buyPrice: parseMoney(get("buyPrice")),
     sellPrice: parseMoney(get("sellPrice")),
+    amount: parseMoney(get("amount")),
+    paid: parseMoney(get("paid")),
     client: get("client"),
     debt: parseMoney(get("debt")),
     date: get("date"),
@@ -3356,8 +3360,20 @@ function oneCRow(row, cols) {
   };
 }
 
+function oneCMeaningfulRow(row) {
+  const text = normalizeText([row.code, row.name, row.client, row.document, row.status].filter(Boolean).join(" "));
+  if (!text && !row.stock && !row.buyPrice && !row.sellPrice && !row.amount && !row.paid && !row.debt) return false;
+  if (/^(итого|барлығы|всего|total)\b/.test(text)) return false;
+  return true;
+}
+
 function parseMoney(value) {
-  const clean = String(value || "").replace(/\s/g, "").replace(",", ".").replace(/[^\d.-]/g, "");
+  const clean = String(value || "")
+    .replace(/\u00a0/g, "")
+    .replace(/\s/g, "")
+    .replace(",", ".")
+    .replace(/[^\d().-]/g, "")
+    .replace(/^\((.*)\)$/, "-$1");
   const number = Number(clean);
   return Number.isFinite(number) ? number : 0;
 }
@@ -3369,6 +3385,8 @@ function oneCSummary(rows, kind) {
   const noStock = products.filter(row => row.stock === 0 && (row.name || row.code)).length;
   const debtRows = rows.filter(row => row.debt > 0);
   const debtTotal = debtRows.reduce((sum, row) => sum + row.debt, 0);
+  const amountTotal = rows.reduce((sum, row) => sum + Number(row.amount || row.sellPrice || 0), 0);
+  const paidTotal = rows.reduce((sum, row) => sum + Number(row.paid || 0), 0);
   const stockValue = products.reduce((sum, row) => sum + (row.stock || 0) * (row.sellPrice || row.buyPrice || 0), 0);
   const docs = rows.filter(row => row.document);
   return {
@@ -3380,6 +3398,8 @@ function oneCSummary(rows, kind) {
     noStock,
     debtRows: debtRows.length,
     debtTotal,
+    amountTotal,
+    paidTotal,
     stockValue,
     documents: docs.length
   };
@@ -3414,6 +3434,8 @@ function oneCReport(fileName, kind, headers, rows, summary, cols, warnings = [],
     `- Қалдық жоқ: ${summary.noStock}`,
     `- Қарыз жолы: ${summary.debtRows}`,
     `- Қарыз сомасы: ${Math.round(summary.debtTotal).toLocaleString("kk-KZ")} ₸`,
+    `- Құжат/сатылым сомасы: ${Math.round(summary.amountTotal || 0).toLocaleString("kk-KZ")} ₸`,
+    `- Төленгені: ${Math.round(summary.paidTotal || 0).toLocaleString("kk-KZ")} ₸`,
     `- Склад құны шамамен: ${Math.round(summary.stockValue).toLocaleString("kk-KZ")} ₸`,
     `- Құжат саны: ${summary.documents}`,
     "",
@@ -3436,7 +3458,7 @@ function oneCKindLabel(kind) {
 }
 
 function oneCColumnLabel(key) {
-  return { code: "Код", name: "Атауы", stock: "Остаток", buyPrice: "Сатып алу бағасы", sellPrice: "Сату бағасы", client: "Клиент", debt: "Қарыз", date: "Дата", doc: "Құжат", status: "Статус" }[key] || key;
+  return { code: "Код", name: "Атауы", stock: "Остаток", buyPrice: "Сатып алу бағасы", sellPrice: "Сату бағасы", amount: "Сумма", paid: "Төленді", client: "Клиент", debt: "Қарыз", date: "Дата", doc: "Құжат", status: "Статус" }[key] || key;
 }
 
 function saveOneCToBrain() {
@@ -3545,9 +3567,9 @@ function oneCToCfoPayload(oneC) {
       schoolName: row.client,
       date: normalizeDateInput(row.date) || isoDate(),
       status: row.debt > 0 ? "delivered" : "open",
-      totalAmount: row.sellPrice || row.debt || 0,
+      totalAmount: row.amount || row.sellPrice || row.debt || 0,
       costAmount: row.buyPrice || 0,
-      paidAmount: row.debt > 0 ? 0 : row.sellPrice || 0,
+      paidAmount: row.paid || (row.debt > 0 ? Math.max(0, Number(row.amount || row.sellPrice || 0) - row.debt) : row.amount || row.sellPrice || 0),
       documentStatus: row.document ? "дайын" : "толық емес",
       oneCStatus: row.document ? `1С ${row.document}` : "1С Excel импорт",
       comment: [row.name, row.code, row.status].filter(Boolean).join(" · ")
@@ -8351,6 +8373,7 @@ function normalizeElectroMovement(movement = {}) {
     purchasePrice: Number(movement.purchasePrice || 0),
     salePrice: Number(movement.salePrice || 0),
     totalAmount: Number(movement.totalAmount || 0),
+    paymentMethod: movement.paymentMethod || "cash",
     counterparty: movement.counterparty || "",
     comment: movement.comment || "",
     stockBefore: Number(movement.stockBefore || 0),
@@ -8791,6 +8814,7 @@ function saveElectroSale(event) {
     purchasePrice: product.purchasePrice,
     salePrice,
     totalAmount: qty * salePrice,
+    paymentMethod: $("electroSalePaymentMethod")?.value || "cash",
     counterparty: $("electroSaleClient")?.value?.trim() || "Дүкен сатылымы",
     comment: $("electroSaleComment")?.value?.trim() || "",
     stockBefore: before,
@@ -8865,18 +8889,26 @@ function saveElectroStockIn(event) {
 
 function addElectroSaleToCfo(product, movement) {
   state.cfo = normalizeCfo(state.cfo || {});
+  const paymentMethod = movement.paymentMethod || "cash";
+  const cfoMethod = paymentMethod === "kaspi" ? "bank" : paymentMethod;
+  const business = paymentMethod === "kaspi" ? "kaspi" : "retail";
+  const category = paymentMethod === "kaspi"
+    ? "Kaspi магазин сатылымы"
+    : paymentMethod === "bank"
+      ? "Электр дүкені сатылымы / банк"
+      : "Электр дүкені сатылымы / касса";
   state.cfo.payments.unshift(normalizeCfoPayment({
-    business: "retail",
+    business,
     date: isoDate(),
     type: "income",
-    method: "cash",
-    category: "Электр дүкені сатылымы",
+    method: cfoMethod,
+    category,
     amount: movement.totalAmount,
     counterparty: movement.counterparty,
-    comment: `${product.name} · ${movement.qty} ${product.unit}`
+    comment: `${product.name} · ${movement.qty} ${product.unit} · ${electroPaymentMethodLabel(paymentMethod)}`
   }));
   state.cfo.products = mergeCfoRows(state.cfo.products, [normalizeCfoProduct({
-    business: "retail",
+    business,
     name: product.name,
     oneCName: product.name,
     category: product.brand,
@@ -8885,6 +8917,14 @@ function addElectroSaleToCfo(product, movement) {
     quantity: product.stockQty,
     minQuantity: 3
   })]);
+}
+
+function electroPaymentMethodLabel(method = "cash") {
+  return {
+    cash: "Касса / наличный",
+    bank: "Банк аударым",
+    kaspi: "Kaspi магазин"
+  }[method] || method || "Касса / наличный";
 }
 
 function electroSalesRows(date = isoDate()) {
@@ -8948,6 +8988,7 @@ function electroSaleReceiptText(movement) {
     `Күні: ${formatDate(movement.date || movement.createdAt)}`,
     `№: ${movement.id}`,
     `Клиент: ${movement.counterparty || "Дүкен сатылымы"}`,
+    `Төлем түрі: ${electroPaymentMethodLabel(movement.paymentMethod)}`,
     "",
     `Тауар: ${movement.productName}`,
     `Код/SKU: ${movement.sku || movement.barcode || "-"}`,
@@ -8989,6 +9030,7 @@ function electroSaleReceiptHtml(movement) {
         <article>
           <h3>Сатып алушы</h3>
           <p><strong>${escapeHtml(movement.counterparty || "Дүкен сатылымы")}</strong></p>
+          <p>Төлем түрі: ${escapeHtml(electroPaymentMethodLabel(movement.paymentMethod))}</p>
           <p>Комментарий: ${escapeHtml(movement.comment || "-")}</p>
         </article>
       </div>
@@ -9069,6 +9111,7 @@ function electroSaleWhatsappText(movement) {
     `- Саны: ${movement.qty} ${movement.unit || "шт"}`,
     `- Бағасы: ${money(movement.salePrice)}`,
     `- Жалпы сумма: ${money(movement.totalAmount)}`,
+    `- Төлем түрі: ${electroPaymentMethodLabel(movement.paymentMethod)}`,
     movement.sku || movement.barcode ? `- Код: ${movement.sku || movement.barcode}` : "",
     "",
     profile.sellerName ? `${profile.sellerName}` : "SanaBase / Электр дүкені",
@@ -9111,6 +9154,11 @@ function showElectroDailySalesReport() {
     `Себестоимость: ${money(cost)}`,
     `Маржа: ${money(total - cost)}`,
     "",
+    "Төлем түрлері:",
+    `- Касса: ${money(rows.filter(row => (row.paymentMethod || "cash") === "cash").reduce((sum, row) => sum + Number(row.totalAmount || 0), 0))}`,
+    `- Банк: ${money(rows.filter(row => row.paymentMethod === "bank").reduce((sum, row) => sum + Number(row.totalAmount || 0), 0))}`,
+    `- Kaspi: ${money(rows.filter(row => row.paymentMethod === "kaspi").reduce((sum, row) => sum + Number(row.totalAmount || 0), 0))}`,
+    "",
     rows.length ? "Сатылымдар:" : "Бүгін сатылым жоқ.",
     ...rows.map((row, index) => `${index + 1}. ${row.productName} · ${row.qty} ${row.unit} · ${money(row.totalAmount)} · ${row.counterparty || "-"}`)
   ].join("\n");
@@ -9134,6 +9182,8 @@ function exportElectroDailySalesReport() {
     purchasePrice: Number(row.purchasePrice || 0),
     salePrice: Number(row.salePrice || 0),
     totalAmount: Number(row.totalAmount || 0),
+    paymentMethod: row.paymentMethod || "cash",
+    paymentMethodLabel: electroPaymentMethodLabel(row.paymentMethod),
     marginAmount: Number(row.totalAmount || 0) - Number(row.purchasePrice || 0) * Number(row.qty || 0),
     client: row.counterparty || "",
     comment: row.comment || "",
@@ -9424,6 +9474,7 @@ function renderElectroMovements() {
     <article class="electro-card ${item.type === "sale" ? "electro-sale" : "electro-stock-in"}">
       <h4>${item.type === "sale" ? "Сатылым" : "Приход"} · ${escapeHtml(item.productName)}</h4>
       <p>${formatDate(item.date)} · ${item.qty} ${escapeHtml(item.unit)} · ${money(item.totalAmount)}</p>
+      <p>Төлем: ${escapeHtml(electroPaymentMethodLabel(item.paymentMethod))}</p>
       <p>Қалдық: ${item.stockBefore} -> ${item.stockAfter} · ${escapeHtml(item.counterparty || "-")}</p>
       <p>${escapeHtml(item.comment || "")}</p>
     </article>

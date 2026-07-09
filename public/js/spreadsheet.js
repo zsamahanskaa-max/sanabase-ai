@@ -4,15 +4,32 @@
     if (["xlsx", "xls"].includes(ext)) {
       const buffer = await file.arrayBuffer();
       const workbook = XLSX.read(buffer, { type: "array", cellFormula: true, cellStyles: true, cellNF: true, cellDates: true });
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      return { name: file.name, workbook, sheet, rows: trimRows(worksheetToRows(sheet)) };
+      const sheetName = chooseBestSheetName(workbook);
+      const sheet = workbook.Sheets[sheetName];
+      return { name: file.name, sheetName, workbook, sheet, rows: trimRows(worksheetToRows(sheet)) };
     }
     if (["csv", "tsv"].includes(ext)) {
-      const delimiter = ext === "tsv" ? "\t" : ",";
-      const rows = (await file.text()).split(/\r?\n/).map(line => line.split(delimiter));
+      const text = await file.text();
+      const delimiter = ext === "tsv" ? "\t" : detectDelimiter(text);
+      const rows = text.split(/\r?\n/).map(line => parseDelimitedLine(line, delimiter));
       return { name: file.name, rows: trimRows(rows) };
     }
     throw new Error("Тек Excel, CSV немесе TSV файл салыңыз.");
+  }
+
+  function chooseBestSheetName(workbook) {
+    const sheetNames = workbook.SheetNames || [];
+    if (!sheetNames.length) throw new Error("Excel sheet not found.");
+    let best = { name: sheetNames[0], score: -1 };
+    sheetNames.forEach(name => {
+      const rows = trimRows(worksheetToRows(workbook.Sheets[name] || {}));
+      const preview = rows.slice(0, 25).flat().join(" ").toLowerCase();
+      let score = rows.length;
+      if (/номенклатура|товар|тауар|контрагент|клиент|остаток|қалдық|количество|сумма|цена|баға|документ|реализация|эсф|esf/i.test(preview)) score += 80;
+      if (/итого|барлығы|всего/i.test(preview)) score += 5;
+      if (score > best.score) best = { name, score };
+    });
+    return best.name;
   }
 
   function worksheetToRows(sheet) {
@@ -26,6 +43,37 @@
       rows.push(row);
     }
     return rows;
+  }
+
+  function detectDelimiter(text) {
+    const sample = text.split(/\r?\n/).slice(0, 10).join("\n");
+    const candidates = [",", ";", "\t", "|"];
+    return candidates
+      .map(delimiter => ({ delimiter, count: sample.split(delimiter).length }))
+      .sort((a, b) => b.count - a.count)[0]?.delimiter || ",";
+  }
+
+  function parseDelimitedLine(line, delimiter) {
+    const cells = [];
+    let current = "";
+    let quoted = false;
+    for (let index = 0; index < line.length; index += 1) {
+      const char = line[index];
+      const next = line[index + 1];
+      if (char === "\"" && quoted && next === "\"") {
+        current += "\"";
+        index += 1;
+      } else if (char === "\"") {
+        quoted = !quoted;
+      } else if (char === delimiter && !quoted) {
+        cells.push(current);
+        current = "";
+      } else {
+        current += char;
+      }
+    }
+    cells.push(current);
+    return cells;
   }
 
   function normalizeHeader(row) {
@@ -68,14 +116,19 @@
 
   function cellText(cell) {
     if (!cell) return "";
-    if (cell.v != null) return cellValue(cell.v);
     if (cell.w != null) return cellValue(cell.w);
+    if (cell.v != null) return cellValue(cell.v);
     if (cell.f != null) return cellValue(cell.f);
     return "";
   }
 
   function parseNumber(value) {
-    const clean = String(value ?? "").replace(/\s+/g, "").replace(",", ".");
+    const clean = String(value ?? "")
+      .replace(/\u00a0/g, "")
+      .replace(/\s+/g, "")
+      .replace(",", ".")
+      .replace(/[^\d().-]/g, "")
+      .replace(/^\((.*)\)$/, "-$1");
     if (!/^-?\d+(\.\d+)?$/.test(clean)) return null;
     const number = Number(clean);
     return Number.isFinite(number) ? number : null;
@@ -83,7 +136,10 @@
 
   const helpers = {
     readTableFile,
+    chooseBestSheetName,
     worksheetToRows,
+    detectDelimiter,
+    parseDelimitedLine,
     normalizeHeader,
     trimRows,
     findColumn,

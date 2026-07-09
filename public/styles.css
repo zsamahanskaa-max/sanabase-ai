@@ -1400,6 +1400,13 @@ textarea:focus, input:focus, select:focus { border-color: var(--leaf); }
   min-height: 180px;
 }
 
+.electro-receipt-profile {
+  border: 1px dashed rgba(40, 67, 63, .28);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .62);
+  padding: 12px;
+}
+
 @media (max-width: 900px) {
   .electro-hero,
   .electro-grid,

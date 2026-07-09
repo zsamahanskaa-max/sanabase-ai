@@ -216,6 +216,7 @@ on("electroStockInForm", "submit", saveElectroStockIn);
 on("electroPrintLastSaleBtn", "click", printLastElectroSale);
 on("electroDailyReportBtn", "click", showElectroDailySalesReport);
 on("electroDailyExportBtn", "click", exportElectroDailySalesReport);
+on("electroReceiptProfileForm", "submit", saveElectroReceiptProfile);
 on("electroScanSaleBtn", "click", () => startElectroBarcodeScanner("sale"));
 on("electroScanStockBtn", "click", () => startElectroBarcodeScanner("stock"));
 on("electroScanStopBtn", "click", stopElectroBarcodeScanner);
@@ -8872,13 +8873,56 @@ function electroSalesRows(date = isoDate()) {
     .sort((a, b) => String(b.date || b.createdAt || "").localeCompare(String(a.date || a.createdAt || "")));
 }
 
+function electroReceiptProfile() {
+  state.electro = normalizeElectro(state.electro || {});
+  const profile = state.electro.settings?.receiptProfile || {};
+  return {
+    sellerName: profile.sellerName || "",
+    sellerBin: profile.sellerBin || "",
+    sellerPhone: profile.sellerPhone || "",
+    sellerAddress: profile.sellerAddress || "",
+    sellerBank: profile.sellerBank || ""
+  };
+}
+
+function fillElectroReceiptProfileForm() {
+  const profile = electroReceiptProfile();
+  if ($("electroReceiptSellerName")) $("electroReceiptSellerName").value = profile.sellerName;
+  if ($("electroReceiptSellerBin")) $("electroReceiptSellerBin").value = profile.sellerBin;
+  if ($("electroReceiptSellerPhone")) $("electroReceiptSellerPhone").value = profile.sellerPhone;
+  if ($("electroReceiptSellerAddress")) $("electroReceiptSellerAddress").value = profile.sellerAddress;
+  if ($("electroReceiptSellerBank")) $("electroReceiptSellerBank").value = profile.sellerBank;
+}
+
+function saveElectroReceiptProfile(event) {
+  event.preventDefault();
+  state.electro = normalizeElectro(state.electro || {});
+  state.electro.settings = state.electro.settings || {};
+  state.electro.settings.receiptProfile = {
+    sellerName: $("electroReceiptSellerName")?.value?.trim() || "",
+    sellerBin: $("electroReceiptSellerBin")?.value?.trim() || "",
+    sellerPhone: $("electroReceiptSellerPhone")?.value?.trim() || "",
+    sellerAddress: $("electroReceiptSellerAddress")?.value?.trim() || "",
+    sellerBank: $("electroReceiptSellerBank")?.value?.trim() || "",
+    updatedAt: nowIso()
+  };
+  persist();
+  if ($("electroSaleReportOut")) $("electroSaleReportOut").textContent = "Реквизит сақталды. Енді чек/накладной печать жасағанда осы деректер шығады.";
+}
+
 function electroSaleReceiptText(movement) {
   if (!movement) return "Сатылым табылмады.";
+  const profile = electroReceiptProfile();
   const totalCost = Number(movement.qty || 0) * Number(movement.purchasePrice || 0);
   const margin = Number(movement.totalAmount || 0) - totalCost;
   return [
-    "SanaBase · Электр дүкені",
+    profile.sellerName || "SanaBase · Электр дүкені",
     "Сатылым чек/накладной",
+    "",
+    profile.sellerBin ? `ИИН/БИН: ${profile.sellerBin}` : "",
+    profile.sellerPhone ? `Телефон: ${profile.sellerPhone}` : "",
+    profile.sellerAddress ? `Адрес: ${profile.sellerAddress}` : "",
+    profile.sellerBank ? `Реквизит: ${profile.sellerBank}` : "",
     "",
     `Күні: ${formatDate(movement.date || movement.createdAt)}`,
     `№: ${movement.id}`,
@@ -8896,6 +8940,63 @@ function electroSaleReceiptText(movement) {
     "",
     "Ескерту: бұл ішкі чек/накладной preview. Ресми құжат керек болса, CRM накладной бөлімі арқылы печать жасаңыз."
   ].filter(Boolean).join("\n");
+}
+
+function electroSaleReceiptHtml(movement) {
+  const profile = electroReceiptProfile();
+  const totalCost = Number(movement.qty || 0) * Number(movement.purchasePrice || 0);
+  const margin = Number(movement.totalAmount || 0) - totalCost;
+  const docNo = String(movement.id || "").slice(0, 8).toUpperCase();
+  return `
+    <section class="receipt-doc">
+      <header>
+        <div>
+          <h1>Сатылым чек / Накладной</h1>
+          <p>№ ${escapeHtml(docNo)} · ${escapeHtml(formatDate(movement.date || movement.createdAt))}</p>
+        </div>
+        <div class="stamp">SanaBase</div>
+      </header>
+      <div class="parties">
+        <article>
+          <h3>Сатушы</h3>
+          <p><strong>${escapeHtml(profile.sellerName || "ИП / дүкен атауы")}</strong></p>
+          <p>ИИН/БИН: ${escapeHtml(profile.sellerBin || "________________")}</p>
+          <p>Телефон: ${escapeHtml(profile.sellerPhone || "________________")}</p>
+          <p>Адрес: ${escapeHtml(profile.sellerAddress || "________________")}</p>
+          <p>Реквизит: ${escapeHtml(profile.sellerBank || "________________")}</p>
+        </article>
+        <article>
+          <h3>Сатып алушы</h3>
+          <p><strong>${escapeHtml(movement.counterparty || "Дүкен сатылымы")}</strong></p>
+          <p>Комментарий: ${escapeHtml(movement.comment || "-")}</p>
+        </article>
+      </div>
+      <table>
+        <thead>
+          <tr><th>Тауар</th><th>Код</th><th>Саны</th><th>Бағасы</th><th>Сумма</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>${escapeHtml(movement.productName || "-")}</td>
+            <td>${escapeHtml(movement.sku || movement.barcode || "-")}</td>
+            <td>${escapeHtml(String(movement.qty || 0))} ${escapeHtml(movement.unit || "шт")}</td>
+            <td>${money(movement.salePrice)}</td>
+            <td>${money(movement.totalAmount)}</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="totals">
+        <p>Жалпы сумма: <strong>${money(movement.totalAmount)}</strong></p>
+        <p>Қалдық: ${escapeHtml(String(movement.stockBefore))} -> ${escapeHtml(String(movement.stockAfter))}</p>
+        <p>Ішкі маржа: ${money(margin)}</p>
+      </div>
+      <div class="signatures">
+        <span>Сатушы: ____________________</span>
+        <span>Сатып алушы: ____________________</span>
+      </div>
+      <p class="note">Бұл ішкі чек/накладной preview. Ресми бухгалтерлік құжат үшін 1С/ЭСФ/накладной статусын бөлек тексеріңіз.</p>
+    </section>
+  `;
 }
 
 function renderElectroSaleReceipt(movement) {
@@ -8919,10 +9020,17 @@ function printLastElectroSale() {
   if (!win) return;
   win.document.write(`
     <html><head><title>Сатылым чек</title><style>
-      body{font-family:Arial,sans-serif;margin:28px;color:#111}
-      pre{white-space:pre-wrap;font-size:15px;line-height:1.55}
-      h1{font-size:22px;margin:0 0 14px}
-    </style></head><body><h1>Сатылым чек/накладной</h1><pre>${escapeHtml(text)}</pre></body></html>
+      body{font-family:Arial,sans-serif;margin:0;color:#111;background:#f4f4f4}
+      .receipt-doc{width:190mm;min-height:260mm;margin:12mm auto;background:#fff;padding:14mm;box-sizing:border-box}
+      header,.parties,.signatures{display:flex;justify-content:space-between;gap:18px}
+      header{border-bottom:2px solid #111;padding-bottom:12px;margin-bottom:16px}
+      h1{font-size:24px;margin:0 0 6px} h3{margin:0 0 8px}
+      p{margin:4px 0}.stamp{border:2px solid #111;border-radius:50%;width:82px;height:82px;display:grid;place-items:center;font-weight:700}
+      .parties article{width:50%;border:1px solid #bbb;padding:10px}
+      table{width:100%;border-collapse:collapse;margin:18px 0} th,td{border:1px solid #222;padding:8px;font-size:13px;text-align:left} th{background:#f1f1f1}
+      .totals{text-align:right;font-size:16px}.signatures{margin-top:32px}.note{margin-top:28px;color:#555;font-size:12px}
+      @media print{body{background:#fff}.receipt-doc{margin:0;width:auto;min-height:auto}}
+    </style></head><body>${electroSaleReceiptHtml(movement)}</body></html>
   `);
   win.document.close();
   win.focus();
@@ -9206,6 +9314,7 @@ function renderElectro() {
   renderElectroBrands();
   renderElectroChina();
   renderElectroLessons();
+  fillElectroReceiptProfileForm();
 }
 
 function renderElectroSelects() {

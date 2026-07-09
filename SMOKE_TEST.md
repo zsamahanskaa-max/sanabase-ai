@@ -786,7 +786,7 @@ Frontend asset query versions were updated to `20260709-02`. Manual checks to ru
 
 ## 40. Visible sales and stock entry
 
-Frontend asset query versions were updated to `20260709-03`. Manual checks to run:
+Frontend asset query versions were updated to `20260709-04`. Manual checks to run:
 
 1. Confirm the left menu has a separate `Сату / Склад` button.
 2. Click `Сату / Склад` and confirm ElectroPro opens directly on the inventory tab.
@@ -796,9 +796,11 @@ Frontend asset query versions were updated to `20260709-03`. Manual checks to ru
 6. Confirm stock decreases and the sale appears in movement history.
 7. Confirm CFO receives the retail sale income row.
 8. Confirm the receipt/накладной preview appears after saving a sale.
-9. Click `Соңғы сатылым чек/накладной` and confirm the print window opens.
-10. Click `Күндік сатылым отчет` and confirm totals, cost, margin, and sale rows appear.
-11. Click `Күндік Excel export` and confirm an `.xlsx` file downloads.
+9. Fill and save seller реквизиттері: ИП/дүкен аты, ИИН/БИН, телефон, адрес, банк/Kaspi.
+10. Click `Соңғы сатылым чек/накладной` and confirm the print window opens with seller реквизиттері, buyer/client, product table, totals and signatures.
+11. Refresh the page and confirm seller реквизиттері stay saved.
+12. Click `Күндік сатылым отчет` and confirm totals, cost, margin, and sale rows appear.
+13. Click `Күндік Excel export` and confirm an `.xlsx` file downloads.
 17. Confirm Console error is empty.
 
 ## Pass criteria

@@ -9,9 +9,9 @@
   <meta name="apple-mobile-web-app-title" content="SanaBase">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>SanaBase AI</title>
-  <link rel="manifest" href="public/manifest.json?v=20260709-03">
+  <link rel="manifest" href="public/manifest.json?v=20260709-04">
   <link rel="apple-touch-icon" href="public/icons/sanabase-icon.svg">
-  <link rel="stylesheet" href="public/styles.css?v=20260709-03">
+  <link rel="stylesheet" href="public/styles.css?v=20260709-04">
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs" type="module"></script>
@@ -520,6 +520,14 @@
             <button id="electroDailyReportBtn" type="button">Күндік сатылым отчет</button>
             <button id="electroDailyExportBtn" type="button">Күндік Excel export</button>
           </div>
+          <form class="electro-grid electro-receipt-profile" id="electroReceiptProfileForm">
+            <label><span>Менің ИП / дүкен атым</span><input id="electroReceiptSellerName" placeholder="ИП / дүкен / компания"></label>
+            <label><span>ИИН / БИН</span><input id="electroReceiptSellerBin" placeholder="ИИН немесе БИН"></label>
+            <label><span>Телефон / WhatsApp</span><input id="electroReceiptSellerPhone" placeholder="+7 ..."></label>
+            <label><span>Адрес</span><input id="electroReceiptSellerAddress" placeholder="Дүкен адресі"></label>
+            <label class="wide"><span>Банк / Kaspi / реквизит</span><input id="electroReceiptSellerBank" placeholder="Kaspi / банк счет / реквизит"></label>
+            <button id="electroReceiptProfileSaveBtn" type="submit">Реквизит сақтау</button>
+          </form>
           <div class="electro-output electro-sale-report" id="electroSaleReportOut">Сатылым енгізгеннен кейін чек/накладной және күндік отчет осы жерде дайын болады.</div>
           <div class="electro-list" id="electroMovementList"></div>
         </section>
@@ -1354,19 +1362,19 @@
     </section>
   </div>
 
-  <script src="public/js/utils.js?v=20260709-03"></script>
-  <script src="public/js/storage.js?v=20260709-03"></script>
-  <script src="public/js/api.js?v=20260709-03"></script>
-  <script src="public/js/spreadsheet.js?v=20260709-03"></script>
-  <script src="public/js/documents.js?v=20260709-03"></script>
-  <script src="public/js/priceMatching.js?v=20260709-03"></script>
+  <script src="public/js/utils.js?v=20260709-04"></script>
+  <script src="public/js/storage.js?v=20260709-04"></script>
+  <script src="public/js/api.js?v=20260709-04"></script>
+  <script src="public/js/spreadsheet.js?v=20260709-04"></script>
+  <script src="public/js/documents.js?v=20260709-04"></script>
+  <script src="public/js/priceMatching.js?v=20260709-04"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     window.SANABASE_SUPABASE_URL = window.SANABASE_SUPABASE_URL || "https://koszjmsanlxdakqvdkgc.supabase.co";
     window.SANABASE_SUPABASE_ANON_KEY = window.SANABASE_SUPABASE_ANON_KEY || "sb_publishable_y7IIJav4n99Z1dbfROh3SA_TtlAn5tO";
   </script>
-  <script src="public/js/cloudSync.js?v=20260709-03"></script>
-  <script src="public/app.js?v=20260709-03"></script>
+  <script src="public/js/cloudSync.js?v=20260709-04"></script>
+  <script src="public/app.js?v=20260709-04"></script>
   <script>
     if ("serviceWorker" in navigator && location.protocol !== "file:") {
       window.addEventListener("load", () => {

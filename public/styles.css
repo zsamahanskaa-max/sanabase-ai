@@ -1587,6 +1587,35 @@ textarea:focus, input:focus, select:focus { border-color: var(--leaf); }
   color: var(--muted);
   line-height: 1.45;
 }
+
+.cfo-ip-command,
+.cfo-ip-flow {
+  display: grid;
+  gap: 10px;
+}
+
+.cfo-ip-command {
+  grid-template-columns: 1.2fr 1fr 1fr;
+}
+
+.cfo-ip-flow {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.cfo-ip-flow article {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .76);
+  box-shadow: var(--shadow);
+  padding: 13px;
+  display: grid;
+  gap: 6px;
+}
+
+.cfo-ip-flow span {
+  color: var(--muted);
+  line-height: 1.45;
+}
 .cfo-kpis,
 .cfo-mini-grid {
   display: grid;
@@ -4018,7 +4047,7 @@ pre {
     max-width: 100%;
     padding: 12px 13px;
   }
-  .composer, .toolbar, .split, .notes-layout, .tasks-layout, .cal-layout, .cal-hero, .match-grid, .brain-fields, .brain-head, .cloud-grid, .task-form-grid, .note-form-grid, .cal-form-grid, .assistant-controls, .assistant-dashboard, .goal-toolbar, .goal-layout, .goal-columns, .goal-form-grid, .crm-actions, .crm-dashboard, .crm-sections, .crm-template-grid, .crm-panel-head, .crm-toolbar, .crm-quick-form, .crm-file-grid, .crm-smart-archive, .crm-report-card, .cfo-hero, .cfo-layout, .cfo-toolbar, .cfo-form-grid, .cfo-accountant-grid, .cfo-file-grid, .cfo-business-grid {
+  .composer, .toolbar, .split, .notes-layout, .tasks-layout, .cal-layout, .cal-hero, .match-grid, .brain-fields, .brain-head, .cloud-grid, .task-form-grid, .note-form-grid, .cal-form-grid, .assistant-controls, .assistant-dashboard, .goal-toolbar, .goal-layout, .goal-columns, .goal-form-grid, .crm-actions, .crm-dashboard, .crm-sections, .crm-template-grid, .crm-panel-head, .crm-toolbar, .crm-quick-form, .crm-file-grid, .crm-smart-archive, .crm-report-card, .cfo-hero, .cfo-layout, .cfo-toolbar, .cfo-form-grid, .cfo-accountant-grid, .cfo-file-grid, .cfo-business-grid, .cfo-ip-command, .cfo-ip-flow {
     grid-template-columns: 1fr;
   }
   .crm-nakladnaya-item-row {

@@ -769,6 +769,19 @@ Frontend asset query versions were updated to `20260708-10`. Manual checks to ru
 17. Click `Excel export` and confirm an `.xlsx` file downloads; if XLSX is unavailable, confirm CSV fallback downloads.
 18. Click `Бос шаблон` and confirm blank printable document can be generated.
 19. Confirm existing CRM quick order save still works.
+
+## 39. IP / OUR accountant v2
+
+Frontend asset query versions were updated to `20260709-01`. Manual checks to run:
+
+1. Open `AI Бас бухгалтер`.
+2. Open the `ИП / ОУР` tab.
+3. Confirm the new command cards show readiness percent, tax base, risk count, bank/cash/Kaspi status.
+4. Add a `Payment / төлем` without category and confirm it appears in IP accountant warnings.
+5. Add a `TaxTask / салық` with a near due date and confirm it appears in the tax calendar/warnings.
+6. Ask the CFO chat: `ИП ОУР бойынша не тексеру керек?`
+7. Confirm the answer shows a step-by-step IP accountant brief and safety note.
+8. Confirm Dashboard, Cash Flow, P&L, Kaspi, Backup, CRM and Tasks still open without console errors.
 17. Confirm Console error is empty.
 
 ## Pass criteria

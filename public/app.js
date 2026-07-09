@@ -7825,6 +7825,160 @@ function cfoTaxView(cfo, metrics, warnings) {
     ${cfoRows("Салық календарь", cfo.taxTasks.map(t => [t.taxType, t.period || "-", t.dueDate || "-", `${money(t.amount)} · ${t.status}`]))}
     ${taxWarnings.length ? cfoRows("Салық/финанс warning", taxWarnings.map(w => [w.severity, w.title, w.description])) : ""}`;
 }
+function cfoIpAccountantSnapshot(cfo, metrics, warnings) {
+  const incomePayments = cfo.payments.filter(payment => payment.type === "income");
+  const expensePayments = cfo.payments.filter(payment => payment.type === "expense");
+  const incomeByPayments = incomePayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+  const incomeByOrders = cfo.orders.reduce((sum, order) => sum + Number(order.totalAmount || 0), 0);
+  const taxBase = incomeByPayments || incomeByOrders;
+  const expenses = expensePayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0) + cfo.orders.reduce((sum, order) => sum + Number(order.costAmount || 0), 0);
+  const uncategorizedExpenses = expensePayments.filter(payment => !payment.category);
+  const unlinkedIncome = incomePayments.filter(payment => !payment.relatedOrderId);
+  const overdueTaxes = cfo.taxTasks.filter(task => task.status !== "done" && daysUntil(task.dueDate) < 0);
+  const soonTaxes = cfo.taxTasks.filter(task => task.status !== "done" && daysUntil(task.dueDate) >= 0 && daysUntil(task.dueDate) <= 10);
+  const missingEsfOrders = cfo.orders.filter(order => ["delivered", "closed", "received"].includes(order.status) && !order.esfStatus);
+  const missingDocs = cfo.documents.filter(doc => !/қол қойылды|жабылды|дайын|жіберілді|ready|done|sent|closed/i.test(doc.status || ""));
+  const debtors = cfo.orders.filter(order => Number(order.debtAmount || 0) > 0).sort((a, b) => Number(b.debtAmount || 0) - Number(a.debtAmount || 0));
+  const kaspiRows = cfo.payments.filter(payment => payment.business === "kaspi").length + cfo.orders.filter(order => order.business === "kaspi").length;
+  const bankRows = cfo.payments.filter(payment => payment.method === "bank").length;
+  const cashRows = cfo.payments.filter(payment => payment.method === "cash").length;
+  const riskCount = overdueTaxes.length + soonTaxes.length + uncategorizedExpenses.length + unlinkedIncome.length + missingEsfOrders.length + missingDocs.length + debtors.filter(order => daysUntil(order.date) < -14).length;
+  const readinessItems = [
+    { ok: cfo.payments.length > 0, label: "Банк/Kaspi/касса төлемдері енгізілген" },
+    { ok: cfo.orders.length > 0, label: "Реализация/заказ деректері бар" },
+    { ok: cfo.taxTasks.length > 0, label: "Салық календарь толтырылған" },
+    { ok: !uncategorizedExpenses.length, label: "Шығын категориялары толық" },
+    { ok: !unlinkedIncome.length, label: "Төлемдер заказ/контрагентпен байланысқан" },
+    { ok: !missingEsfOrders.length, label: "ЭСФ/реализация warning жабылған" }
+  ];
+  const readiness = Math.round((readinessItems.filter(item => item.ok).length / readinessItems.length) * 100);
+  return {
+    incomeByPayments,
+    incomeByOrders,
+    taxBase,
+    expenses,
+    approximateProfit: taxBase - expenses,
+    uncategorizedExpenses,
+    unlinkedIncome,
+    overdueTaxes,
+    soonTaxes,
+    missingEsfOrders,
+    missingDocs,
+    debtors,
+    kaspiRows,
+    bankRows,
+    cashRows,
+    riskCount,
+    readinessItems,
+    readiness,
+    metrics,
+    warnings
+  };
+}
+
+function cfoIpNextActions(snapshot) {
+  const actions = [];
+  if (!snapshot.readinessItems[0].ok) actions.push(["Банк/Kaspi выписка жүктеу", "Банк, Kaspi және касса түсімін бір жерге жинаңыз."]);
+  if (!snapshot.readinessItems[1].ok) actions.push(["1С реализация жүктеу", "Реализация товаров и услуг немесе сатылым Excel файлын импорттаңыз."]);
+  if (!snapshot.readinessItems[2].ok) actions.push(["Салық календарь толтыру", "Декларация, төлем, reminder күндерін TaxTask ретінде енгізіңіз."]);
+  if (snapshot.uncategorizedExpenses.length) actions.push(["Шығын категориясын жабу", `${snapshot.uncategorizedExpenses.length} төлемде категория жоқ.`]);
+  if (snapshot.unlinkedIncome.length) actions.push(["Төлемді заказға байлау", `${snapshot.unlinkedIncome.length} кіріс төлем relatedOrderId жоқ күйде тұр.`]);
+  if (snapshot.missingEsfOrders.length) actions.push(["ЭСФ статусын тексеру", `${snapshot.missingEsfOrders.length} жеткізілген заказда ЭСФ бос.`]);
+  if (snapshot.debtors.length) actions.push(["Дебиторка бойынша WhatsApp", `${snapshot.debtors[0].clientName || snapshot.debtors[0].schoolName}: ${money(snapshot.debtors[0].debtAmount)} қарыз.`]);
+  if (!actions.length) actions.push(["Күндік сверка жасау", "Бүгін банк/Kaspi/касса, 1С реализация және құжат статусын бір рет салыстырыңыз."]);
+  return actions.slice(0, 6);
+}
+
+function cfoIpAccountantText(cfo = cfoFilteredData(), metrics = cfoMetrics(cfo), warnings = cfoAuditWarnings(cfo)) {
+  const snapshot = cfoIpAccountantSnapshot(cfo, metrics, warnings);
+  const actions = cfoIpNextActions(snapshot);
+  return [
+    "ИП / ОУР Бас бухгалтер қысқа есебі",
+    "",
+    `Дайындық: ${snapshot.readiness}%`,
+    `Болжамды салық базасы: ${money(snapshot.taxBase)}. Нақты ставка/мерзімді міндетті түрде актуалды заңнамамен тексеру керек.`,
+    `Кіріс төлемдері: ${money(snapshot.incomeByPayments)} · Реализация/заказ: ${money(snapshot.incomeByOrders)}`,
+    `Шығын және себестоимость: ${money(snapshot.expenses)} · Болжамды нәтиже: ${money(snapshot.approximateProfit)}`,
+    `Банк жолы: ${snapshot.bankRows} · Касса жолы: ${snapshot.cashRows} · Kaspi жолы: ${snapshot.kaspiRows}`,
+    `Ашық risk: ${snapshot.riskCount}`,
+    "",
+    "Не тексеріледі:",
+    "- 1С: Реализация товаров и услуг, Банк/Касса выписка, Контрагенты, Номенклатура, ЭСФ, Акт сверки.",
+    "- Банк/Kaspi: түсім, комиссия, логистика, возврат, клиент төлемі.",
+    "- ОУР: декларация/төлем мерзімі, кіріс базасы, шығын категориялары, құжат толықтығы.",
+    "",
+    "Келесі нақты қадам:",
+    ...actions.map((action, index) => `${index + 1}. ${action[0]} — ${action[1]}`),
+    "",
+    "Қауіпсіздік:",
+    "- Мен декларация жібермеймін, салық төлемеймін, ЭСФ жібермеймін.",
+    "- Маңызды әрекетке адам растауы керек.",
+    "- Қауіпті жағдайда кәсіби бухгалтер/салық консультантымен тексеріңіз."
+  ].join("\n");
+}
+
+function cfoTaxView(cfo, metrics, warnings) {
+  const snapshot = cfoIpAccountantSnapshot(cfo, metrics, warnings);
+  const actions = cfoIpNextActions(snapshot);
+  const taxRows = cfo.taxTasks.map(task => [
+    task.taxType || "ОУР",
+    task.period || "-",
+    task.dueDate || "-",
+    `${money(task.amount)} · ${task.status || "open"}`
+  ]);
+  const readinessRows = snapshot.readinessItems.map(item => [item.ok ? "OK" : "Керек", item.label, item.ok ? "жабық" : "толтыру керек"]);
+  const riskRows = [
+    ...snapshot.overdueTaxes.map(task => ["high", "Салық мерзімі өтіп кеткен", `${task.taxType || "ОУР"} · ${task.dueDate || "күні жоқ"}`]),
+    ...snapshot.soonTaxes.map(task => ["medium", "Салық мерзімі жақын", `${task.taxType || "ОУР"} · ${task.dueDate || "күні жоқ"}`]),
+    ...snapshot.uncategorizedExpenses.map(payment => ["low", "Шығын категориясыз", `${payment.counterparty || "төлем"} · ${money(payment.amount)}`]),
+    ...snapshot.unlinkedIncome.map(payment => ["medium", "Төлем заказға байланыспаған", `${payment.counterparty || "төлем"} · ${money(payment.amount)}`]),
+    ...snapshot.missingEsfOrders.map(order => ["high", "ЭСФ бос", `${order.clientName || order.schoolName} · ${money(order.totalAmount)}`])
+  ].slice(0, 12);
+  const debtRows = snapshot.debtors.slice(0, 8).map(order => [
+    order.clientName || order.schoolName || "клиент",
+    money(order.debtAmount),
+    order.date || "-",
+    "WhatsApp: төлем бойынша еске салу дайындау"
+  ]);
+  return `
+    <div class="cfo-ip-command">
+      <article class="cfo-accountant-card primary">
+        <span>ИП / ОУР Бас бухгалтер</span>
+        <strong>${snapshot.readiness}% дайын</strong>
+        <p>Бұл бөлім ОУР режиміндегі ИП үшін банк, Kaspi, касса, 1С, дебиторка, құжат және салық календарьді бір жерде бақылайды.</p>
+      </article>
+      <article class="cfo-accountant-card">
+        <span>Болжамды салық базасы</span>
+        <strong>${money(snapshot.taxBase)}</strong>
+        <p>Нақты ставка/мерзімді міндетті түрде актуалды заңнамамен және бухгалтермен тексеру керек.</p>
+      </article>
+      <article class="cfo-accountant-card">
+        <span>Risk scanner</span>
+        <strong>${snapshot.riskCount} ашық risk</strong>
+        <p>Категориясыз шығын, байланыспаған төлем, ЭСФ, қарыз және мерзім warning-тері.</p>
+      </article>
+    </div>
+    <div class="cfo-business-grid">
+      <article><span>Банк түсімі</span><strong>${money(metrics.bank)}</strong><p>${snapshot.bankRows} банк төлем жолы.</p></article>
+      <article><span>Касса қалдығы</span><strong>${money(metrics.cash)}</strong><p>${snapshot.cashRows} касса төлем жолы.</p></article>
+      <article><span>Kaspi бақылау</span><strong>${snapshot.kaspiRows} жол</strong><p>Kaspi түсім, комиссия, логистика, возврат бөлек көрінуі керек.</p></article>
+      <article><span>Болжамды нәтиже</span><strong>${money(snapshot.approximateProfit)}</strong><p>Кіріс базасынан шығын/себестоимость алынған қысқа көрініс.</p></article>
+    </div>
+    <section class="cfo-ip-flow">
+      <article><strong>1. Дерек жинау</strong><span>Банк/Kaspi выписка, касса, 1С реализация, номенклатура, контрагенттер.</span></article>
+      <article><strong>2. Сверка</strong><span>Төлем ↔ заказ ↔ реализация ↔ ЭСФ ↔ акт сверки.</span></article>
+      <article><strong>3. Салыққа дайындық</strong><span>ОУР календарь, кіріс базасы, категория, құжат толықтығы.</span></article>
+      <article><strong>4. Растау</strong><span>Декларация/төлем/ЭСФ тек адам растауымен жасалады.</span></article>
+    </section>
+    <section class="cfo-table"><h3>Келесі нақты action</h3>${actions.map(action => `<div class="cfo-row"><span>${escapeHtml(action[0])}</span><span>${escapeHtml(action[1])}</span><span>адам растайды</span><span>қауіпсіз</span></div>`).join("")}</section>
+    ${cfoRows("ОУР дайындық чеклисті", readinessRows)}
+    ${taxRows.length ? cfoRows("Салық календарь", taxRows) : `<article class="cfo-empty"><strong>Салық календарь бос</strong><p>TaxTask қосыңыз: декларация, төлем күні, reminder, сумма және статус.</p></article>`}
+    ${riskRows.length ? cfoRows("ИП бухгалтер warning", riskRows) : `<article class="cfo-warning ok"><strong>ИП risk таза</strong><span>Қазір ОУР бойынша үлкен warning жоқ. Дерек жаңарса, қайта тексеріледі.</span></article>`}
+    ${debtRows.length ? cfoRows("Дебиторка және WhatsApp дайындық", debtRows) : ""}
+    <article class="cfo-empty"><strong>Маңызды шектеу</strong><p>Бұл заңды бухгалтерді алмастырмайды. Нақты салық ставкасы, мерзімі немесе декларация формасы айтылса, міндетті түрде актуалды заңнамамен тексеру керек.</p></article>
+  `;
+}
+
 function cfoRows(title, rows) {
   if (!rows.length) return `<article class="cfo-empty"><strong>${escapeHtml(title)}</strong><p>Бұл бөлімде әзірге дерек жоқ. Сол жақтағы форма арқылы енгізіңіз немесе 1С/Excel импортын кейін қосамыз.</p></article>`;
   return `<section class="cfo-table"><h3>${escapeHtml(title)}</h3>${rows.map(row => `<div class="cfo-row">${row.map(cell => `<span>${escapeHtml(cell)}</span>`).join("")}</div>`).join("")}</section>`;
@@ -7975,6 +8129,10 @@ function askCfoMock(event) {
   const metrics = cfoMetrics(cfo);
   const warnings = cfoAuditWarnings(cfo);
   const lowerPrompt = normalizeText(prompt);
+  if (/ип|оур|салық|салык|налог|декларация|касса|банк|kaspi|бухгалтер/i.test(lowerPrompt)) {
+    if ($("cfoChatOut")) $("cfoChatOut").textContent = cfoIpAccountantText(cfo, metrics, warnings);
+    return;
+  }
   if (/отчет|есеп|айлық|апталық|күндік|whatsapp|қарыз мәтін|kaspi сверка|оур/i.test(lowerPrompt)) {
     if ($("cfoChatOut")) $("cfoChatOut").textContent = buildCfoAutoReport(cfo);
     return;

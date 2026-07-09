@@ -772,7 +772,7 @@ Frontend asset query versions were updated to `20260708-10`. Manual checks to ru
 
 ## 39. IP / OUR accountant v2
 
-Frontend asset query versions were updated to `20260709-01`. Manual checks to run:
+Frontend asset query versions were updated to `20260709-02`. Manual checks to run:
 
 1. Open `AI Бас бухгалтер`.
 2. Open the `ИП / ОУР` tab.
@@ -781,7 +781,20 @@ Frontend asset query versions were updated to `20260709-01`. Manual checks to ru
 5. Add a `TaxTask / салық` with a near due date and confirm it appears in the tax calendar/warnings.
 6. Ask the CFO chat: `ИП ОУР бойынша не тексеру керек?`
 7. Confirm the answer shows a step-by-step IP accountant brief and safety note.
-8. Confirm Dashboard, Cash Flow, P&L, Kaspi, Backup, CRM and Tasks still open without console errors.
+8. Click `ИП ОУР отчет` and confirm an Excel report downloads with summary, checklist, next actions, and warnings.
+9. Confirm Dashboard, Cash Flow, P&L, Kaspi, Backup, CRM and Tasks still open without console errors.
+
+## 40. Visible sales and stock entry
+
+Frontend asset query versions were updated to `20260709-02`. Manual checks to run:
+
+1. Confirm the left menu has a separate `Сату / Склад` button.
+2. Click `Сату / Склад` and confirm ElectroPro opens directly on the inventory tab.
+3. Add or import a product in `Каталог`.
+4. Return to `Сату / Склад`, type product code/name in the sale search, and confirm the product auto-fills.
+5. Enter quantity, price, client, and click `Саттым деп енгізу`.
+6. Confirm stock decreases and the sale appears in movement history.
+7. Confirm CFO receives the retail sale income row.
 17. Confirm Console error is empty.
 
 ## Pass criteria

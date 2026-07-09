@@ -1,18 +1,18 @@
-const SANABASE_CACHE = "sanabase-ai-pwa-20260709-01";
+const SANABASE_CACHE = "sanabase-ai-pwa-20260709-02";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=20260709-01",
-  "./app.js?v=20260709-01",
-  "./manifest.json?v=20260709-01",
+  "./styles.css?v=20260709-02",
+  "./app.js?v=20260709-02",
+  "./manifest.json?v=20260709-02",
   "./icons/sanabase-icon.svg",
-  "./js/utils.js?v=20260709-01",
-  "./js/storage.js?v=20260709-01",
-  "./js/api.js?v=20260709-01",
-  "./js/spreadsheet.js?v=20260709-01",
-  "./js/documents.js?v=20260709-01",
-  "./js/priceMatching.js?v=20260709-01",
-  "./js/cloudSync.js?v=20260709-01"
+  "./js/utils.js?v=20260709-02",
+  "./js/storage.js?v=20260709-02",
+  "./js/api.js?v=20260709-02",
+  "./js/spreadsheet.js?v=20260709-02",
+  "./js/documents.js?v=20260709-02",
+  "./js/priceMatching.js?v=20260709-02",
+  "./js/cloudSync.js?v=20260709-02"
 ];
 
 self.addEventListener("install", event => {

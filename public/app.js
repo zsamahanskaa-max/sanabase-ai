@@ -135,7 +135,10 @@ const on = (id, event, handler) => {
 };
 
 document.querySelectorAll(".nav-item").forEach(button => {
-  button.addEventListener("click", () => setView(button.dataset.view));
+  button.addEventListener("click", () => {
+    setView(button.dataset.view);
+    if (button.dataset.electroTabOpen) setElectroTab(button.dataset.electroTabOpen);
+  });
 });
 
 on("fileInput", "change", importFiles);
@@ -197,6 +200,7 @@ on("cfoChatForm", "submit", askCfoMock);
 on("cfoAutoReportBtn", "click", generateCfoAutoReport);
 on("cfoSeedBtn", "click", seedCfoDemoData);
 on("cfoExportBtn", "click", exportCfoData);
+on("cfoIpReportBtn", "click", exportCfoIpReport);
 on("cfoClearBtn", "click", clearCfoData);
 on("cfoImportBtn", "click", importCfoFiles);
 on("cfoImportReportBtn", "click", showCfoImportReport);
@@ -293,6 +297,8 @@ initMimo();
 startReminderEngine();
 const initialView = new URLSearchParams(window.location.search).get("view");
 if (initialView && titles[initialView]) setView(initialView);
+const initialElectroTab = new URLSearchParams(window.location.search).get("electro");
+if (initialView === "electro" && initialElectroTab) setElectroTab(initialElectroTab);
 addMessage("ai", "Сәлем! Прайс салыстыру бөлімі 1-құжаттың формуласы бар қорап/саны бағандарын сақтап, бағаны almat company price арқылы қояды.");
 
 function setView(view) {
@@ -7389,6 +7395,54 @@ function seedCfoDemoData() {
 function exportCfoData() {
   state.cfo = normalizeCfo(state.cfo || {});
   downloadText(`sana_cfo_${isoDate()}.json`, JSON.stringify(state.cfo, null, 2));
+}
+
+function exportCfoIpReport() {
+  state.cfo = normalizeCfo(state.cfo || {});
+  const cfo = cfoFilteredData();
+  const metrics = cfoMetrics(cfo);
+  const warnings = cfoAuditWarnings(cfo);
+  const snapshot = cfoIpAccountantSnapshot(cfo, metrics, warnings);
+  const actions = cfoIpNextActions(snapshot);
+  const filename = `ip_our_accountant_report_${isoDate()}.xlsx`;
+  const summaryRows = [
+    { metric: "Дайындық", value: `${snapshot.readiness}%`, note: "ОУР есепке дайындық индикаторы" },
+    { metric: "Болжамды салық базасы", value: snapshot.taxBase, note: "Нақты ставка/мерзімді актуалды заңнамамен тексеру керек" },
+    { metric: "Кіріс төлемдері", value: snapshot.incomeByPayments, note: "Банк/Kaspi/касса income" },
+    { metric: "Реализация/заказ", value: snapshot.incomeByOrders, note: "Order totalAmount бойынша" },
+    { metric: "Шығын және себестоимость", value: snapshot.expenses, note: "Expense + costAmount" },
+    { metric: "Болжамды нәтиже", value: snapshot.approximateProfit, note: "taxBase - expenses" },
+    { metric: "Банк жолы", value: snapshot.bankRows, note: "bank payment rows" },
+    { metric: "Касса жолы", value: snapshot.cashRows, note: "cash payment rows" },
+    { metric: "Kaspi жолы", value: snapshot.kaspiRows, note: "Kaspi orders/payments" },
+    { metric: "Ашық risk", value: snapshot.riskCount, note: "warning count" }
+  ];
+  const checklistRows = snapshot.readinessItems.map(item => ({
+    status: item.ok ? "OK" : "Керек",
+    item: item.label
+  }));
+  const actionRows = actions.map((action, index) => ({
+    number: index + 1,
+    action: action[0],
+    detail: action[1],
+    safety: "адам растайды"
+  }));
+  const warningRows = warnings.slice(0, 50).map(warning => ({
+    severity: warning.severity,
+    title: warning.title,
+    description: warning.description
+  }));
+  if (window.XLSX) {
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(summaryRows), "summary");
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(checklistRows), "checklist");
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(actionRows), "next_actions");
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(warningRows), "warnings");
+    XLSX.writeFile(workbook, filename);
+  } else {
+    downloadText(filename.replace(/\.xlsx$/i, ".txt"), cfoIpAccountantText(cfo, metrics, warnings));
+  }
+  if ($("cfoChatOut")) $("cfoChatOut").textContent = cfoIpAccountantText(cfo, metrics, warnings);
 }
 
 function clearCfoData() {

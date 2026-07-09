@@ -213,6 +213,9 @@ on("electroSaleSearch", "input", fillElectroSaleProductFromSearch);
 on("electroStockSearch", "input", fillElectroStockProductFromSearch);
 on("electroSaleForm", "submit", saveElectroSale);
 on("electroStockInForm", "submit", saveElectroStockIn);
+on("electroPrintLastSaleBtn", "click", printLastElectroSale);
+on("electroDailyReportBtn", "click", showElectroDailySalesReport);
+on("electroDailyExportBtn", "click", exportElectroDailySalesReport);
 on("electroScanSaleBtn", "click", () => startElectroBarcodeScanner("sale"));
 on("electroScanStockBtn", "click", () => startElectroBarcodeScanner("stock"));
 on("electroScanStopBtn", "click", stopElectroBarcodeScanner);
@@ -8772,11 +8775,13 @@ function saveElectroSale(event) {
     stockAfter: product.stockQty
   });
   state.electro.movements.unshift(movement);
+  state.electro.lastSaleId = movement.id;
   addElectroSaleToCfo(product, movement);
   event.target.reset();
   persist();
   render();
   if (out) out.textContent = `Сатылым сақталды: ${product.name}\nСаны: ${qty} ${product.unit}\nСома: ${money(movement.totalAmount)}\nҚалдық: ${before} -> ${product.stockQty}`;
+  renderElectroSaleReceipt(movement);
 }
 
 function saveElectroStockIn(event) {
@@ -8858,6 +8863,125 @@ function addElectroSaleToCfo(product, movement) {
     quantity: product.stockQty,
     minQuantity: 3
   })]);
+}
+
+function electroSalesRows(date = isoDate()) {
+  state.electro = normalizeElectro(state.electro || {});
+  return (state.electro.movements || [])
+    .filter(item => item.type === "sale" && String(item.date || item.createdAt || "").slice(0, 10) === date)
+    .sort((a, b) => String(b.date || b.createdAt || "").localeCompare(String(a.date || a.createdAt || "")));
+}
+
+function electroSaleReceiptText(movement) {
+  if (!movement) return "Сатылым табылмады.";
+  const totalCost = Number(movement.qty || 0) * Number(movement.purchasePrice || 0);
+  const margin = Number(movement.totalAmount || 0) - totalCost;
+  return [
+    "SanaBase · Электр дүкені",
+    "Сатылым чек/накладной",
+    "",
+    `Күні: ${formatDate(movement.date || movement.createdAt)}`,
+    `№: ${movement.id}`,
+    `Клиент: ${movement.counterparty || "Дүкен сатылымы"}`,
+    "",
+    `Тауар: ${movement.productName}`,
+    `Код/SKU: ${movement.sku || movement.barcode || "-"}`,
+    `Саны: ${movement.qty} ${movement.unit || "шт"}`,
+    `Бағасы: ${money(movement.salePrice)}`,
+    `Сумма: ${money(movement.totalAmount)}`,
+    "",
+    `Қалдық: ${movement.stockBefore} -> ${movement.stockAfter}`,
+    `Маржа: ${money(margin)}`,
+    movement.comment ? `Комментарий: ${movement.comment}` : "",
+    "",
+    "Ескерту: бұл ішкі чек/накладной preview. Ресми құжат керек болса, CRM накладной бөлімі арқылы печать жасаңыз."
+  ].filter(Boolean).join("\n");
+}
+
+function renderElectroSaleReceipt(movement) {
+  const out = $("electroSaleReportOut");
+  if (!out) return;
+  out.textContent = electroSaleReceiptText(movement);
+}
+
+function latestElectroSale() {
+  state.electro = normalizeElectro(state.electro || {});
+  return (state.electro.movements || []).find(item => item.id === state.electro.lastSaleId)
+    || (state.electro.movements || []).find(item => item.type === "sale");
+}
+
+function printLastElectroSale() {
+  const movement = latestElectroSale();
+  const text = electroSaleReceiptText(movement);
+  if ($("electroSaleReportOut")) $("electroSaleReportOut").textContent = text;
+  if (!movement) return;
+  const win = window.open("", "_blank", "width=760,height=900");
+  if (!win) return;
+  win.document.write(`
+    <html><head><title>Сатылым чек</title><style>
+      body{font-family:Arial,sans-serif;margin:28px;color:#111}
+      pre{white-space:pre-wrap;font-size:15px;line-height:1.55}
+      h1{font-size:22px;margin:0 0 14px}
+    </style></head><body><h1>Сатылым чек/накладной</h1><pre>${escapeHtml(text)}</pre></body></html>
+  `);
+  win.document.close();
+  win.focus();
+  win.print();
+}
+
+function showElectroDailySalesReport() {
+  const rows = electroSalesRows();
+  const out = $("electroSaleReportOut");
+  const total = rows.reduce((sum, row) => sum + Number(row.totalAmount || 0), 0);
+  const cost = rows.reduce((sum, row) => sum + Number(row.purchasePrice || 0) * Number(row.qty || 0), 0);
+  const qty = rows.reduce((sum, row) => sum + Number(row.qty || 0), 0);
+  const report = [
+    `Күндік сатылым отчет · ${isoDate()}`,
+    "",
+    `Сатылым саны: ${rows.length}`,
+    `Тауар саны: ${qty}`,
+    `Жалпы сумма: ${money(total)}`,
+    `Себестоимость: ${money(cost)}`,
+    `Маржа: ${money(total - cost)}`,
+    "",
+    rows.length ? "Сатылымдар:" : "Бүгін сатылым жоқ.",
+    ...rows.map((row, index) => `${index + 1}. ${row.productName} · ${row.qty} ${row.unit} · ${money(row.totalAmount)} · ${row.counterparty || "-"}`)
+  ].join("\n");
+  if (out) out.textContent = report;
+}
+
+function exportElectroDailySalesReport() {
+  const rows = electroSalesRows();
+  if (!rows.length) {
+    if ($("electroSaleReportOut")) $("electroSaleReportOut").textContent = "Бүгін export жасайтын сатылым жоқ.";
+    return;
+  }
+  const exportRows = rows.map(row => ({
+    date: String(row.date || row.createdAt || "").slice(0, 10),
+    time: String(row.date || row.createdAt || "").slice(11, 19),
+    productName: row.productName || "",
+    sku: row.sku || "",
+    barcode: row.barcode || "",
+    quantity: Number(row.qty || 0),
+    unit: row.unit || "",
+    purchasePrice: Number(row.purchasePrice || 0),
+    salePrice: Number(row.salePrice || 0),
+    totalAmount: Number(row.totalAmount || 0),
+    marginAmount: Number(row.totalAmount || 0) - Number(row.purchasePrice || 0) * Number(row.qty || 0),
+    client: row.counterparty || "",
+    comment: row.comment || "",
+    stockBefore: Number(row.stockBefore || 0),
+    stockAfter: Number(row.stockAfter || 0)
+  }));
+  const filename = `electro_daily_sales_${isoDate()}.xlsx`;
+  if (window.XLSX) {
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(exportRows), "daily_sales");
+    XLSX.writeFile(workbook, filename);
+  } else {
+    downloadText(filename.replace(/\.xlsx$/i, ".csv"), csvFromRows(exportRows));
+  }
+  showElectroDailySalesReport();
 }
 
 function saveElectroBrand(event) {

@@ -1388,6 +1388,18 @@ textarea:focus, input:focus, select:focus { border-color: var(--leaf); }
   background: rgba(239, 246, 255, .82);
 }
 
+.electro-report-actions {
+  justify-content: flex-start;
+}
+
+.electro-report-actions button {
+  width: auto;
+}
+
+.electro-sale-report {
+  min-height: 180px;
+}
+
 @media (max-width: 900px) {
   .electro-hero,
   .electro-grid,

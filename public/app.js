@@ -158,6 +158,7 @@ on("crmClientForm", "submit", saveCrmClientCard);
 on("crmClientSearch", "input", render);
 on("crmClientStatusFilter", "change", render);
 document.addEventListener("click", handleCrmClientCardAction);
+document.addEventListener("click", handleCrmNakladnayaItemAction);
 document.addEventListener("input", handleCrmNakladnayaProductLookupInput);
 document.addEventListener("change", handleCrmNakladnayaProductLookupInput);
 on("crmQuickForm", "submit", saveCrmQuickDeal);
@@ -166,6 +167,7 @@ on("crmNakladnayaOrderSelect", "change", fillCrmNakladnayaFromSelectedOrder);
 on("crmNakladnayaLoadOrderBtn", "click", fillCrmNakladnayaFromSelectedOrder);
 on("crmNakladnayaClearBtn", "click", clearCrmNakladnayaForm);
 on("crmNakladnayaAddItemBtn", "click", addCrmNakladnayaItemRow);
+on("crmNakladnayaAddFiveItemsBtn", "click", () => addCrmNakladnayaItemRows(5));
 on("crmNakladnayaClearItemsBtn", "click", clearCrmNakladnayaItemRows);
 on("crmNakladnayaGenerateBtn", "click", generateCrmNakladnaya);
 on("crmNakladnayaPrintBtn", "click", printCrmNakladnaya);
@@ -906,6 +908,7 @@ function setCrmNakladnayaItemRows(items = []) {
   if (!node) return;
   const rows = items.length ? items : [emptyCrmNakladnayaItem(), emptyCrmNakladnayaItem(), emptyCrmNakladnayaItem()];
   node.innerHTML = rows.map((item, index) => crmNakladnayaItemRowHtml(item, index)).join("");
+  updateCrmNakladnayaItemsTotal();
 }
 
 function renderCrmNakladnayaProductDatalist() {
@@ -923,14 +926,30 @@ function renderCrmNakladnayaProductDatalist() {
 }
 
 function addCrmNakladnayaItemRow() {
+  addCrmNakladnayaItemRows(1);
+}
+
+function addCrmNakladnayaItemRows(count = 1) {
   const rows = readCrmNakladnayaItemRows();
-  rows.push(emptyCrmNakladnayaItem());
+  for (let index = 0; index < count; index += 1) rows.push(emptyCrmNakladnayaItem());
   setCrmNakladnayaItemRows(rows);
 }
 
 function clearCrmNakladnayaItemRows() {
   setCrmNakladnayaItemRows([]);
   if ($("crmNakladnayaStatus")) $("crmNakladnayaStatus").textContent = "Тауар жолдары тазаланды.";
+}
+
+function handleCrmNakladnayaItemAction(event) {
+  const button = event.target.closest?.("[data-nakladnaya-row-delete]");
+  if (!button) return;
+  const row = button.closest("[data-nakladnaya-item-row]");
+  if (!row) return;
+  const rows = readCrmNakladnayaItemRows();
+  const index = Number(button.dataset.nakladnayaRowDelete);
+  rows.splice(index, 1);
+  setCrmNakladnayaItemRows(rows.length ? rows : [emptyCrmNakladnayaItem()]);
+  if ($("crmNakladnayaStatus")) $("crmNakladnayaStatus").textContent = "Тауар жолы өшірілді.";
 }
 
 function crmNakladnayaItemRowHtml(item, index) {
@@ -943,6 +962,8 @@ function crmNakladnayaItemRowHtml(item, index) {
       <input data-nakladnaya-item="quantity" type="number" step="0.001" value="${escapeHtml(String(item.quantity || ""))}" placeholder="саны">
       <input data-nakladnaya-item="unit" value="${escapeHtml(item.unit || "дана")}" placeholder="өлшем">
       <input data-nakladnaya-item="price" type="number" step="0.01" value="${escapeHtml(String(item.price || ""))}" placeholder="баға">
+      <strong data-nakladnaya-row-total>${money(Number(item.quantity || 0) * Number(item.price || 0))}</strong>
+      <button type="button" data-nakladnaya-row-delete="${index}" title="Осы жолды өшіру">×</button>
     </div>
   `;
 }
@@ -959,6 +980,7 @@ function readCrmNakladnayaItemRows() {
 }
 
 function handleCrmNakladnayaProductLookupInput(event) {
+  if (event.target.closest?.("[data-nakladnaya-item-row]")) updateCrmNakladnayaItemsTotal();
   const input = event.target.closest?.('[data-nakladnaya-item="code"], [data-nakladnaya-item="name"], #crmNakladnayaProductCode, #crmNakladnayaProductName');
   if (!input) return;
   const query = input.value || "";
@@ -968,6 +990,7 @@ function handleCrmNakladnayaProductLookupInput(event) {
   const row = input.closest("[data-nakladnaya-item-row]");
   if (row) {
     fillCrmNakladnayaItemRowFromProduct(row, product, input.dataset.nakladnayaItem);
+    updateCrmNakladnayaItemsTotal();
     if ($("crmNakladnayaStatus")) $("crmNakladnayaStatus").textContent = `Тауар табылды: ${product.name || product.sku || product.barcode}. Накладной жолы автомат толды.`;
     return;
   }
@@ -1004,6 +1027,19 @@ function fillCrmNakladnayaMainProductFromProduct(product, sourceId = "") {
   if (sourceId !== "crmNakladnayaProductName" || !$("crmNakladnayaProductName")?.value) setValue("crmNakladnayaProductName", product.name || "");
   if (!$("crmNakladnayaUnit")?.value) setValue("crmNakladnayaUnit", product.unit || "дана");
   setValue("crmNakladnayaPrice", product.salePrice || "");
+}
+
+function updateCrmNakladnayaItemsTotal() {
+  const rows = readCrmNakladnayaItemRows();
+  let total = 0;
+  document.querySelectorAll("[data-nakladnaya-item-row]").forEach((row, index) => {
+    const item = rows[index] || {};
+    const rowTotal = Number(item.quantity || 0) * Number(item.price || 0);
+    total += rowTotal;
+    const node = row.querySelector("[data-nakladnaya-row-total]");
+    if (node) node.textContent = money(rowTotal);
+  });
+  if ($("crmNakladnayaItemsTotal")) $("crmNakladnayaItemsTotal").textContent = `Жалпы: ${money(total)}`;
 }
 
 function collectCrmNakladnayaItems(fallbackItem) {

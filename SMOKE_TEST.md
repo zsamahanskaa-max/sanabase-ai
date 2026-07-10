@@ -892,6 +892,19 @@ Frontend asset query versions were updated to `20260710-03`. Manual checks to ru
 8. Confirm stock quantity updates on the laptop after the phone sale arrives.
 9. Confirm no browser Console error appears.
 
+## 47. CRM nakladnaya multiple item rows
+
+Frontend asset query versions were updated to `20260710-04`. Manual checks to run:
+
+1. Open `/?view=crm&fresh=20260710-04`.
+2. In `Накладной / Гарантия жасау`, fill seller/buyer data.
+3. Add 3-5 product rows using `+ Тауар жолын қосу` and `+5 жол`.
+4. Search product by code/name in different rows and confirm each row auto-fills independently.
+5. Change quantity/price and confirm row total plus `Жалпы` total updates.
+6. Delete one row with `×` and confirm remaining rows stay.
+7. Generate and print the document; confirm all product rows appear.
+8. Save CRM document and confirm no Console error appears.
+
 ## Pass criteria
 
 - `public/js/utils.js` loads before `public/app.js`.

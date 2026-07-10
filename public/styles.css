@@ -374,7 +374,7 @@ textarea:focus, input:focus, select:focus { border-color: var(--leaf); }
 
 .crm-nakladnaya-item-row {
   display: grid;
-  grid-template-columns: 36px 110px minmax(180px, 1fr) 130px 90px 90px 110px;
+  grid-template-columns: 36px 110px minmax(180px, 1fr) 130px 90px 90px 110px 110px 42px;
   gap: 8px;
   align-items: center;
 }
@@ -1386,6 +1386,34 @@ textarea:focus, input:focus, select:focus { border-color: var(--leaf); }
 .electro-stock-in {
   border-color: rgba(37, 99, 235, .25);
   background: rgba(239, 246, 255, .82);
+}
+
+.crm-nakladnaya-item-row strong {
+  display: grid;
+  place-items: center;
+  min-height: 38px;
+  border-radius: 8px;
+  background: rgba(26, 95, 84, .08);
+  color: var(--sage);
+  font-size: 13px;
+}
+
+.crm-nakladnaya-item-row button {
+  min-height: 38px;
+  padding: 0;
+  border-color: rgba(185, 28, 28, .24);
+  color: #991b1b;
+  background: #fff5f5;
+}
+
+.crm-nakladnaya-items-total {
+  justify-self: end;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 10px 14px;
+  font-weight: 800;
+  color: var(--sage);
 }
 
 .electro-form-title {
@@ -4096,7 +4124,9 @@ pre {
   .crm-nakladnaya-item-row {
     grid-template-columns: 34px 1fr;
   }
-  .crm-nakladnaya-item-row input {
+  .crm-nakladnaya-item-row input,
+  .crm-nakladnaya-item-row strong,
+  .crm-nakladnaya-item-row button {
     grid-column: 2;
   }
   .crm-nakladnaya-sale-row {

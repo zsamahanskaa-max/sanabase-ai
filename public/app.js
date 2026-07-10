@@ -110,6 +110,7 @@ let sanaBotRoamTimer = null;
 let activeReaderNoteId = null;
 let electroScanStream = null;
 let electroScanTimer = null;
+let electroScanReader = null;
 let electroScanTarget = "sale";
 const titles = {
   chat: ["AI чат", "Құжаттарыңызға сүйеніп жауап береді."],
@@ -8987,14 +8988,20 @@ async function startElectroBarcodeScanner(target = "sale") {
   stopElectroBarcodeScanner(false);
   try {
     electroScanStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: "environment" } },
+      video: {
+        facingMode: { ideal: "environment" },
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+        advanced: [{ focusMode: "continuous" }]
+      },
       audio: false
     });
     video.srcObject = electroScanStream;
     video.classList.add("active");
     await video.play();
     if (!("BarcodeDetector" in window)) {
-      if (status) status.textContent = "Камера ашылды, бірақ бұл браузер auto barcode оқуды қолдамайды. Кодты камерадан қарап, төмендегі код/атау жолына қолмен жазыңыз немесе Android Chrome қолданыңыз.";
+      if (startElectroZxingScanner(video, target, status)) return;
+      if (status) status.textContent = "Камера ашылды, бірақ бұл браузер auto barcode оқуды қолдамайды және ZXing fallback жүктелмеді. Кодты төмендегі код/атау жолына қолмен жазыңыз.";
       return;
     }
     const detector = new BarcodeDetector({
@@ -9014,6 +9021,41 @@ async function startElectroBarcodeScanner(target = "sale") {
     }, 650);
   } catch (error) {
     if (status) status.textContent = `Камера ашылмады: ${shortError(error)}. Телефоннан камера рұқсатын беріңіз немесе кодты қолмен жазыңыз.`;
+  }
+}
+
+function startElectroZxingScanner(video, target = "sale", status = $("electroScanStatus")) {
+  const Reader = window.ZXing?.BrowserMultiFormatReader;
+  if (!Reader || !video) return false;
+  try {
+    electroScanReader = new Reader();
+    if (status) status.textContent = `${target === "sale" ? "Сатылым" : "Приход"} үшін iPhone/Safari fallback scanner жүріп тұр. Barcode-ты жарық жерде жақындатыңыз.`;
+    const onResult = (result, error) => {
+      if (result?.getText) {
+        applyElectroScannedCode(result.getText(), target);
+        return;
+      }
+      if (result?.text) {
+        applyElectroScannedCode(result.text, target);
+        return;
+      }
+      const message = error?.message || "";
+      if (message && !/notfound|not found|no multi format readers/i.test(message) && status) {
+        status.textContent = `Scanner іздеп тұр: ${shortError(error)}. Barcode-ты камераға туралап ұстаңыз.`;
+      }
+    };
+    if (typeof electroScanReader.decodeFromVideoElementContinuously === "function") {
+      electroScanReader.decodeFromVideoElementContinuously(video, onResult);
+      return true;
+    }
+    if (typeof electroScanReader.decodeFromVideoDevice === "function") {
+      electroScanReader.decodeFromVideoDevice(null, video, onResult);
+      return true;
+    }
+    return false;
+  } catch (error) {
+    if (status) status.textContent = `ZXing scanner қосылмады: ${shortError(error)}. Кодты қолмен енгізуге болады.`;
+    return false;
   }
 }
 
@@ -9040,6 +9082,14 @@ function stopElectroBarcodeScanner(updateStatus = true) {
     window.clearInterval(electroScanTimer);
     electroScanTimer = null;
   }
+  if (electroScanReader?.reset) {
+    try {
+      electroScanReader.reset();
+    } catch (error) {
+      console.warn("ZXing scanner reset failed", error);
+    }
+  }
+  electroScanReader = null;
   if (electroScanStream) {
     electroScanStream.getTracks().forEach(track => track.stop());
     electroScanStream = null;

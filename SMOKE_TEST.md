@@ -935,6 +935,21 @@ Frontend asset query versions were updated to `20260710-06`. Manual checks to ru
 9. Confirm stock reduction checkbox still creates one movement per product row.
 10. Confirm no browser Console error appears.
 
+## 50. Electro barcode scanner mobile fallback
+
+Frontend asset query versions were updated to `20260710-07`. Manual checks to run:
+
+1. Open `/?view=electro&electro=inventory&fresh=20260710-07` on a phone.
+2. Allow camera permission.
+3. Tap `Сатылымға сканер` and scan a product barcode.
+4. Confirm `electroSaleSearch`, found product, current stock, and sale price fill automatically.
+5. Tap `Приходқа сканер` and scan a barcode.
+6. Confirm `electroStockSearch`, SKU/barcode, product name, and prices fill when the product exists.
+7. On iPhone/Safari or a browser without native `BarcodeDetector`, confirm the ZXing fallback scanner reads the barcode.
+8. Tap `Сканер тоқтату` and confirm the camera light turns off.
+9. If auto scanner fails, confirm the status tells the user to enter the code manually.
+10. Confirm no browser Console error appears.
+
 ## Pass criteria
 
 - `public/js/utils.js` loads before `public/app.js`.

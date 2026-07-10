@@ -920,6 +920,21 @@ Frontend asset query versions were updated to `20260710-05`. Manual checks to ru
 9. Confirm Auto Sync status updates after save.
 10. Confirm no browser Console error appears.
 
+## 49. CRM nakladnaya payment and debt tracking
+
+Frontend asset query versions were updated to `20260710-06`. Manual checks to run:
+
+1. Open `/?view=crm&fresh=20260710-06`.
+2. In `Накладной / Гарантия жасау`, fill buyer and several product rows.
+3. Select `Төленбеді`, leave paid amount empty, save to CRM, and confirm the status shows debt equal to the total.
+4. Open CFO / AI Бас бухгалтер and confirm the debt appears in debtors / дебиторка.
+5. Create another nakladnaya with `Жартылай төленді`, enter a paid amount, and confirm CFO has both an order and income payment.
+6. Select `Төленді` with paid amount empty and confirm the system treats it as fully paid.
+7. Save the same nakladnaya number twice and confirm CFO does not double-count that same nakladnaya.
+8. Confirm the printed/preview document shows payment status, paid amount, and debt, but does not show margin/internal profit.
+9. Confirm stock reduction checkbox still creates one movement per product row.
+10. Confirm no browser Console error appears.
+
 ## Pass criteria
 
 - `public/js/utils.js` loads before `public/app.js`.

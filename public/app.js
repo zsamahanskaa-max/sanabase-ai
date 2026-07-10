@@ -827,6 +827,10 @@ function fillCrmNakladnayaFromSelectedOrder() {
   setValue("crmNakladnayaQuantity", Number(order.quantity || 0) || "");
   setValue("crmNakladnayaUnit", "дана");
   setValue("crmNakladnayaPrice", Number(order.salePrice || 0) || "");
+  setValue("crmNakladnayaPaymentStatus", order.paymentStatus || (Number(order.debtAmount || 0) > 0 ? "partial" : "paid"));
+  setValue("crmNakladnayaPaidAmount", Number(order.paidAmount || 0) || "");
+  setValue("crmNakladnayaPaymentMethod", order.paymentMethod || "bank");
+  setValue("crmNakladnayaPaymentDueDate", order.paymentDueDate || "");
   setCrmNakladnayaItemRows([{
     code: order.productCode || order.sku || order.barcode || "",
     name: order.productName || order.productsJson || "",
@@ -845,6 +849,10 @@ function clearCrmNakladnayaForm() {
   if (form) form.reset();
   setValue("crmNakladnayaOrderSelect", "");
   setValue("crmNakladnayaType", "nakladnaya");
+  setValue("crmNakladnayaPaymentStatus", "unpaid");
+  setValue("crmNakladnayaPaidAmount", "");
+  setValue("crmNakladnayaPaymentMethod", "bank");
+  setValue("crmNakladnayaPaymentDueDate", "");
   setValue("crmNakladnayaDate", isoDate());
   setValue("crmNakladnayaNumber", `NK-${Date.now().toString().slice(-6)}`);
   fillCrmCompanyProfileToNakladnaya();
@@ -866,6 +874,11 @@ function collectCrmNakladnayaData() {
   };
   const items = collectCrmNakladnayaItems(fallbackItem);
   const total = items.reduce((sum, item) => sum + item.total, 0);
+  let paidAmount = Number($("crmNakladnayaPaidAmount")?.value || 0);
+  const paymentStatusInput = $("crmNakladnayaPaymentStatus")?.value || "";
+  if (paymentStatusInput === "paid" && paidAmount <= 0 && total > 0) paidAmount = total;
+  const debtAmount = Math.max(0, total - paidAmount);
+  const paymentStatus = debtAmount <= 0 && total > 0 ? "paid" : paidAmount > 0 ? "partial" : paymentStatusInput || "unpaid";
   return {
     type: $("crmNakladnayaType")?.value || "nakladnaya",
     orderId: $("crmNakladnayaOrderSelect")?.value || "",
@@ -888,6 +901,11 @@ function collectCrmNakladnayaData() {
     price,
     total,
     items,
+    paidAmount,
+    debtAmount,
+    paymentStatus,
+    paymentMethod: $("crmNakladnayaPaymentMethod")?.value || "bank",
+    paymentDueDate: $("crmNakladnayaPaymentDueDate")?.value || "",
     warrantyMonths: Number($("crmNakladnayaWarrantyMonths")?.value || 0),
     comment: $("crmNakladnayaComment")?.value?.trim() || ""
   };
@@ -1067,6 +1085,12 @@ function crmNakladnayaTitle(type) {
   return "НАКЛАДНОЙ";
 }
 
+function crmNakladnayaPaymentLabel(status) {
+  if (status === "paid") return "Төленді";
+  if (status === "partial") return "Жартылай төленді";
+  return "Төленбеді";
+}
+
 function crmNakladnayaHtml(data) {
   const title = crmNakladnayaTitle(data.type);
   const warrantyText = data.type === "warranty" || data.type === "both";
@@ -1114,6 +1138,11 @@ function crmNakladnayaHtml(data) {
         <span>Жалпы сумма:</span>
         <strong>${data.total ? money(data.total) : "________________"}</strong>
       </div>
+      <section class="crm-nakladnaya-payment">
+        <p><strong>Төлем статусы:</strong> ${escapeHtml(crmNakladnayaPaymentLabel(data.paymentStatus))}</p>
+        <p><strong>Төленді:</strong> ${data.paidAmount ? money(data.paidAmount) : "0 ₸"} · <strong>Қарыз:</strong> ${data.debtAmount ? money(data.debtAmount) : "0 ₸"}</p>
+        <p><strong>Төлем түрі:</strong> ${escapeHtml(data.paymentMethod || "bank")}${data.paymentDueDate ? ` · <strong>Мерзімі:</strong> ${escapeHtml(data.paymentDueDate)}` : ""}</p>
+      </section>
       ${warrantyText ? `
         <section class="crm-nakladnaya-warranty">
           <h4>Гарантия шарты</h4>
@@ -1153,6 +1182,12 @@ function crmNakladnayaItemTableRows(items = []) {
 }
 
 function crmNakladnayaText(data) {
+  const paymentLines = [
+    `Төлем статусы: ${crmNakladnayaPaymentLabel(data.paymentStatus)}`,
+    `Төленді: ${money(data.paidAmount || 0)}`,
+    `Қарыз: ${money(data.debtAmount || 0)}`,
+    `Төлем түрі: ${data.paymentMethod || "bank"}${data.paymentDueDate ? ` · Мерзімі: ${data.paymentDueDate}` : ""}`
+  ];
   return [
     crmNakladnayaTitle(data.type),
     `№ ${data.number} · ${data.date}`,
@@ -1173,6 +1208,7 @@ function crmNakladnayaText(data) {
     "Тауарлар:",
     ...(data.items || []).map((item, index) => `${index + 1}. ${item.code || "-"} · ${item.name || "-"} · ${item.serial || "-"} · ${item.quantity || ""} ${item.unit || ""} · ${item.price ? money(item.price) : ""} · ${item.total ? money(item.total) : ""}`),
     `Жалпы сумма: ${data.total ? money(data.total) : ""}`,
+    ...paymentLines,
     data.warrantyMonths ? `Гарантия: ${data.warrantyMonths} ай` : "",
     "",
     `Комментарий: ${data.comment || ""}`,
@@ -1212,12 +1248,152 @@ function printCrmNakladnaya() {
   printWindow.document.close();
 }
 
+function crmNakladnayaFinanceKey(data) {
+  return `nakladnaya:${data.number || "unknown"}`;
+}
+
+function crmNakladnayaBusinessType(data) {
+  const source = normalizeText(`${data.buyerName || ""} ${data.buyerAddress || ""}`);
+  if (source.includes("мектеп") || source.includes("школ") || source.includes("садик") || source.includes("балабақша")) return "b2b";
+  if ((data.paymentMethod || "").toLowerCase() === "kaspi") return "kaspi";
+  return "retail";
+}
+
+function crmNakladnayaEstimatedCost(data) {
+  state.electro = normalizeElectro(state.electro || {});
+  return (data.items || []).reduce((sum, item) => {
+    const product = findElectroProductByQuery(item.code || item.name || "");
+    const purchase = Number(product?.purchasePrice || 0);
+    return sum + (Number(item.quantity || 0) * purchase);
+  }, 0);
+}
+
+function recordCrmNakladnayaFinance(data, title) {
+  const key = crmNakladnayaFinanceKey(data);
+  const cal = calendarData();
+  cal.orders = (cal.orders || []).filter(item => item.sourceKey !== key && item.nakladnayaNumber !== data.number);
+  cal.payments = (cal.payments || []).filter(item => item.sourceKey !== key && item.nakladnayaNumber !== data.number);
+  state.cfo = normalizeCfo(state.cfo || {});
+  state.cfo.orders = (state.cfo.orders || []).filter(item => item.sourceKey !== key && !(item.comment || "").includes(key));
+  state.cfo.payments = (state.cfo.payments || []).filter(item => item.sourceKey !== key && !(item.comment || "").includes(key));
+
+  const business = crmNakladnayaBusinessType(data);
+  const productName = (data.items || []).map(item => item.name || item.code).filter(Boolean).join(", ");
+  const costAmount = crmNakladnayaEstimatedCost(data);
+  const debtAmount = Math.max(0, Number(data.debtAmount || 0));
+  const paidAmount = Number(data.paidAmount || 0);
+  const paymentStatus = debtAmount <= 0 && Number(data.total || 0) > 0 ? "paid" : paidAmount > 0 ? "partial" : "unpaid";
+  const clientName = data.buyerName || "Клиент";
+  const orderStatus = paymentStatus === "paid" ? "closed" : "delivered";
+  const comment = `${key} · ${title}${data.comment ? ` · ${data.comment}` : ""}`;
+  const order = createOrder({
+    entity: "client_order",
+    orderNumber: data.number,
+    title,
+    date: data.date,
+    endDate: data.paymentDueDate || data.date,
+    category: "CRM",
+    priority: debtAmount > 0 ? "high" : "medium",
+    clientName,
+    schoolName: clientName,
+    productName,
+    quantity: (data.items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0),
+    salePrice: data.total || 0,
+    totalAmount: data.total || 0,
+    costAmount,
+    marginAmount: Number(data.total || 0) - costAmount,
+    paidAmount,
+    debtAmount,
+    paymentMethod: data.paymentMethod || "bank",
+    paymentStatus,
+    documentStatus: "дайын",
+    esfStatus: "",
+    oneCStatus: "1С-ке тексеру керек",
+    status: debtAmount > 0 ? "client_order_received" : "closed",
+    comment
+  });
+  Object.assign(order, {
+    business,
+    sourceKey: key,
+    nakladnayaNumber: data.number,
+    orderId: data.orderId || "",
+    pipelineStatus: debtAmount > 0 ? "debt" : "paid",
+    productsJson: JSON.stringify(data.items || []),
+    updatedAt: nowIso()
+  });
+
+  let payment = null;
+  if (paidAmount > 0) {
+    payment = createPayment({
+      title: `Төлем: ${data.number}`,
+      amount: paidAmount,
+      status: "paid",
+      date: data.date,
+      category: data.paymentMethod || "bank",
+      priority: "medium",
+      clientName,
+      supplierName: "",
+      comment
+    });
+    Object.assign(payment, {
+      orderId: order.id,
+      sourceKey: key,
+      nakladnayaNumber: data.number,
+      method: data.paymentMethod || "bank",
+      updatedAt: nowIso()
+    });
+    order.relatedPaymentId = payment.id;
+  }
+
+  const cfoOrder = normalizeCfoOrder({
+    business,
+    clientName,
+    schoolName: clientName,
+    date: data.date,
+    status: orderStatus,
+    totalAmount: data.total || 0,
+    costAmount,
+    paidAmount,
+    debtAmount,
+    paymentStatus,
+    documentStatus: "толық",
+    esfStatus: "",
+    oneCStatus: "1С-ке тексеру керек",
+    comment
+  });
+  cfoOrder.sourceKey = key;
+  cfoOrder.relatedOrderId = order.id;
+  cfoOrder.nakladnayaNumber = data.number;
+  state.cfo.orders.unshift(cfoOrder);
+
+  if (paidAmount > 0) {
+    const cfoPayment = normalizeCfoPayment({
+      business,
+      date: data.date,
+      type: "income",
+      method: data.paymentMethod === "cash" ? "cash" : "bank",
+      category: data.paymentMethod || "bank",
+      amount: paidAmount,
+      counterparty: clientName,
+      relatedOrderId: cfoOrder.id,
+      comment
+    });
+    cfoPayment.sourceKey = key;
+    cfoPayment.nakladnayaNumber = data.number;
+    state.cfo.payments.unshift(cfoPayment);
+  }
+
+  logHistory("crm_order", order.id, "Накладной төлем/қарыз тіркеу", null, order, "CRM nakladnaya finance");
+  return { order, payment, cfoOrder, debtAmount, paidAmount };
+}
+
 function saveCrmNakladnayaDocument() {
   const data = generateCrmNakladnaya();
   const title = `${crmNakladnayaTitle(data.type)} ${data.number}`;
   const text = crmNakladnayaText(data);
   const stockResult = $("crmNakladnayaApplyStock")?.checked ? applyCrmNakladnayaStockSale(data) : null;
   if (stockResult?.cancelled) return;
+  const financeResult = recordCrmNakladnayaFinance(data, title);
   state.docs.unshift(normalizeDoc({
     name: `${title}.txt`,
     type: "nakladnaya",
@@ -1240,6 +1416,7 @@ function saveCrmNakladnayaDocument() {
     ? ` ${crmNakladnayaStockResultText(stockResult)}`
     : "";
   if ($("crmNakladnayaStatus")) $("crmNakladnayaStatus").textContent = `${title} CRM, Екінші ми және Күнтізбе / Құжаттар ішіне сақталды.${stockText}`;
+  if ($("crmNakladnayaStatus")) $("crmNakladnayaStatus").textContent += ` Төлем: ${money(financeResult.paidAmount)}. Қарыз: ${money(financeResult.debtAmount)}.`;
 }
 
 function crmNakladnayaStockResultText(result) {

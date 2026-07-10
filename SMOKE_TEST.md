@@ -878,6 +878,20 @@ Frontend asset query versions were updated to `20260710-02`. Manual checks to ru
 9. Confirm Auto Sync status appears and changes still call sync after `persist()`.
 10. Confirm no browser Console error appears.
 
+## 46. Auto Cloud Sync polling from phone to laptop
+
+Frontend asset query versions were updated to `20260710-03`. Manual checks to run:
+
+1. Open `/?view=electro&electro=inventory&fresh=20260710-03` on laptop and phone.
+2. Sign in to Cloud Sync with the same account on both devices.
+3. On the laptop, keep the page open and confirm `Auto Sync` status is visible.
+4. On the phone, create one Electro sale and wait 2-4 seconds for cloud save.
+5. On the laptop, wait up to 20 seconds or focus the browser tab.
+6. Confirm the phone sale appears in the laptop movement list without pressing `Бұлттан алу`.
+7. If the laptop also has unsynced local edits, confirm conflict panel appears instead of overwriting automatically.
+8. Confirm stock quantity updates on the laptop after the phone sale arrives.
+9. Confirm no browser Console error appears.
+
 ## Pass criteria
 
 - `public/js/utils.js` loads before `public/app.js`.

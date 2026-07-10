@@ -4,12 +4,15 @@
   const PAYLOAD_VERSION = 1;
   const AUTO_SAVE_DELAY_MS = 1800;
   const AUTO_CHECK_DELAY_MS = 3500;
+  const AUTO_POLL_INTERVAL_MS = 20000;
   let client = null;
   let lastCloudState = null;
   let autoSaveTimer = null;
   let autoCheckTimer = null;
+  let autoPollTimer = null;
   let autoBusy = false;
   let autoPaused = false;
+  let localDirtySinceCloudSync = false;
 
   function nowIso() {
     return new Date().toISOString();
@@ -249,6 +252,14 @@
     return compareResult === "cloud-newer";
   }
 
+  function markLocalDirty() {
+    localDirtySinceCloudSync = true;
+  }
+
+  function markCloudSynced() {
+    localDirtySinceCloudSync = false;
+  }
+
   function restoreLocalData(payload) {
     if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
       throw new Error("Cloud payload is invalid.");
@@ -299,6 +310,7 @@
     if (error) throw error;
     lastCloudState = { payload, updated_at: data?.updated_at || row.updated_at };
     window.SanaAppBridge?.markCloudSaveComplete?.();
+    markCloudSynced();
     renderConflict(null);
     setAutoStatus(`Auto Sync: saved ${lastCloudState.updated_at}.`, true);
     if (!options.silent) setStatus(`Cloud Sync: saved to cloud. Time: ${lastCloudState.updated_at}.`, true);
@@ -332,8 +344,21 @@
     }
     restoreLocalData(cloud.payload);
     window.SanaAppBridge?.markCloudLoadComplete?.();
+    markCloudSynced();
     setAutoStatus(`Auto Sync: cloud loaded ${cloud.updated_at || "ready"}.`, true);
     if (!options.silent) setStatus(`Cloud Sync: cloud data loaded ${cloud.updated_at || "ready"}.`, true);
+    return cloud;
+  }
+
+  async function autoApplyCloud(cloud) {
+    if (!cloud?.payload) return null;
+    window.SanaAppBridge?.createRestorePoint?.("before-auto-cloud-pull");
+    restoreLocalData(cloud.payload);
+    window.SanaAppBridge?.markCloudLoadComplete?.();
+    markCloudSynced();
+    renderConflict(null);
+    setAutoStatus(`Auto Sync: phone/laptop cloud update loaded ${cloud.updated_at || "ready"}.`, true);
+    setStatus(`Cloud Sync: cloud-тағы жаңа өзгеріс осы құрылғыға автоматты түсті. ${cloud.updated_at || ""}`, true);
     return cloud;
   }
 
@@ -365,6 +390,9 @@
     const cloudTime = cloudUpdatedAt(cloud);
     const result = compareDates(localTime, cloudTime);
     if (isMeaningfulConflict(result)) {
+      if (!localDirtySinceCloudSync) {
+        return autoApplyCloud(cloud);
+      }
       autoPaused = true;
       renderConflict(cloud, result, localTime);
       setAutoStatus("Auto Sync paused: cloud is newer. Choose Upload local or Download cloud.", false);
@@ -384,6 +412,7 @@
 
   function scheduleAutoSave() {
     if (autoPaused || !hasConfig()) return;
+    markLocalDirty();
     clearTimeout(autoSaveTimer);
     autoSaveTimer = setTimeout(async () => {
       if (autoBusy || autoPaused) return;
@@ -412,6 +441,14 @@
         autoBusy = false;
       }
     }, AUTO_SAVE_DELAY_MS);
+  }
+
+  function startAutoPolling() {
+    if (autoPollTimer || !hasConfig()) return;
+    autoPollTimer = window.setInterval(() => {
+      if (document.visibilityState === "hidden") return;
+      autoCheckCloud().catch(error => setAutoStatus(`Auto Sync poll error: ${shortError(error)}`, false));
+    }, AUTO_POLL_INTERVAL_MS);
   }
 
   async function checkSync() {
@@ -487,6 +524,7 @@
         if (action === "cancel") {
           autoPaused = false;
           renderConflict(null);
+          markCloudSynced();
           setAutoStatus("Auto Sync: conflict dismissed. Next local save will sync.", true);
         }
       });
@@ -508,6 +546,7 @@
         setStatus(`Cloud Sync: ${session.user.email} аккаунтымен кірдіңіз. Енді сақтау/жүктеу дайын.`, true);
         setAutoStatus("Auto Sync: signed in. Checking cloud freshness...", true);
         scheduleAutoCheck();
+        startAutoPolling();
       } else {
         setBadge("Configured");
         setActionState(null);
@@ -570,5 +609,10 @@
   window.addEventListener("DOMContentLoaded", () => {
     renderCloudStatus();
     scheduleAutoCheck();
+    startAutoPolling();
+  });
+
+  window.addEventListener("focus", () => {
+    autoCheckCloud().catch(error => setAutoStatus(`Auto Sync focus check error: ${shortError(error)}`, false));
   });
 })();

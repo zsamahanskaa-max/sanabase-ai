@@ -1237,9 +1237,17 @@ function saveCrmNakladnayaDocument() {
   persist();
   render();
   const stockText = stockResult
-    ? ` Склад: ${stockResult.updated} тауар азайды${stockResult.notFound.length ? `, ${stockResult.notFound.length} табылмады` : ""}${stockResult.lowStock.length ? `, ${stockResult.lowStock.length} қалдық жетпеді` : ""}.`
+    ? ` ${crmNakladnayaStockResultText(stockResult)}`
     : "";
   if ($("crmNakladnayaStatus")) $("crmNakladnayaStatus").textContent = `${title} CRM, Екінші ми және Күнтізбе / Құжаттар ішіне сақталды.${stockText}`;
+}
+
+function crmNakladnayaStockResultText(result) {
+  const parts = [`Склад: ${result.updated} тауар жолы азайды`];
+  if (result.notFound.length) parts.push(`${result.notFound.length} жол табылмады`);
+  if (result.lowStock.length) parts.push(`${result.lowStock.length} жолда қалдық жетпеді`);
+  if (result.movements?.length) parts.push(`қозғалыс: ${result.movements.length}`);
+  return `${parts.join(", ")}.`;
 }
 
 function applyCrmNakladnayaStockSale(data) {
@@ -1258,7 +1266,7 @@ function applyCrmNakladnayaStockSale(data) {
   if (!confirm(message)) return { cancelled: true };
 
   state.electro = normalizeElectro(state.electro || {});
-  const result = { updated: 0, notFound: [], lowStock: [] };
+  const result = { updated: 0, notFound: [], lowStock: [], movements: [] };
   items.forEach(item => {
     const product = findCrmNakladnayaProductByQuery(item.code || item.name);
     if (!product) {
@@ -1268,10 +1276,10 @@ function applyCrmNakladnayaStockSale(data) {
     const stockBefore = Number(product.stockQty || 0);
     const qty = Number(item.quantity || 0);
     const stockAfter = stockBefore - qty;
-    product.stockQty = Math.max(0, stockAfter);
+    product.stockQty = stockAfter;
     product.updatedAt = nowIso();
     if (stockAfter < 0) result.lowStock.push({ item, product, stockBefore });
-    state.electro.movements.unshift(normalizeElectroMovement({
+    const movement = normalizeElectroMovement({
       productId: product.id,
       type: "sale",
       date: nowIso(),
@@ -1284,10 +1292,12 @@ function applyCrmNakladnayaStockSale(data) {
       salePrice: item.price || product.salePrice || 0,
       totalAmount: Number(item.total || 0),
       counterparty: data.buyerName || "",
-      comment: `Накладной ${data.number}`,
+      comment: `Накладной ${data.number}${stockAfter < 0 ? " · қалдық минусқа түсті" : ""}`,
       stockBefore,
       stockAfter: product.stockQty
-    }));
+    });
+    state.electro.movements.unshift(movement);
+    result.movements.push(movement);
     result.updated += 1;
   });
   return result;

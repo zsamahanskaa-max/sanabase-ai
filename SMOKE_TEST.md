@@ -905,6 +905,21 @@ Frontend asset query versions were updated to `20260710-04`. Manual checks to ru
 7. Generate and print the document; confirm all product rows appear.
 8. Save CRM document and confirm no Console error appears.
 
+## 48. CRM nakladnaya multi-item stock reduction
+
+Frontend asset query versions were updated to `20260710-05`. Manual checks to run:
+
+1. Open `/?view=crm&fresh=20260710-05`.
+2. Add several nakladnaya item rows with products that exist in Electro catalog.
+3. Enable `CRM-ге сақтағанда складтан сатылды деп азайту`.
+4. Save the CRM nakladnaya.
+5. Confirm every found product creates a sale movement in Electro history.
+6. Confirm each product stock decreases by the row quantity.
+7. If stock is not enough, confirm stock can go negative and status warns `қалдық жетпеді`.
+8. Confirm missing products are counted as `табылмады`.
+9. Confirm Auto Sync status updates after save.
+10. Confirm no browser Console error appears.
+
 ## Pass criteria
 
 - `public/js/utils.js` loads before `public/app.js`.

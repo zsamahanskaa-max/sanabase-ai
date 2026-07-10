@@ -950,6 +950,21 @@ Frontend asset query versions were updated to `20260710-07`. Manual checks to ru
 9. If auto scanner fails, confirm the status tells the user to enter the code manually.
 10. Confirm no browser Console error appears.
 
+## 51. Electro barcode photo capture scanner
+
+Frontend asset query versions were updated to `20260710-08`. Manual checks to run:
+
+1. Open `/?view=electro&electro=inventory&fresh=20260710-08` on a phone.
+2. Tap `Сатылымға фото түсіріп оқу`.
+3. Take a clear photo of a barcode and confirm `electroSaleSearch` fills with the scanned code.
+4. Confirm found product/current stock/sale price fills if the barcode exists in the catalog.
+5. Tap `Приходқа фото түсіріп оқу`.
+6. Take a clear barcode photo and confirm `electroStockSearch` fills.
+7. Confirm video scanner buttons still work separately.
+8. Confirm `Сканер тоқтату` turns off video camera if it was open.
+9. If the photo cannot be decoded, confirm the status asks the user to retake a clearer photo or enter the code manually.
+10. Confirm no browser Console error appears.
+
 ## Pass criteria
 
 - `public/js/utils.js` loads before `public/app.js`.

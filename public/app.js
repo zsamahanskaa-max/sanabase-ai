@@ -228,6 +228,9 @@ on("electroDailyExportBtn", "click", exportElectroDailySalesReport);
 on("electroReceiptProfileForm", "submit", saveElectroReceiptProfile);
 on("electroScanSaleBtn", "click", () => startElectroBarcodeScanner("sale"));
 on("electroScanStockBtn", "click", () => startElectroBarcodeScanner("stock"));
+on("electroScanSalePhotoBtn", "click", () => openElectroPhotoScanner("sale"));
+on("electroScanStockPhotoBtn", "click", () => openElectroPhotoScanner("stock"));
+on("electroScanPhotoInput", "change", scanElectroBarcodePhoto);
 on("electroScanStopBtn", "click", stopElectroBarcodeScanner);
 on("electroBrandForm", "submit", saveElectroBrand);
 on("electroChinaForm", "submit", saveElectroChinaProduct);
@@ -9057,6 +9060,99 @@ function startElectroZxingScanner(video, target = "sale", status = $("electroSca
     if (status) status.textContent = `ZXing scanner қосылмады: ${shortError(error)}. Кодты қолмен енгізуге болады.`;
     return false;
   }
+}
+
+function openElectroPhotoScanner(target = "sale") {
+  electroScanTarget = target;
+  stopElectroBarcodeScanner(false);
+  const input = $("electroScanPhotoInput");
+  const status = $("electroScanStatus");
+  if (!input) {
+    if (status) status.textContent = "Фото scanner input табылмады. Кодты қолмен енгізіңіз.";
+    return;
+  }
+  input.dataset.target = target;
+  input.value = "";
+  if (status) status.textContent = `${target === "sale" ? "Сатылым" : "Приход"} үшін фото түсіріңіз. Barcode анық, жарық жерде көрінсін.`;
+  input.click();
+}
+
+async function scanElectroBarcodePhoto(event) {
+  const input = event.target;
+  const file = input?.files?.[0];
+  const target = input?.dataset?.target || electroScanTarget || "sale";
+  const status = $("electroScanStatus");
+  if (!file) return;
+  if (status) status.textContent = "Фото оқылып жатыр. Barcode анық көрінсе, код автомат түседі...";
+  try {
+    const code = await readBarcodeFromImageFile(file);
+    if (code) {
+      applyElectroScannedCode(code, target);
+      return;
+    }
+    if (status) status.textContent = "Фото ішінен barcode оқылмады. Barcode-ты жақынырақ, көлеңкесіз түсіріп көріңіз немесе кодты қолмен жазыңыз.";
+  } catch (error) {
+    if (status) status.textContent = `Фото scanner қатесі: ${shortError(error)}. Кодты қолмен енгізуге болады.`;
+  } finally {
+    if (input) input.value = "";
+  }
+}
+
+async function readBarcodeFromImageFile(file) {
+  if ("BarcodeDetector" in window && window.createImageBitmap) {
+    const detector = new BarcodeDetector({
+      formats: ["ean_13", "ean_8", "code_128", "code_39", "qr_code", "upc_a", "upc_e"]
+    });
+    const bitmap = await createImageBitmap(file);
+    try {
+      const codes = await detector.detect(bitmap);
+      if (codes?.[0]?.rawValue) return codes[0].rawValue;
+    } finally {
+      if (bitmap.close) bitmap.close();
+    }
+  }
+  return readBarcodeFromImageFileWithZxing(file);
+}
+
+async function readBarcodeFromImageFileWithZxing(file) {
+  const Reader = window.ZXing?.BrowserMultiFormatReader;
+  if (!Reader) return "";
+  const reader = new Reader();
+  const url = URL.createObjectURL(file);
+  try {
+    if (typeof reader.decodeFromImageUrl === "function") {
+      const result = await reader.decodeFromImageUrl(url);
+      return result?.getText?.() || result?.text || "";
+    }
+    const img = await loadElectroScanImage(url);
+    if (typeof reader.decodeFromImageElement === "function") {
+      const result = await reader.decodeFromImageElement(img);
+      return result?.getText?.() || result?.text || "";
+    }
+    return "";
+  } catch (error) {
+    const message = error?.message || "";
+    if (/notfound|not found|no multi format readers/i.test(message)) return "";
+    throw error;
+  } finally {
+    if (reader.reset) {
+      try {
+        reader.reset();
+      } catch (error) {
+        console.warn("ZXing image scanner reset failed", error);
+      }
+    }
+    URL.revokeObjectURL(url);
+  }
+}
+
+function loadElectroScanImage(url) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = url;
+  });
 }
 
 function applyElectroScannedCode(value, target = electroScanTarget) {

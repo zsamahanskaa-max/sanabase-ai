@@ -13,6 +13,7 @@
   let autoBusy = false;
   let autoPaused = false;
   let localDirtySinceCloudSync = false;
+  let authListenerStarted = false;
 
   function nowIso() {
     return new Date().toISOString();
@@ -291,6 +292,18 @@
     const supabase = initSupabase();
     if (!supabase) return null;
     const session = await requireSession();
+    if (!options.force) {
+      const cloudBeforeSave = await fetchCloudStateForSession(session);
+      lastCloudState = cloudBeforeSave;
+      const compareBeforeSave = compareDates(localUpdatedAt(), cloudUpdatedAt(cloudBeforeSave));
+      if (cloudBeforeSave?.payload && isMeaningfulConflict(compareBeforeSave)) {
+        autoPaused = true;
+        renderConflict(cloudBeforeSave, compareBeforeSave, localUpdatedAt());
+        setAutoStatus("Auto Sync paused: cloud-та жаңа дерек бар. Төменнен әрекет таңдаңыз.", false);
+        setStatus("Cloud Sync: cloud-та осы құрылғыдан жаңа дерек бар. Автоматты overwrite жасалмады. Upload local немесе Download cloud таңдаңыз.", false);
+        return null;
+      }
+    }
     const payload = collectLocalData();
     const row = {
       user_id: session.user.id,
@@ -504,10 +517,11 @@
       <span>Local snapshot: ${escapeHtml(localUpdatedAt || "now")}</span>
       <span>Cloud updated: ${escapeHtml(cloud.updated_at || "unknown")}</span>
       <span>Status: ${escapeHtml(result || "manual choice required")}</span>
+      <span>Мағынасы: телефон мен ноутбукта екі түрлі өзгеріс бар. Қай деректі негізгі қыламыз, соны өзіңіз таңдаңыз.</span>
       <div class="cloud-actions">
-        <button type="button" data-cloud-conflict="upload">Upload local</button>
-        <button type="button" data-cloud-conflict="download">Download cloud</button>
-        <button type="button" data-cloud-conflict="cancel">Cancel</button>
+        <button type="button" data-cloud-conflict="upload">Upload local / осы құрылғыны cloud-қа жазу</button>
+        <button type="button" data-cloud-conflict="download">Download cloud / cloud дерегін алу</button>
+        <button type="button" data-cloud-conflict="cancel">Cancel / тоқтату</button>
       </div>
     `;
     node.querySelectorAll("[data-cloud-conflict]").forEach(button => {
@@ -515,7 +529,7 @@
         const action = button.dataset.cloudConflict;
         if (action === "upload") {
           autoPaused = false;
-          saveToCloud().catch(error => setStatus(`Cloud Sync error: ${shortError(error)}`, false));
+          saveToCloud({ force: true }).catch(error => setStatus(`Cloud Sync error: ${shortError(error)}`, false));
         }
         if (action === "download") {
           autoPaused = false;
@@ -557,6 +571,25 @@
       setActionState(null);
       setStatus(`Cloud Sync error: ${shortError(error)}`, false);
     }
+  }
+
+  function startAuthListener() {
+    if (authListenerStarted) return;
+    const supabase = initSupabase();
+    if (!supabase?.auth?.onAuthStateChange) return;
+    authListenerStarted = true;
+    supabase.auth.onAuthStateChange((_event, session) => {
+      setActionState(session);
+      if (session?.user?.id) {
+        setBadge("Signed in");
+        setAutoStatus("Auto Sync: аккаунт кірді, cloud тексеріліп жатыр...", true);
+        scheduleAutoCheck();
+        startAutoPolling();
+      } else {
+        setBadge(hasConfig() ? "Configured" : "Not configured");
+        setAutoStatus("Auto Sync: sign in required.", false);
+      }
+    });
   }
 
   function shortError(error) {
@@ -603,10 +636,12 @@
     autoCheckCloud,
     scheduleAutoCheck,
     scheduleAutoSave,
+    startAuthListener,
     getLocalKeys
   };
 
   window.addEventListener("DOMContentLoaded", () => {
+    startAuthListener();
     renderCloudStatus();
     scheduleAutoCheck();
     startAutoPolling();
@@ -614,5 +649,15 @@
 
   window.addEventListener("focus", () => {
     autoCheckCloud().catch(error => setAutoStatus(`Auto Sync focus check error: ${shortError(error)}`, false));
+  });
+
+  window.addEventListener("online", () => {
+    autoCheckCloud().catch(error => setAutoStatus(`Auto Sync online check error: ${shortError(error)}`, false));
+  });
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      autoCheckCloud().catch(error => setAutoStatus(`Auto Sync visible check error: ${shortError(error)}`, false));
+    }
   });
 })();

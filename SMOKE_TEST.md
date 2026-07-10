@@ -997,6 +997,22 @@ Frontend asset query versions were updated to `20260710-10`. Manual checks to ru
 11. Confirm existing direct links like `/?view=electro&electro=inventory` still work.
 12. Confirm no browser Console error appears.
 
+## 54. Cloud Sync overwrite protection and auto checks
+
+Frontend asset query versions were updated to `20260710-11`. Manual checks to run:
+
+1. Open `/?fresh=20260710-11` on laptop and phone.
+2. Sign in with the same email/password on both devices.
+3. On the main device, create or edit an Electro product, sale, or stock-in movement.
+4. Confirm `Auto Sync` status changes to saving/saved.
+5. On the second device, wait up to 20 seconds or focus the browser tab again.
+6. Confirm cloud check runs automatically and the new product/sale appears after cloud pull when there is no local conflict.
+7. If both devices changed different data, confirm the conflict panel appears instead of automatic overwrite.
+8. Confirm manual `Бұлтқа сақтау` does not overwrite newer cloud data without showing conflict choices.
+9. Test conflict buttons: `Upload local`, `Download cloud`, and `Cancel`.
+10. Confirm Backup Center export still works before any cloud load.
+11. Confirm no browser Console error appears.
+
 ## Pass criteria
 
 - `public/js/utils.js` loads before `public/app.js`.

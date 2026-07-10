@@ -863,6 +863,21 @@ Frontend asset query versions were updated to `20260710-01`. Manual checks to ru
 12. Confirm Backup Center export/import still works.
 13. Confirm no browser Console error appears.
 
+## 45. Electro sales correction, catalog search, invoice cleanup, translate tools
+
+Frontend asset query versions were updated to `20260710-02`. Manual checks to run:
+
+1. Open `/?view=electro&electro=catalog&fresh=20260710-02`.
+2. Confirm product catalog search filters by SKU, barcode, name and brand.
+3. Click `Edit` on a product, update price/stock/name, save, refresh and confirm it remains.
+4. Open `/?view=electro&electro=inventory&fresh=20260710-02`.
+5. Create a sale, confirm stock decreases.
+6. Click `Қате сатылымды өшіру`, confirm the sale movement disappears and stock is restored.
+7. Print or preview the last sale invoice and confirm margin/internal warning text is not shown.
+8. Open Translate, choose a mode, translate, copy output and save to Notes.
+9. Confirm Auto Sync status appears and changes still call sync after `persist()`.
+10. Confirm no browser Console error appears.
+
 ## Pass criteria
 
 - `public/js/utils.js` loads before `public/app.js`.

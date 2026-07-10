@@ -845,6 +845,24 @@ Frontend asset query versions were updated to `20260709-09`. Manual checks to ru
 8. Confirm stop scanner closes the camera preview.
 9. Confirm fractional stock such as `25,3` or `1,63` is shown with a `1C fractional stock` explanation instead of looking like a random broken value.
 
+## 44. Auto Cloud Sync and conflict protection
+
+Frontend asset query versions were updated to `20260710-01`. Manual checks to run:
+
+1. Open `/?view=brain&fresh=20260710-01` on laptop and phone.
+2. Sign in to Cloud Sync with the same email/password on both devices.
+3. Confirm `Auto Sync` status appears under the Cloud Sync buttons.
+4. Create or edit one CRM client/order/task on the laptop and wait 2-4 seconds.
+5. Confirm Auto Sync says the local data was saved to cloud.
+6. Open the phone, sign in, and press `Sync тексеру` or `Бұлттан алу`.
+7. Confirm the same CRM client/order/task appears on the phone.
+8. Create a newer local change on one device while another device has newer cloud data.
+9. Confirm Auto Sync pauses and shows the conflict panel instead of overwriting automatically.
+10. Confirm `Upload local`, `Download cloud`, and `Cancel` work.
+11. Confirm cloud download still creates an emergency backup before restore.
+12. Confirm Backup Center export/import still works.
+13. Confirm no browser Console error appears.
+
 ## Pass criteria
 
 - `public/js/utils.js` loads before `public/app.js`.

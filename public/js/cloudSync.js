@@ -2,8 +2,14 @@
   const CLOUD_TABLE = "sanabase_cloud_state";
   const WORKSPACE_ID = "default";
   const PAYLOAD_VERSION = 1;
+  const AUTO_SAVE_DELAY_MS = 1800;
+  const AUTO_CHECK_DELAY_MS = 3500;
   let client = null;
   let lastCloudState = null;
+  let autoSaveTimer = null;
+  let autoCheckTimer = null;
+  let autoBusy = false;
+  let autoPaused = false;
 
   function nowIso() {
     return new Date().toISOString();
@@ -21,8 +27,20 @@
     return document.getElementById("cloudDiagnostics");
   }
 
+  function autoStatusNode() {
+    return document.getElementById("cloudAutoStatus");
+  }
+
   function setStatus(message, ok = false) {
     const node = statusNode();
+    if (!node) return;
+    node.textContent = message;
+    node.classList.toggle("ok", Boolean(ok));
+    node.classList.toggle("bad", !ok);
+  }
+
+  function setAutoStatus(message, ok = true) {
+    const node = autoStatusNode();
     if (!node) return;
     node.textContent = message;
     node.classList.toggle("ok", Boolean(ok));
@@ -210,6 +228,27 @@
     return payload;
   }
 
+  function localSafetyMeta() {
+    try {
+      return JSON.parse(localStorage.getItem("sanabase-safety-meta") || "{}") || {};
+    } catch {
+      return {};
+    }
+  }
+
+  function localUpdatedAt() {
+    const meta = localSafetyMeta();
+    return meta.lastLocalSaveAt || meta.updatedAt || "";
+  }
+
+  function cloudUpdatedAt(cloud) {
+    return cloud?.updated_at || cloud?.payload?._metadata?.exportedAt || "";
+  }
+
+  function isMeaningfulConflict(compareResult) {
+    return compareResult === "cloud-newer";
+  }
+
   function restoreLocalData(payload) {
     if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
       throw new Error("Cloud payload is invalid.");
@@ -237,7 +276,7 @@
     return session;
   }
 
-  async function saveToCloud() {
+  async function saveToCloud(options = {}) {
     const supabase = initSupabase();
     if (!supabase) return null;
     const session = await requireSession();
@@ -250,7 +289,8 @@
       device_label: navigator.userAgent.slice(0, 180),
       updated_at: nowIso()
     };
-    setStatus("Cloud Sync: localStorage деректері бұлтқа сақталып жатыр...", true);
+    if (!options.silent) setStatus("Cloud Sync: localStorage data is saving to cloud...", true);
+    setAutoStatus("Auto Sync: saving local data to cloud...", true);
     const { data, error } = await supabase
       .from(CLOUD_TABLE)
       .upsert(row, { onConflict: "user_id,workspace_id" })
@@ -260,7 +300,8 @@
     lastCloudState = { payload, updated_at: data?.updated_at || row.updated_at };
     window.SanaAppBridge?.markCloudSaveComplete?.();
     renderConflict(null);
-    setStatus(`Cloud Sync: бұлтқа сақталды. Уақыты: ${lastCloudState.updated_at}.`, true);
+    setAutoStatus(`Auto Sync: saved ${lastCloudState.updated_at}.`, true);
+    if (!options.silent) setStatus(`Cloud Sync: saved to cloud. Time: ${lastCloudState.updated_at}.`, true);
     return lastCloudState;
   }
 
@@ -272,13 +313,13 @@
     return lastCloudState;
   }
 
-  async function loadFromCloud() {
+  async function loadFromCloud(options = {}) {
     const cloud = await getCloudState();
     if (!cloud?.payload) {
       setStatus("Cloud Sync: бұлтта дерек әлі жоқ. Алдымен негізгі құрылғыдан Бұлтқа сақтау басыңыз.", false);
       return null;
     }
-    renderConflict(cloud);
+    renderConflict(cloud, "download requested", localUpdatedAt());
     const ok = confirm(`Бұлттағы деректі осы құрылғыға жүктейміз бе?\n\nCloud updated: ${cloud.updated_at || "unknown"}\n\nБұл осы браузердегі SanaBase localStorage дерегін ауыстырады.`);
     if (!ok) {
       setStatus("Cloud Sync: жүктеу тоқтатылды. Local дерек өзгерген жоқ.", false);
@@ -291,17 +332,86 @@
     }
     restoreLocalData(cloud.payload);
     window.SanaAppBridge?.markCloudLoadComplete?.();
+    setAutoStatus(`Auto Sync: cloud loaded ${cloud.updated_at || "ready"}.`, true);
+    if (!options.silent) setStatus(`Cloud Sync: cloud data loaded ${cloud.updated_at || "ready"}.`, true);
     return cloud;
   }
 
   async function compareLocalCloud() {
     const local = collectLocalData();
     const cloud = await getCloudState();
-    const localUpdatedAt = local._metadata?.exportedAt || "";
-    const cloudUpdatedAt = cloud?.updated_at || "";
-    const result = compareDates(localUpdatedAt, cloudUpdatedAt);
-    renderConflict(cloud, result, localUpdatedAt);
-    return { result, localUpdatedAt, cloudUpdatedAt, cloud };
+    const localTime = localUpdatedAt() || local._metadata?.exportedAt || "";
+    const cloudTime = cloudUpdatedAt(cloud);
+    const result = compareDates(localTime, cloudTime);
+    renderConflict(cloud, result, localTime);
+    return { result, localUpdatedAt: localTime, cloudUpdatedAt: cloudTime, cloud };
+  }
+
+  async function autoCheckCloud() {
+    if (autoBusy || autoPaused || !hasConfig()) return null;
+    const session = await getSession();
+    setActionState(session);
+    if (!session?.user?.id) {
+      setAutoStatus("Auto Sync: sign in required.", false);
+      return null;
+    }
+    const cloud = await fetchCloudStateForSession(session);
+    lastCloudState = cloud;
+    if (!cloud?.payload) {
+      setAutoStatus("Auto Sync: no cloud data yet. Local changes will upload after save.", true);
+      return { result: "no-cloud", cloud: null };
+    }
+    const localTime = localUpdatedAt();
+    const cloudTime = cloudUpdatedAt(cloud);
+    const result = compareDates(localTime, cloudTime);
+    if (isMeaningfulConflict(result)) {
+      autoPaused = true;
+      renderConflict(cloud, result, localTime);
+      setAutoStatus("Auto Sync paused: cloud is newer. Choose Upload local or Download cloud.", false);
+      setStatus("Cloud Sync: conflict found. Cloud has newer data, so auto overwrite is paused.", false);
+    } else {
+      setAutoStatus(`Auto Sync: ready. Local ${localTime || "unknown"}, cloud ${cloudTime || "none"}.`, true);
+    }
+    return { result, cloud, localUpdatedAt: localTime, cloudUpdatedAt: cloudTime };
+  }
+
+  function scheduleAutoCheck() {
+    clearTimeout(autoCheckTimer);
+    autoCheckTimer = setTimeout(() => {
+      autoCheckCloud().catch(error => setAutoStatus(`Auto Sync check error: ${shortError(error)}`, false));
+    }, AUTO_CHECK_DELAY_MS);
+  }
+
+  function scheduleAutoSave() {
+    if (autoPaused || !hasConfig()) return;
+    clearTimeout(autoSaveTimer);
+    autoSaveTimer = setTimeout(async () => {
+      if (autoBusy || autoPaused) return;
+      autoBusy = true;
+      try {
+        const session = await getSession();
+        setActionState(session);
+        if (!session?.user?.id) {
+          setAutoStatus("Auto Sync: sign in to sync phone and laptop.", false);
+          return;
+        }
+        const cloud = await fetchCloudStateForSession(session);
+        lastCloudState = cloud;
+        const result = compareDates(localUpdatedAt(), cloudUpdatedAt(cloud));
+        if (cloud?.payload && isMeaningfulConflict(result)) {
+          autoPaused = true;
+          renderConflict(cloud, result, localUpdatedAt());
+          setAutoStatus("Auto Sync paused: cloud is newer. Select an action.", false);
+          setStatus("Cloud Sync: cloud has newer data. Auto save stopped to protect your data.", false);
+          return;
+        }
+        await saveToCloud({ silent: true, auto: true });
+      } catch (error) {
+        setAutoStatus(`Auto Sync error: ${shortError(error)}`, false);
+      } finally {
+        autoBusy = false;
+      }
+    }, AUTO_SAVE_DELAY_MS);
   }
 
   async function checkSync() {
@@ -366,9 +476,19 @@
     node.querySelectorAll("[data-cloud-conflict]").forEach(button => {
       button.addEventListener("click", () => {
         const action = button.dataset.cloudConflict;
-        if (action === "upload") saveToCloud().catch(error => setStatus(`Cloud Sync error: ${shortError(error)}`, false));
-        if (action === "download") loadFromCloud().catch(error => setStatus(`Cloud Sync error: ${shortError(error)}`, false));
-        if (action === "cancel") renderConflict(null);
+        if (action === "upload") {
+          autoPaused = false;
+          saveToCloud().catch(error => setStatus(`Cloud Sync error: ${shortError(error)}`, false));
+        }
+        if (action === "download") {
+          autoPaused = false;
+          loadFromCloud().catch(error => setStatus(`Cloud Sync error: ${shortError(error)}`, false));
+        }
+        if (action === "cancel") {
+          autoPaused = false;
+          renderConflict(null);
+          setAutoStatus("Auto Sync: conflict dismissed. Next local save will sync.", true);
+        }
       });
     });
   }
@@ -386,6 +506,8 @@
         setBadge("Signed in");
         setActionState(session);
         setStatus(`Cloud Sync: ${session.user.email} аккаунтымен кірдіңіз. Енді сақтау/жүктеу дайын.`, true);
+        setAutoStatus("Auto Sync: signed in. Checking cloud freshness...", true);
+        scheduleAutoCheck();
       } else {
         setBadge("Configured");
         setActionState(null);
@@ -439,10 +561,14 @@
     compareLocalCloud,
     renderCloudStatus,
     checkSync,
+    autoCheckCloud,
+    scheduleAutoCheck,
+    scheduleAutoSave,
     getLocalKeys
   };
 
   window.addEventListener("DOMContentLoaded", () => {
     renderCloudStatus();
+    scheduleAutoCheck();
   });
 })();

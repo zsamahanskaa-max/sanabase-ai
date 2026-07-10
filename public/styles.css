@@ -3010,6 +3010,22 @@ pre {
   color: #9a3412;
 }
 
+.cloud-auto-status {
+  border: 1px solid rgba(26, 95, 84, .18);
+  border-radius: 8px;
+  background: #f0fdfa;
+  color: #134e4a;
+  padding: 10px 12px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.cloud-auto-status.bad {
+  border-color: rgba(185, 28, 28, .22);
+  background: #fef2f2;
+  color: #991b1b;
+}
+
 .cloud-diagnostics {
   border: 1px solid rgba(20, 83, 45, .22);
   border-radius: 8px;

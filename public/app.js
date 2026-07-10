@@ -10630,7 +10630,10 @@ function persist(options = {}) {
   storageWriteJson("zhadyra_crm_reports", state.crmReports || []);
   storageWriteJson("zhadyra_cfo", state.cfo || defaultCfoState());
   storageWriteJson("sanabase-electro", state.electro || defaultElectroState());
-  if (options.sync !== false) scheduleCloudPush();
+  if (options.sync !== false) {
+    scheduleCloudPush();
+    window.SanaCloudSync?.scheduleAutoSave?.();
+  }
 }
 
 window.SanaAppBridge = {

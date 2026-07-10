@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="kk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SanaBase Business</title>
+  <meta name="theme-color" content="#102823">
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #07100e;
+      --panel: rgba(255, 255, 255, .08);
+      --line: rgba(255, 255, 255, .14);
+      --gold: #d7b56d;
+      --mint: #6af5d5;
+      --text: #f5fbf8;
+      --muted: #b8c8c1;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 12% 0%, rgba(106, 245, 213, .16), transparent 28%),
+        linear-gradient(135deg, #07100e 0%, #102823 52%, #07100e 100%);
+      color: var(--text);
+    }
+    main {
+      width: min(1120px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 28px 0 44px;
+    }
+    header {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 18px;
+      align-items: start;
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, .06);
+      box-shadow: 0 24px 70px rgba(0, 0, 0, .32);
+      backdrop-filter: blur(16px);
+    }
+    .eyebrow {
+      color: var(--gold);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    h1 {
+      margin: 8px 0 10px;
+      font-size: clamp(32px, 6vw, 68px);
+      line-height: .98;
+      letter-spacing: 0;
+    }
+    p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+    .back {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      padding: 0 16px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--text);
+      text-decoration: none;
+      background: rgba(255, 255, 255, .08);
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 18px;
+    }
+    .card {
+      display: grid;
+      gap: 12px;
+      min-height: 180px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--panel);
+      color: var(--text);
+      text-decoration: none;
+      box-shadow: 0 18px 52px rgba(0, 0, 0, .24);
+    }
+    .card.primary {
+      background: linear-gradient(135deg, rgba(106, 245, 213, .18), rgba(215, 181, 109, .14));
+      border-color: rgba(106, 245, 213, .32);
+    }
+    .num {
+      width: 38px;
+      height: 38px;
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+      background: rgba(215, 181, 109, .18);
+      color: var(--gold);
+      font-weight: 900;
+    }
+    .card strong {
+      font-size: 24px;
+      line-height: 1.05;
+    }
+    .card span:last-child {
+      color: var(--muted);
+      line-height: 1.45;
+    }
+    .note {
+      margin-top: 18px;
+      padding: 16px;
+      border: 1px dashed rgba(255, 255, 255, .24);
+      border-radius: 14px;
+      color: var(--muted);
+      background: rgba(255, 255, 255, .04);
+    }
+    @media (max-width: 820px) {
+      header,
+      .grid {
+        grid-template-columns: 1fr;
+      }
+      .back {
+        width: 100%;
+      }
+      .card {
+        min-height: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <span class="eyebrow">SanaBase Business</span>
+        <h1>Бизнес операциялары</h1>
+        <p>Сату, тауар базасы, приход, CRM, қарыз, накладной, CFO және 1C Excel бөлек бизнес портал ретінде жиналды. Бұл бірінші MVP: барлық дерек бұрынғы SanaBase ішінде сақталады.</p>
+      </div>
+      <a class="back" href="../?view=core">Sana Mind / Core</a>
+    </header>
+
+    <section class="grid" aria-label="Business modules">
+      <a class="card primary" href="../?view=electro&electro=inventory">
+        <span class="num">01</span>
+        <strong>Сату / склад</strong>
+        <span>Код, barcode немесе атаумен тауар тауып, сатылым немесе приход енгізу.</span>
+      </a>
+      <a class="card" href="../?view=electro&electro=catalog">
+        <span class="num">02</span>
+        <strong>Тауар базасы</strong>
+        <span>SKU, barcode, баға, қалдық, бренд және Excel каталог import.</span>
+      </a>
+      <a class="card" href="../?view=crm">
+        <span class="num">03</span>
+        <strong>CRM / клиенттер</strong>
+        <span>Клиенттер, мектептер, заказдар, қарыз және WhatsApp follow-up.</span>
+      </a>
+      <a class="card" href="../?view=crm">
+        <span class="num">04</span>
+        <strong>Накладной</strong>
+        <span>Бірнеше тауармен накладной/гарантия жасап, печатьқа дайындау.</span>
+      </a>
+      <a class="card" href="../?view=cfo">
+        <span class="num">05</span>
+        <strong>AI Бас бухгалтер</strong>
+        <span>ОУР, қарыз, төлем, пайда/шығын, CFO warning және отчеттар.</span>
+      </a>
+      <a class="card" href="../?view=onec">
+        <span class="num">06</span>
+        <strong>1C Excel</strong>
+        <span>1C export құжаттарын оқып, realization, payment, склад және қарыз анализі.</span>
+      </a>
+      <a class="card" href="../?view=match">
+        <span class="num">07</span>
+        <strong>Прайс салыстыру</strong>
+        <span>Код бойынша price matching және формуласы бар Excel файлын қорғау.</span>
+      </a>
+      <a class="card" href="../?view=backupCenter">
+        <span class="num">08</span>
+        <strong>Backup / Cloud</strong>
+        <span>Екі құрылғы sync, export/import және дерек жоғалтпау бақылауы.</span>
+      </a>
+      <a class="card" href="../?view=tasks">
+        <span class="num">09</span>
+        <strong>Business tasks</strong>
+        <span>Бизнеске қатысты тапсырмалар кейін бөлек filter ретінде бөлінеді.</span>
+      </a>
+    </section>
+
+    <div class="note">
+      Келесі этап: business task scope, бөлек dashboard және Supabase workspace арқылы Sana Mind пен SanaBase Business арасын толық байланыстыру.
+    </div>
+  </main>
+</body>
+</html>

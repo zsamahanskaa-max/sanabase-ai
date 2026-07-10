@@ -1013,6 +1013,21 @@ Frontend asset query versions were updated to `20260710-11`. Manual checks to ru
 10. Confirm Backup Center export still works before any cloud load.
 11. Confirm no browser Console error appears.
 
+## 55. Sana Mind / SanaBase Business split portal
+
+Frontend asset query versions were updated to `20260710-12`. Manual checks to run:
+
+1. Open `/?fresh=20260710-12`.
+2. Confirm sidebar has `Business сайт`.
+3. Confirm Core page has `SanaBase Business` action card.
+4. Click `SanaBase Business` and confirm the separate Business portal opens.
+5. From Business portal, click `Сату / склад` and confirm the main app opens Electro inventory.
+6. Click `Тауар базасы` and confirm Electro catalog opens.
+7. Click `CRM / клиенттер`, `AI Бас бухгалтер`, `1C Excel`, `Прайс салыстыру`, and `Backup / Cloud`.
+8. Confirm no localStorage keys are changed by merely opening the portal.
+9. Confirm mobile layout is one column and does not overflow.
+10. Confirm no browser Console error appears.
+
 ## Pass criteria
 
 - `public/js/utils.js` loads before `public/app.js`.

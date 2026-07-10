@@ -9,9 +9,9 @@
   <meta name="apple-mobile-web-app-title" content="SanaBase">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>SanaBase AI</title>
-  <link rel="manifest" href="public/manifest.json?v=20260710-11">
+  <link rel="manifest" href="public/manifest.json?v=20260710-12">
   <link rel="apple-touch-icon" href="public/icons/sanabase-icon.svg">
-  <link rel="stylesheet" href="public/styles.css?v=20260710-11">
+  <link rel="stylesheet" href="public/styles.css?v=20260710-12">
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs" type="module"></script>
@@ -27,6 +27,7 @@
     </div>
     <nav class="nav" aria-label="Main">
       <button class="nav-item active" data-view="core">Core</button>
+      <a class="nav-item nav-link" href="public/business/index.html">Business сайт</a>
       <button class="nav-item" data-view="chat">Чат</button>
       <button class="nav-item" data-view="library">Білім базасы</button>
       <button class="nav-item" data-view="calendaros">Күнтізбе жүйесі</button>
@@ -113,6 +114,11 @@
             <strong>Backup / Cloud</strong>
             <small>Дерек жоғалмауы үшін export, restore point және cloud sync status.</small>
           </button>
+          <a class="core-action business-link" href="public/business/index.html">
+            <span>07</span>
+            <strong>SanaBase Business</strong>
+            <small>Бизнеске қатысты барлық бөлімдерді бөлек портал ретінде ашу.</small>
+          </a>
         </section>
 
         <section class="core-split">
@@ -1471,20 +1477,20 @@
     </section>
   </div>
 
-  <script src="public/js/utils.js?v=20260710-11"></script>
-  <script src="public/js/storage.js?v=20260710-11"></script>
-  <script src="public/js/api.js?v=20260710-11"></script>
-  <script src="public/js/spreadsheet.js?v=20260710-11"></script>
-  <script src="public/js/documents.js?v=20260710-11"></script>
-  <script src="public/js/priceMatching.js?v=20260710-11"></script>
+  <script src="public/js/utils.js?v=20260710-12"></script>
+  <script src="public/js/storage.js?v=20260710-12"></script>
+  <script src="public/js/api.js?v=20260710-12"></script>
+  <script src="public/js/spreadsheet.js?v=20260710-12"></script>
+  <script src="public/js/documents.js?v=20260710-12"></script>
+  <script src="public/js/priceMatching.js?v=20260710-12"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
   <script>
     window.SANABASE_SUPABASE_URL = window.SANABASE_SUPABASE_URL || "https://koszjmsanlxdakqvdkgc.supabase.co";
     window.SANABASE_SUPABASE_ANON_KEY = window.SANABASE_SUPABASE_ANON_KEY || "sb_publishable_y7IIJav4n99Z1dbfROh3SA_TtlAn5tO";
   </script>
-  <script src="public/js/cloudSync.js?v=20260710-11"></script>
-  <script src="public/app.js?v=20260710-11"></script>
+  <script src="public/js/cloudSync.js?v=20260710-12"></script>
+  <script src="public/app.js?v=20260710-12"></script>
   <script>
     if ("serviceWorker" in navigator && location.protocol !== "file:") {
       window.addEventListener("load", () => {

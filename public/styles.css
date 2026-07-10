@@ -68,6 +68,10 @@ button, .upload, input, textarea, select { min-height: 44px; }
   padding: 12px 14px;
   text-align: left;
 }
+.nav-link {
+  display: block;
+  text-decoration: none;
+}
 .nav-item.active { background: white; box-shadow: var(--shadow); }
 
 .status {
@@ -234,11 +238,18 @@ p { margin: 6px 0 0; }
   color: var(--ink);
   text-align: left;
   box-shadow: var(--shadow);
+  text-decoration: none;
 }
 
 .core-action.primary {
   background: #173d35;
   color: #fff;
+}
+
+.core-action.business-link {
+  background: linear-gradient(135deg, #17211f, #31514a);
+  color: #fff;
+  border-color: rgba(106, 245, 213, .28);
 }
 
 .core-action.safety {
@@ -266,6 +277,10 @@ p { margin: 6px 0 0; }
 }
 
 .core-action.primary small {
+  color: #dbe8e2;
+}
+
+.core-action.business-link small {
   color: #dbe8e2;
 }
 

@@ -51,8 +51,11 @@ function loadEnv(file) {
 
 function serveStatic(pathname, res) {
   const clean = pathname === "/" ? "/index.html" : pathname;
-  const file = path.normalize(path.join(PUBLIC, clean));
+  let file = path.normalize(path.join(PUBLIC, clean));
   if (!file.startsWith(PUBLIC)) return sendText(res, 403, "Forbidden");
+  if (fs.existsSync(file) && fs.statSync(file).isDirectory()) {
+    file = path.join(file, "index.html");
+  }
   if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) {
     return sendText(res, 404, "Not found");
   }

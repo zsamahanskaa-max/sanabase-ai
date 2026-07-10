@@ -75,6 +75,16 @@
       font-weight: 800;
       white-space: nowrap;
     }
+    .header-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .back.accent {
+      border-color: rgba(106, 245, 213, .34);
+      background: rgba(106, 245, 213, .14);
+    }
     .grid {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -131,6 +141,9 @@
       .back {
         width: 100%;
       }
+      .header-actions {
+        justify-content: stretch;
+      }
       .card {
         min-height: auto;
       }
@@ -145,7 +158,11 @@
         <h1>Бизнес операциялары</h1>
         <p>Сату, тауар базасы, приход, CRM, қарыз, накладной, CFO және 1C Excel бөлек бизнес портал ретінде жиналды. Бұл бірінші MVP: барлық дерек бұрынғы SanaBase ішінде сақталады.</p>
       </div>
-      <a class="back" href="../?view=core">Sana Mind / Core</a>
+      <div class="header-actions">
+        <a class="back" href="http://localhost:5199/">SanaMind localhost</a>
+        <a class="back" href="../?view=core">SanaBase Core</a>
+        <a class="back accent" href="../?view=tasks">Тапсырмалар</a>
+      </div>
     </header>
 
     <section class="grid" aria-label="Business modules">

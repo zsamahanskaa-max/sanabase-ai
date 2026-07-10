@@ -1028,6 +1028,30 @@ Frontend asset query versions were updated to `20260710-12`. Manual checks to ru
 9. Confirm mobile layout is one column and does not overflow.
 10. Confirm no browser Console error appears.
 
+## 56. One-button Sana Mind / Business switching
+
+Frontend asset query versions were updated to `20260710-13`. Manual checks to run:
+
+1. Open local `http://localhost:5199/`.
+2. Click `Business сайтқа өту` in the top bar and confirm `/business/index.html` opens.
+3. Click `Sana Mind-ке қайту` in Business portal and confirm the main app opens.
+4. Click `Тапсырмалар` in Business portal and confirm main app opens the tasks view.
+5. Open live root and repeat the same switch flow.
+6. Confirm mobile buttons fit on screen.
+7. Confirm no browser Console error appears.
+
+## 57. SanaMind localhost to SanaBase Business bridge
+
+Frontend asset query versions were updated to `20260710-14`. Manual checks to run:
+
+1. Open SanaMind local app at `http://localhost:5199/`.
+2. Confirm the top bar has `SanaBase Business` / `Business` button.
+3. Click it and confirm SanaBase Business live portal opens.
+4. Open SanaBase Business portal and click `SanaMind localhost`.
+5. Confirm it returns to `http://localhost:5199/`.
+6. Confirm Business portal still has `SanaBase Core` and `Тапсырмалар` buttons.
+7. Confirm no browser Console error appears.
+
 ## Pass criteria
 
 - `public/js/utils.js` loads before `public/app.js`.

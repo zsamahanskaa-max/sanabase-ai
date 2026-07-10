@@ -129,6 +129,7 @@ const titles = {
   notes: ["Жазбалар", "Ойлар мен конспектілерді сақтаңыз."],
   backupCenter: ["Backup Center", "Export/import SanaBase localStorage data."]
 };
+const movedToSanaMindViews = new Set(["chat", "library", "calendaros", "brain", "translate", "quiz", "tasks", "goals", "notes"]);
 
 const $ = (id) => document.getElementById(id);
 const on = (id, event, handler) => {
@@ -137,6 +138,7 @@ const on = (id, event, handler) => {
 };
 
 document.querySelectorAll(".nav-item").forEach(button => {
+  if (!button.dataset.view) return;
   button.addEventListener("click", () => {
     setView(button.dataset.view);
     if (button.dataset.electroTabOpen) setElectroTab(button.dataset.electroTabOpen);
@@ -329,6 +331,12 @@ if (initialView === "electro" && initialElectroTab) setElectroTab(initialElectro
 addMessage("ai", "Сәлем! Прайс салыстыру бөлімі 1-құжаттың формуласы бар қорап/саны бағандарын сақтап, бағаны almat company price арқылы қояды.");
 
 function setView(view) {
+  if (!titles[view]) view = "core";
+  if (movedToSanaMindViews.has(view)) {
+    view = "core";
+    const status = $("notifyStatus");
+    if (status) status.textContent = "Бұл жеке бөлім SanaMind сайтына көшірілді. SanaMind: http://localhost:5199/";
+  }
   document.querySelectorAll(".nav-item").forEach(b => b.classList.toggle("active", b.dataset.view === view));
   document.querySelectorAll(".view").forEach(v => v.classList.toggle("active", v.id === view));
   $("viewTitle").textContent = titles[view][0];

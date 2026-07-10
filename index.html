@@ -9,9 +9,9 @@
   <meta name="apple-mobile-web-app-title" content="SanaBase">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>SanaBase AI</title>
-  <link rel="manifest" href="public/manifest.json?v=20260710-14">
+  <link rel="manifest" href="public/manifest.json?v=20260710-15">
   <link rel="apple-touch-icon" href="public/icons/sanabase-icon.svg">
-  <link rel="stylesheet" href="public/styles.css?v=20260710-14">
+  <link rel="stylesheet" href="public/styles.css?v=20260710-15">
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs" type="module"></script>
@@ -22,43 +22,32 @@
       <div class="mark">SB</div>
       <div>
         <strong>SanaBase AI</strong>
-        <span>Жеке білім базасы</span>
+        <span>Business OS</span>
       </div>
     </div>
     <nav class="nav" aria-label="Main">
       <button class="nav-item active" data-view="core">Core</button>
       <a class="nav-item nav-link" href="public/business/index.html">Business сайт</a>
-      <button class="nav-item" data-view="chat">Чат</button>
-      <button class="nav-item" data-view="library">Білім базасы</button>
-      <button class="nav-item" data-view="calendaros">Күнтізбе жүйесі</button>
       <button class="nav-item" data-view="match">Прайс салыстыру</button>
       <button class="nav-item" data-view="onec">1С Excel</button>
       <button class="nav-item" data-view="cfo">AI Бас бухгалтер</button>
       <button class="nav-item" data-view="electro">Электро Кеңесші</button>
       <button class="nav-item" data-view="electro" data-electro-tab-open="inventory">Сату</button>
       <button class="nav-item" data-view="electro" data-electro-tab-open="catalog">Тауар базасы</button>
-      <button class="nav-item" data-view="brain">Екінші ми</button>
-      <button class="nav-item" data-view="translate">Аударма</button>
-      <button class="nav-item" data-view="quiz">Тест</button>
       <button class="nav-item" data-view="crm">CRM</button>
-      <button class="nav-item" data-view="tasks">Тапсырмалар</button>
-      <button class="nav-item" data-view="goals">Фокус орталығы</button>
-      <button class="nav-item" data-view="notes">Жазбалар</button>
       <button class="nav-item" data-view="backupCenter">Backup Center</button>
     </nav>
     <div class="status">
       <span id="docCount">0 құжат</span>
-      <span id="imageCount">0 сурет</span>
-      <span id="taskCount">0 тапсырма</span>
-      <span id="noteCount">0 жазба</span>
+      <span id="businessModeStatus">Business mode</span>
     </div>
   </aside>
 
   <main class="shell">
     <header class="topbar">
       <div>
-        <h1 id="viewTitle">AI чат</h1>
-        <p id="viewSub">Құжаттарыңызға сүйеніп жауап береді.</p>
+        <h1 id="viewTitle">SanaBase Core</h1>
+        <p id="viewSub">Бизнес операциялары, CRM, склад, CFO және 1С Excel.</p>
       </div>
       <div class="top-actions">
         <a class="portal-switch" href="public/business/index.html">Business сайтқа өту</a>
@@ -128,14 +117,13 @@
             <div id="coreTodayList" class="core-list"></div>
           </article>
           <article>
-            <h3>Advanced құралдар</h3>
+            <h3>Бизнес құралдар</h3>
             <div class="core-mini-actions">
               <button type="button" data-core-view="onec">1C Excel</button>
               <button type="button" data-core-view="cfo">AI CFO</button>
-              <button type="button" data-core-view="brain">Екінші ми</button>
-              <button type="button" data-core-view="tasks">Тапсырмалар</button>
-              <button type="button" data-core-view="goals">Фокус</button>
               <button type="button" data-core-view="match">Прайс салыстыру</button>
+              <button type="button" data-core-view="crm">CRM</button>
+              <button type="button" data-core-view="backupCenter">Backup</button>
             </div>
           </article>
         </section>
@@ -1478,20 +1466,20 @@
     </section>
   </div>
 
-  <script src="public/js/utils.js?v=20260710-14"></script>
-  <script src="public/js/storage.js?v=20260710-14"></script>
-  <script src="public/js/api.js?v=20260710-14"></script>
-  <script src="public/js/spreadsheet.js?v=20260710-14"></script>
-  <script src="public/js/documents.js?v=20260710-14"></script>
-  <script src="public/js/priceMatching.js?v=20260710-14"></script>
+  <script src="public/js/utils.js?v=20260710-15"></script>
+  <script src="public/js/storage.js?v=20260710-15"></script>
+  <script src="public/js/api.js?v=20260710-15"></script>
+  <script src="public/js/spreadsheet.js?v=20260710-15"></script>
+  <script src="public/js/documents.js?v=20260710-15"></script>
+  <script src="public/js/priceMatching.js?v=20260710-15"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
   <script>
     window.SANABASE_SUPABASE_URL = window.SANABASE_SUPABASE_URL || "https://koszjmsanlxdakqvdkgc.supabase.co";
     window.SANABASE_SUPABASE_ANON_KEY = window.SANABASE_SUPABASE_ANON_KEY || "sb_publishable_y7IIJav4n99Z1dbfROh3SA_TtlAn5tO";
   </script>
-  <script src="public/js/cloudSync.js?v=20260710-14"></script>
-  <script src="public/app.js?v=20260710-14"></script>
+  <script src="public/js/cloudSync.js?v=20260710-15"></script>
+  <script src="public/app.js?v=20260710-15"></script>
   <script>
     if ("serviceWorker" in navigator && location.protocol !== "file:") {
       window.addEventListener("load", () => {

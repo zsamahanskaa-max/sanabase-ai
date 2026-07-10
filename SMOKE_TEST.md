@@ -1052,6 +1052,19 @@ Frontend asset query versions were updated to `20260710-14`. Manual checks to ru
 6. Confirm Business portal still has `SanaBase Core` and `Тапсырмалар` buttons.
 7. Confirm no browser Console error appears.
 
+## 58. SanaBase business-only cleanup
+
+Frontend asset query versions were updated to `20260710-15`. Manual checks to run:
+
+1. Open `/?fresh=20260710-15`.
+2. Confirm sidebar no longer shows personal SanaMind sections: Chat, Library, Calendar, Brain, Translate, Quiz, Tasks, Goals, Notes.
+3. Confirm sidebar still shows business sections: Core, Business site, Price matching, 1C Excel, CFO, Electro, Sale, Product base, CRM, Backup.
+4. Confirm Core `Бизнес құралдар` no longer shows Brain, Tasks, or Goals.
+5. Try direct `/?view=tasks` and confirm SanaBase returns to Core with a notice that the section moved to SanaMind.
+6. Open Business portal and confirm `Тапсырмалар / SanaMind` opens `http://localhost:5199/`.
+7. Confirm localStorage data is not deleted.
+8. Confirm no browser Console error appears.
+
 ## Pass criteria
 
 - `public/js/utils.js` loads before `public/app.js`.

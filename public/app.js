@@ -113,6 +113,7 @@ let electroScanTimer = null;
 let electroScanReader = null;
 let electroScanTarget = "sale";
 const titles = {
+  core: ["SanaBase Core", "Тауар, сату, приход, клиент қарызы, накладной және backup бір жерде."],
   chat: ["AI чат", "Құжаттарыңызға сүйеніп жауап береді."],
   library: ["Білім базасы", "PDF, Word, Excel және мәтін материалдары."],
   match: ["Прайс салыстыру", "Формуласы бар қорап/саны бағандарын өзгертпей, бағасын almat company price арқылы қояды."],
@@ -239,6 +240,7 @@ on("electroScanManualCode", "keydown", event => {
     applyElectroManualCode();
   }
 });
+document.addEventListener("click", handleCoreActionClick);
 on("electroScanStopBtn", "click", stopElectroBarcodeScanner);
 on("electroBrandForm", "submit", saveElectroBrand);
 on("electroChinaForm", "submit", saveElectroChinaProduct);
@@ -321,6 +323,7 @@ initMimo();
 startReminderEngine();
 const initialView = new URLSearchParams(window.location.search).get("view");
 if (initialView && titles[initialView]) setView(initialView);
+else setView("core");
 const initialElectroTab = new URLSearchParams(window.location.search).get("electro");
 if (initialView === "electro" && initialElectroTab) setElectroTab(initialElectroTab);
 addMessage("ai", "Сәлем! Прайс салыстыру бөлімі 1-құжаттың формуласы бар қорап/саны бағандарын сақтап, бағаны almat company price арқылы қояды.");
@@ -330,6 +333,63 @@ function setView(view) {
   document.querySelectorAll(".view").forEach(v => v.classList.toggle("active", v.id === view));
   $("viewTitle").textContent = titles[view][0];
   $("viewSub").textContent = titles[view][1];
+}
+
+function handleCoreActionClick(event) {
+  const button = event.target.closest?.("[data-core-view]");
+  if (!button) return;
+  const view = button.dataset.coreView;
+  if (!view || !titles[view]) return;
+  setView(view);
+  if (button.dataset.coreElectro) setElectroTab(button.dataset.coreElectro);
+  window.setTimeout(() => {
+    if (button.dataset.coreFocus === "nakladnaya") $("crmNakladnayaForm")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (button.dataset.coreFocus === "stock") $("electroStockInForm")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, 80);
+}
+
+function renderCoreDashboard() {
+  if (!$("coreKpis")) return;
+  state.electro = normalizeElectro(state.electro || {});
+  state.cfo = normalizeCfo(state.cfo || {});
+  const cal = calendarData();
+  const today = isoDate();
+  const salesToday = state.electro.movements
+    .filter(item => item.type === "sale" && String(item.date || item.createdAt || "").slice(0, 10) === today);
+  const salesTotal = salesToday.reduce((sum, item) => sum + Number(item.totalAmount || 0), 0);
+  const lowStock = state.electro.products.filter(item => Number(item.stockQty || 0) <= Number(item.minStock || item.minQuantity || 0) && Number(item.minStock || item.minQuantity || 0) > 0);
+  const debtOrders = (cal.orders || []).filter(order => Number(order.debtAmount || 0) > 0 && !order.archivedAt);
+  const cfoDebt = (state.cfo.orders || []).reduce((sum, order) => sum + Number(order.debtAmount || 0), 0);
+  const tasksToday = (state.tasks || []).filter(task => !task.done && (task.dueDate || task.date || today) <= today);
+  const safetyMeta = storageReadJson("sanabase-safety-meta", {}) || {};
+  const cloudLabel = safetyMeta.lastCloudSaveAt || safetyMeta.lastCloudLoadAt || "";
+  const backupLabel = safetyMeta.lastBackupExportAt || safetyMeta.lastEmergencyBackupAt || "";
+  const kpis = [
+    ["Бүгінгі сатылым", money(salesTotal)],
+    ["Сатылым саны", salesToday.length],
+    ["Тауар базасы", state.electro.products.length],
+    ["Аз қалған тауар", lowStock.length],
+    ["Ашық қарыз", money(cfoDebt + debtOrders.reduce((sum, order) => sum + Number(order.debtAmount || 0), 0))],
+    ["Бүгінгі task", tasksToday.length]
+  ];
+  $("coreKpis").innerHTML = kpis.map(([label, value]) => `
+    <article class="core-kpi">
+      <span>${escapeHtml(label)}</span>
+      <strong>${escapeHtml(String(value))}</strong>
+    </article>
+  `).join("");
+  const checks = [
+    lowStock.length ? `${lowStock.length} тауар аз қалды. Тауар базасын немесе приходты тексеріңіз.` : "Склад бойынша critical low stock белгісі жоқ.",
+    debtOrders.length || cfoDebt ? `Қарыз бақылауы керек: ${money(cfoDebt + debtOrders.reduce((sum, order) => sum + Number(order.debtAmount || 0), 0))}.` : "Қарыз бойынша ашық үлкен сигнал жоқ.",
+    tasksToday.length ? `${tasksToday.length} тапсырма бүгін/кешіккен.` : "Бүгінге міндетті task жоқ.",
+    backupLabel ? `Backup бар: ${backupLabel.slice(0, 16).replace("T", " ")}.` : "Backup export жасалғаны көрінбейді.",
+    cloudLabel ? `Cloud sync бар: ${cloudLabel.slice(0, 16).replace("T", " ")}.` : "Cloud sync уақыты көрінбейді."
+  ];
+  if ($("coreTodayList")) $("coreTodayList").innerHTML = checks.map(item => `<p>${escapeHtml(item)}</p>`).join("");
+  if ($("coreSafetyStatus")) {
+    $("coreSafetyStatus").textContent = `${backupLabel ? "Backup OK" : "Backup керек"} · ${cloudLabel ? "Cloud OK" : "Cloud тексеру керек"}`;
+    $("coreSafetyStatus").classList.toggle("ok", Boolean(backupLabel && cloudLabel));
+  }
 }
 
 async function importFiles(event) {
@@ -10098,6 +10158,7 @@ function render() {
   state.plans = state.plans.map(normalizePlan);
   state.challenges = state.challenges.map(normalizeChallenge);
   renderVersionHistory();
+  renderCoreDashboard();
   const query = $("searchDocs")?.value?.toLowerCase() || "";
   if (!$("docsGrid")) return;
   $("docsGrid").innerHTML = "";

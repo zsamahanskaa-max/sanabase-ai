@@ -980,6 +980,23 @@ Frontend asset query versions were updated to `20260710-09`. Manual checks to ru
 9. Confirm mobile layout does not overflow.
 10. Confirm no browser Console error appears.
 
+## 53. SanaBase Core Mode shell
+
+Frontend asset query versions were updated to `20260710-10`. Manual checks to run:
+
+1. Open `/?fresh=20260710-10`.
+2. Confirm `Core` is the first active page after load.
+3. Confirm KPI cards render: бүгінгі сатылым, сатылым саны, тауар базасы, аз қалған тауар, ашық қарыз, бүгінгі task.
+4. Tap `Сату` and confirm Electro inventory opens.
+5. Tap `Тауар базасы` and confirm Electro catalog opens.
+6. Tap `Приход` and confirm Electro inventory opens and stock-in form is reachable.
+7. Tap `Клиенттер / Қарыз` and confirm CRM opens.
+8. Tap `Накладной` and confirm CRM opens and nakladnaya form is reachable.
+9. Tap `Backup / Cloud` and confirm Backup Center opens.
+10. Tap advanced buttons: `1C Excel`, `AI CFO`, `Екінші ми`, `Тапсырмалар`, `Фокус`, `Прайс салыстыру`.
+11. Confirm existing direct links like `/?view=electro&electro=inventory` still work.
+12. Confirm no browser Console error appears.
+
 ## Pass criteria
 
 - `public/js/utils.js` loads before `public/app.js`.

@@ -9,9 +9,9 @@
   <meta name="apple-mobile-web-app-title" content="SanaBase">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>SanaBase AI</title>
-  <link rel="manifest" href="manifest.json?v=20260710-09">
+  <link rel="manifest" href="manifest.json?v=20260710-10">
   <link rel="apple-touch-icon" href="icons/sanabase-icon.svg">
-  <link rel="stylesheet" href="styles.css?v=20260710-09">
+  <link rel="stylesheet" href="styles.css?v=20260710-10">
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs" type="module"></script>
@@ -26,7 +26,8 @@
       </div>
     </div>
     <nav class="nav" aria-label="Main">
-      <button class="nav-item active" data-view="chat">Чат</button>
+      <button class="nav-item active" data-view="core">Core</button>
+      <button class="nav-item" data-view="chat">Чат</button>
       <button class="nav-item" data-view="library">Білім базасы</button>
       <button class="nav-item" data-view="calendaros">Күнтізбе жүйесі</button>
       <button class="nav-item" data-view="match">Прайс салыстыру</button>
@@ -68,7 +69,73 @@
     </header>
     <div class="notify-strip" id="notifyStatus">Еске салғыш өшірулі. Маңызды даталар мен істерді еске салу үшін қосыңыз.</div>
 
-    <section class="view active" id="chat">
+    <section class="view active" id="core">
+      <div class="core-shell">
+        <section class="core-command">
+          <div>
+            <span class="core-eyebrow">SanaBase Core v1</span>
+            <h2>Бизнес басқару штабы</h2>
+            <p>Күнделікті ең керек workflow: тауар базасы, сату, приход, клиент қарызы, накладной және backup/cloud status.</p>
+          </div>
+          <div class="core-command-status" id="coreSafetyStatus">Backup/Cloud status тексеріліп жатыр...</div>
+        </section>
+
+        <section class="core-kpis" id="coreKpis"></section>
+
+        <section class="core-actions" aria-label="Core actions">
+          <button type="button" class="core-action primary" data-core-view="electro" data-core-electro="inventory">
+            <span>01</span>
+            <strong>Сату</strong>
+            <small>Тауарды код/barcode/атаумен тауып, сатылым енгізу.</small>
+          </button>
+          <button type="button" class="core-action" data-core-view="electro" data-core-electro="catalog">
+            <span>02</span>
+            <strong>Тауар базасы</strong>
+            <small>SKU, barcode, баға, қалдық, бренд және Excel import.</small>
+          </button>
+          <button type="button" class="core-action" data-core-view="electro" data-core-electro="inventory" data-core-focus="stock">
+            <span>03</span>
+            <strong>Приход</strong>
+            <small>Жаңа келген тауарды складқа қосу немесе бар тауарды көбейту.</small>
+          </button>
+          <button type="button" class="core-action" data-core-view="crm">
+            <span>04</span>
+            <strong>Клиенттер / Қарыз</strong>
+            <small>Клиент карточкасы, заказ, төлем, дебиторка және WhatsApp мәтіндері.</small>
+          </button>
+          <button type="button" class="core-action" data-core-view="crm" data-core-focus="nakladnaya">
+            <span>05</span>
+            <strong>Накладной</strong>
+            <small>Бірнеше тауармен накладной/гарантия жасап, төлем/қарызды тіркеу.</small>
+          </button>
+          <button type="button" class="core-action safety" data-core-view="backupCenter">
+            <span>06</span>
+            <strong>Backup / Cloud</strong>
+            <small>Дерек жоғалмауы үшін export, restore point және cloud sync status.</small>
+          </button>
+        </section>
+
+        <section class="core-split">
+          <article>
+            <h3>Бүгін бақылау</h3>
+            <div id="coreTodayList" class="core-list"></div>
+          </article>
+          <article>
+            <h3>Advanced құралдар</h3>
+            <div class="core-mini-actions">
+              <button type="button" data-core-view="onec">1C Excel</button>
+              <button type="button" data-core-view="cfo">AI CFO</button>
+              <button type="button" data-core-view="brain">Екінші ми</button>
+              <button type="button" data-core-view="tasks">Тапсырмалар</button>
+              <button type="button" data-core-view="goals">Фокус</button>
+              <button type="button" data-core-view="match">Прайс салыстыру</button>
+            </div>
+          </article>
+        </section>
+      </div>
+    </section>
+
+    <section class="view" id="chat">
       <div class="assistant-panel">
         <div class="assistant-controls">
           <select id="assistantMode" aria-label="Assistant mode">
@@ -1404,20 +1471,20 @@
     </section>
   </div>
 
-  <script src="js/utils.js?v=20260710-09"></script>
-  <script src="js/storage.js?v=20260710-09"></script>
-  <script src="js/api.js?v=20260710-09"></script>
-  <script src="js/spreadsheet.js?v=20260710-09"></script>
-  <script src="js/documents.js?v=20260710-09"></script>
-  <script src="js/priceMatching.js?v=20260710-09"></script>
+  <script src="js/utils.js?v=20260710-10"></script>
+  <script src="js/storage.js?v=20260710-10"></script>
+  <script src="js/api.js?v=20260710-10"></script>
+  <script src="js/spreadsheet.js?v=20260710-10"></script>
+  <script src="js/documents.js?v=20260710-10"></script>
+  <script src="js/priceMatching.js?v=20260710-10"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
   <script>
     window.SANABASE_SUPABASE_URL = window.SANABASE_SUPABASE_URL || "https://koszjmsanlxdakqvdkgc.supabase.co";
     window.SANABASE_SUPABASE_ANON_KEY = window.SANABASE_SUPABASE_ANON_KEY || "sb_publishable_y7IIJav4n99Z1dbfROh3SA_TtlAn5tO";
   </script>
-  <script src="js/cloudSync.js?v=20260710-09"></script>
-  <script src="app.js?v=20260710-09"></script>
+  <script src="js/cloudSync.js?v=20260710-10"></script>
+  <script src="app.js?v=20260710-10"></script>
   <script>
     if ("serviceWorker" in navigator && location.protocol !== "file:") {
       window.addEventListener("load", () => {

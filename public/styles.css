@@ -133,6 +133,175 @@ p { margin: 6px 0 0; }
 }
 .view.active { display: block; }
 
+.core-shell {
+  display: grid;
+  gap: 16px;
+}
+
+.core-command {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(220px, .6fr);
+  gap: 16px;
+  align-items: stretch;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: linear-gradient(135deg, #102823, #28433f);
+  color: #fff;
+  box-shadow: var(--shadow);
+}
+
+.core-command h2 {
+  margin: 6px 0 8px;
+  font-size: clamp(28px, 4vw, 44px);
+  letter-spacing: 0;
+}
+
+.core-command p {
+  margin: 0;
+  color: #dbe8e2;
+  line-height: 1.55;
+  max-width: 760px;
+}
+
+.core-eyebrow {
+  color: #d7b56d;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.core-command-status {
+  display: grid;
+  min-height: 90px;
+  place-items: center;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, .22);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .08);
+  font-weight: 800;
+  text-align: center;
+}
+
+.core-command-status.ok {
+  background: rgba(78, 180, 125, .16);
+}
+
+.core-kpis {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.core-kpi,
+.core-split article {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: var(--shadow);
+}
+
+.core-kpi {
+  padding: 14px;
+}
+
+.core-kpi span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.core-kpi strong {
+  display: block;
+  margin-top: 6px;
+  color: var(--ink);
+  font-size: 20px;
+}
+
+.core-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.core-action {
+  display: grid;
+  min-height: 150px;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--ink);
+  text-align: left;
+  box-shadow: var(--shadow);
+}
+
+.core-action.primary {
+  background: #173d35;
+  color: #fff;
+}
+
+.core-action.safety {
+  border-color: #d7b56d;
+}
+
+.core-action span {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(215, 181, 109, .2);
+  font-weight: 900;
+}
+
+.core-action strong {
+  font-size: 22px;
+}
+
+.core-action small {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.core-action.primary small {
+  color: #dbe8e2;
+}
+
+.core-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.core-split article {
+  padding: 16px;
+}
+
+.core-list {
+  display: grid;
+  gap: 8px;
+}
+
+.core-list p {
+  margin: 0;
+  padding: 10px;
+  border-radius: 8px;
+  background: #f5f7f3;
+  color: var(--ink);
+}
+
+.core-mini-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.core-mini-actions button {
+  width: auto;
+}
+
 .conversation {
   height: calc(100vh - 184px);
   height: calc(100dvh - 184px);
@@ -4156,8 +4325,14 @@ pre {
     max-width: 100%;
     padding: 12px 13px;
   }
-  .composer, .toolbar, .split, .notes-layout, .tasks-layout, .cal-layout, .cal-hero, .match-grid, .brain-fields, .brain-head, .cloud-grid, .task-form-grid, .note-form-grid, .cal-form-grid, .assistant-controls, .assistant-dashboard, .goal-toolbar, .goal-layout, .goal-columns, .goal-form-grid, .crm-actions, .crm-dashboard, .crm-sections, .crm-template-grid, .crm-panel-head, .crm-toolbar, .crm-quick-form, .crm-file-grid, .crm-smart-archive, .crm-report-card, .cfo-hero, .cfo-layout, .cfo-toolbar, .cfo-form-grid, .cfo-accountant-grid, .cfo-file-grid, .cfo-business-grid, .cfo-ip-command, .cfo-ip-flow {
+  .composer, .toolbar, .split, .notes-layout, .tasks-layout, .cal-layout, .cal-hero, .match-grid, .brain-fields, .brain-head, .cloud-grid, .task-form-grid, .note-form-grid, .cal-form-grid, .assistant-controls, .assistant-dashboard, .goal-toolbar, .goal-layout, .goal-columns, .goal-form-grid, .crm-actions, .crm-dashboard, .crm-sections, .crm-template-grid, .crm-panel-head, .crm-toolbar, .crm-quick-form, .crm-file-grid, .crm-smart-archive, .crm-report-card, .cfo-hero, .cfo-layout, .cfo-toolbar, .cfo-form-grid, .cfo-accountant-grid, .cfo-file-grid, .cfo-business-grid, .cfo-ip-command, .cfo-ip-flow, .core-command, .core-actions, .core-split, .core-kpis, .core-mini-actions {
     grid-template-columns: 1fr;
+  }
+  .core-command h2 {
+    font-size: 30px;
+  }
+  .core-action {
+    min-height: auto;
   }
   .crm-nakladnaya-item-row {
     grid-template-columns: 34px 1fr;

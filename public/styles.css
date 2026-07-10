@@ -1359,6 +1359,31 @@ textarea:focus, input:focus, select:focus { border-color: var(--leaf); }
   line-height: 1.45;
 }
 
+.electro-scan-status {
+  padding: 10px 12px;
+  border: 1px solid rgba(24, 78, 67, .22);
+  border-radius: 10px;
+  background: rgba(242, 249, 246, .95);
+  color: #173d35;
+  font-weight: 700;
+}
+
+.electro-scan-manual {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.electro-scan-manual input {
+  min-width: 0;
+}
+
+@media (max-width: 560px) {
+  .electro-scan-manual {
+    grid-template-columns: 1fr;
+  }
+}
+
 .electro-scanner video {
   display: none;
   width: min(100%, 520px);

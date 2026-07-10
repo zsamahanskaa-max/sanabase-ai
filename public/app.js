@@ -231,6 +231,14 @@ on("electroScanStockBtn", "click", () => startElectroBarcodeScanner("stock"));
 on("electroScanSalePhotoBtn", "click", () => openElectroPhotoScanner("sale"));
 on("electroScanStockPhotoBtn", "click", () => openElectroPhotoScanner("stock"));
 on("electroScanPhotoInput", "change", scanElectroBarcodePhoto);
+on("electroScanReadFrameBtn", "click", scanElectroCurrentFrame);
+on("electroScanApplyManualBtn", "click", applyElectroManualCode);
+on("electroScanManualCode", "keydown", event => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    applyElectroManualCode();
+  }
+});
 on("electroScanStopBtn", "click", stopElectroBarcodeScanner);
 on("electroBrandForm", "submit", saveElectroBrand);
 on("electroChinaForm", "submit", saveElectroChinaProduct);
@@ -9011,8 +9019,13 @@ async function startElectroBarcodeScanner(target = "sale") {
       formats: ["ean_13", "ean_8", "code_128", "code_39", "qr_code", "upc_a", "upc_e"]
     });
     if (status) status.textContent = `${target === "sale" ? "Сатылым" : "Приход"} үшін сканер жүріп тұр. Barcode-ты камераға жақындатыңыз.`;
+    let attempts = 0;
     electroScanTimer = window.setInterval(async () => {
       if (!video.videoWidth) return;
+      attempts += 1;
+      if (attempts % 8 === 0 && status) {
+        status.textContent = `Scanner іздеп тұр... Егер оқымаса, barcode-ты жақындатып ұстаңыз немесе "Кадрды оқып көру" басыңыз. Тексеру: ${attempts}`;
+      }
       try {
         const codes = await detector.detect(video);
         if (!codes.length) return;
@@ -9033,6 +9046,11 @@ function startElectroZxingScanner(video, target = "sale", status = $("electroSca
   try {
     electroScanReader = new Reader();
     if (status) status.textContent = `${target === "sale" ? "Сатылым" : "Приход"} үшін iPhone/Safari fallback scanner жүріп тұр. Barcode-ты жарық жерде жақындатыңыз.`;
+    let attempts = 0;
+    electroScanTimer = window.setInterval(() => {
+      attempts += 1;
+      if (status) status.textContent = `iPhone/Safari fallback іздеп тұр... Оқымаса "Кадрды оқып көру" немесе фото scanner қолданыңыз. Тексеру: ${attempts}`;
+    }, 3000);
     const onResult = (result, error) => {
       if (result?.getText) {
         applyElectroScannedCode(result.getText(), target);
@@ -9096,6 +9114,58 @@ async function scanElectroBarcodePhoto(event) {
   } finally {
     if (input) input.value = "";
   }
+}
+
+async function scanElectroCurrentFrame() {
+  const status = $("electroScanStatus");
+  const video = $("electroScannerVideo");
+  const target = electroScanTarget || "sale";
+  if (!video || !video.classList.contains("active") || !video.videoWidth || !video.videoHeight) {
+    if (status) status.textContent = "Алдымен видео scanner-ді ашыңыз немесе фото түсіріп оқу батырмасын қолданыңыз.";
+    return;
+  }
+  if (status) status.textContent = "Видео кадры сурет ретінде алынды, barcode оқылып жатыр...";
+  try {
+    const blob = await captureElectroVideoFrame(video);
+    const code = await readBarcodeFromImageFile(blob);
+    if (code) {
+      applyElectroScannedCode(code, target);
+      return;
+    }
+    if (status) status.textContent = "Осы кадрдан barcode оқылмады. Barcode-ты кадр ортасына туралап, жақынырақ ұстап қайта басыңыз.";
+  } catch (error) {
+    if (status) status.textContent = `Кадр оқу қатесі: ${shortError(error)}. Фото scanner немесе қолмен код енгізуді қолданыңыз.`;
+  }
+}
+
+function captureElectroVideoFrame(video) {
+  return new Promise((resolve, reject) => {
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const context = canvas.getContext("2d");
+    if (!context) {
+      reject(new Error("Canvas context жоқ"));
+      return;
+    }
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob(blob => {
+      if (blob) resolve(blob);
+      else reject(new Error("Кадр суретке айналмады"));
+    }, "image/png", 0.95);
+  });
+}
+
+function applyElectroManualCode() {
+  const input = $("electroScanManualCode");
+  const status = $("electroScanStatus");
+  const code = input?.value?.trim() || "";
+  if (!code) {
+    if (status) status.textContent = "Алдымен barcode кодын қолмен жазыңыз.";
+    return;
+  }
+  applyElectroScannedCode(code, electroScanTarget || "sale");
+  if (input) input.value = "";
 }
 
 async function readBarcodeFromImageFile(file) {

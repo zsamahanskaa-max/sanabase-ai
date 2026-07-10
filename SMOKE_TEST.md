@@ -965,6 +965,21 @@ Frontend asset query versions were updated to `20260710-08`. Manual checks to ru
 9. If the photo cannot be decoded, confirm the status asks the user to retake a clearer photo or enter the code manually.
 10. Confirm no browser Console error appears.
 
+## 52. Electro scanner visible status and frame capture
+
+Frontend asset query versions were updated to `20260710-09`. Manual checks to run:
+
+1. Open `/?view=electro&electro=inventory&fresh=20260710-09` on a phone.
+2. Tap `Сатылымға сканер`.
+3. Confirm the status box visibly changes from `Scanner дайын` to an active scanning message.
+4. If video stays open without reading, tap `Кадрды оқып көру`.
+5. Confirm the current video frame is captured and barcode decoding is attempted.
+6. If decoding still fails, enter the code in `Barcode кодын қолмен енгізу` and tap `Кодты қолдану`.
+7. Confirm sale search fills and product data appears when the code exists.
+8. Repeat the same flow with `Приходқа сканер`.
+9. Confirm mobile layout does not overflow.
+10. Confirm no browser Console error appears.
+
 ## Pass criteria
 
 - `public/js/utils.js` loads before `public/app.js`.

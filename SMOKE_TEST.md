@@ -1065,6 +1065,33 @@ Frontend asset query versions were updated to `20260710-15`. Manual checks to ru
 7. Confirm localStorage data is not deleted.
 8. Confirm no browser Console error appears.
 
+## 59. Electro multi-item receipt / nakladnaya
+
+Frontend asset query versions were updated to `20260710-16`. Manual checks to run:
+
+1. Open `/?view=electro&electro=inventory&fresh=20260710-16`.
+2. Find the first product by code/barcode/name, set quantity and sale price, click `Чекке қосу`.
+3. Find a second product and click `Чекке қосу`.
+4. Confirm `electroSaleCartOut` shows both products and total amount.
+5. Remove one cart row and confirm only that row is removed.
+6. Add two rows again, fill client/payment/comment, click `Саттым деп енгізу`.
+7. Confirm stock decreases for every product in the cart.
+8. Confirm `Соңғы сатылым чек/накладной` prints one document with multiple product rows.
+9. Confirm WhatsApp text includes all products and total.
+10. Confirm old single-product sale still works when the cart is empty.
+
+## 60. Electro receipt PDF save
+
+Frontend asset query versions were updated to `20260710-17`. Manual checks to run:
+
+1. Open `/?view=electro&electro=inventory&fresh=20260710-17`.
+2. Create a multi-item receipt with at least two products.
+3. Click `PDF ретінде сақтау`.
+4. Confirm a clean receipt window opens with all product rows.
+5. Confirm the yellow PDF hint is visible on screen but hidden when printing.
+6. In the print dialog choose `Save as PDF` and confirm the saved PDF contains the full multi-item receipt.
+7. Confirm `Соңғы сатылым чек/накладной` still opens the normal print flow.
+
 ## Pass criteria
 
 - `public/js/utils.js` loads before `public/app.js`.

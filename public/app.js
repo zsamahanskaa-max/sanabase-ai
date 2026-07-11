@@ -221,10 +221,12 @@ on("electroProductSearch", "input", renderElectroProducts);
 on("electroSaleSearch", "input", fillElectroSaleProductFromSearch);
 on("electroStockSearch", "input", fillElectroStockProductFromSearch);
 on("electroSaleToStockBtn", "click", moveElectroSaleSearchToStockIn);
-on("electroSaleForm", "submit", saveElectroSale);
+on("electroAddSaleItemBtn", "click", addElectroSaleItemToCart);
+on("electroClearSaleCartBtn", "click", clearElectroSaleCart);
+on("electroSaleForm", "submit", saveElectroSaleMulti);
 on("electroStockInForm", "submit", saveElectroStockIn);
 on("electroPrintLastSaleBtn", "click", printLastElectroSale);
-on("electroReceiptPdfBtn", "click", printLastElectroSale);
+on("electroReceiptPdfBtn", "click", saveLastElectroSalePdf);
 on("electroWhatsappLastSaleBtn", "click", copyLastElectroSaleWhatsapp);
 on("electroDailyReportBtn", "click", showElectroDailySalesReport);
 on("electroDailyExportBtn", "click", exportElectroDailySalesReport);
@@ -8623,8 +8625,10 @@ function defaultElectroState() {
     lessons: ELECTRO_LESSONS.map(([id, title, body]) => ({ id, title, body, done: false, score: 0 })),
     scripts: [],
     settings: {},
+    saleCart: [],
     lastConsultationId: "",
-    lastAnswer: ""
+    lastAnswer: "",
+    lastSaleGroupId: ""
   };
 }
 
@@ -8644,6 +8648,7 @@ function normalizeElectro(electro = {}) {
     chinaProducts: Array.isArray(electro.chinaProducts) ? electro.chinaProducts.map(normalizeElectroChinaProduct) : [],
     lessons: Array.isArray(electro.lessons) && electro.lessons.length ? electro.lessons : base.lessons,
     scripts: Array.isArray(electro.scripts) ? electro.scripts : [],
+    saleCart: Array.isArray(electro.saleCart) ? electro.saleCart.map(normalizeElectroSaleCartItem).filter(item => item.productId) : [],
     settings: electro.settings || {}
   };
 }
@@ -8723,9 +8728,25 @@ function normalizeElectroMovement(movement = {}) {
     paymentMethod: movement.paymentMethod || "cash",
     counterparty: movement.counterparty || "",
     comment: movement.comment || "",
+    receiptGroupId: movement.receiptGroupId || "",
     stockBefore: Number(movement.stockBefore || 0),
     stockAfter: Number(movement.stockAfter || 0),
     createdAt: movement.createdAt || nowIso()
+  };
+}
+
+function normalizeElectroSaleCartItem(item = {}) {
+  return {
+    id: item.id || crypto.randomUUID(),
+    productId: item.productId || "",
+    sku: item.sku || "",
+    barcode: item.barcode || "",
+    productName: item.productName || "",
+    qty: Math.max(1, Number(item.qty || 1)),
+    unit: item.unit || "шт",
+    purchasePrice: Number(item.purchasePrice || 0),
+    salePrice: Number(item.salePrice || 0),
+    totalAmount: Number(item.totalAmount || (Number(item.qty || 0) * Number(item.salePrice || 0)))
   };
 }
 
@@ -9055,6 +9076,91 @@ function moveElectroSaleSearchToStockIn() {
   }
 }
 
+function currentElectroSaleDraftItem() {
+  state.electro = normalizeElectro(state.electro || {});
+  const productId = $("electroSaleProductId")?.value || findElectroProductByQuery($("electroSaleSearch")?.value || "")?.id || "";
+  const product = state.electro.products.find(item => item.id === productId);
+  if (!product) return { product: null, item: null };
+  const qty = Math.max(1, Number($("electroSaleQty")?.value || 1));
+  const salePrice = Number($("electroSalePriceInput")?.value || product.salePrice || 0);
+  return {
+    product,
+    item: normalizeElectroSaleCartItem({
+      productId: product.id,
+      sku: product.sku,
+      barcode: product.barcode,
+      productName: product.name,
+      qty,
+      unit: product.unit,
+      purchasePrice: product.purchasePrice,
+      salePrice,
+      totalAmount: qty * salePrice
+    })
+  };
+}
+
+function addElectroSaleItemToCart() {
+  state.electro = normalizeElectro(state.electro || {});
+  const out = $("electroInventoryOut");
+  const { product, item } = currentElectroSaleDraftItem();
+  if (!product || !item) {
+    if (out) out.textContent = "Чекке қосу үшін алдымен тауар кодын немесе атауын дұрыс таңдаңыз.";
+    return;
+  }
+  const existing = state.electro.saleCart.find(row => row.productId === item.productId && Number(row.salePrice || 0) === Number(item.salePrice || 0));
+  if (existing) {
+    existing.qty = Number(existing.qty || 0) + Number(item.qty || 0);
+    existing.totalAmount = existing.qty * Number(existing.salePrice || 0);
+  } else {
+    state.electro.saleCart.push(item);
+  }
+  renderElectroSaleCart();
+  if (out) out.textContent = `Чекке қосылды: ${product.name} · ${formatElectroQty(item.qty, product.unit)} · ${money(item.totalAmount)}.`;
+}
+
+function clearElectroSaleCart() {
+  state.electro = normalizeElectro(state.electro || {});
+  state.electro.saleCart = [];
+  renderElectroSaleCart();
+  if ($("electroInventoryOut")) $("electroInventoryOut").textContent = "Чек тазаланды. Жаңа бірнеше тауарлы чек жинай аласыз.";
+}
+
+function deleteElectroSaleCartItem(id) {
+  state.electro = normalizeElectro(state.electro || {});
+  state.electro.saleCart = (state.electro.saleCart || []).filter(item => item.id !== id);
+  renderElectroSaleCart();
+}
+
+function electroSaleCartItems() {
+  state.electro = normalizeElectro(state.electro || {});
+  return (state.electro.saleCart || []).map(normalizeElectroSaleCartItem).filter(item => item.productId);
+}
+
+function renderElectroSaleCart() {
+  const node = $("electroSaleCartOut");
+  if (!node) return;
+  const items = electroSaleCartItems();
+  if (!items.length) {
+    node.innerHTML = `<p>Чекке бірнеше тауар қосу үшін тауарды тауып, санын жазып, <strong>Чекке қосу</strong> басыңыз.</p>`;
+    return;
+  }
+  const total = items.reduce((sum, item) => sum + Number(item.totalAmount || 0), 0);
+  node.innerHTML = `
+    <div class="electro-sale-cart-head">
+      <strong>Чек ішіндегі тауарлар: ${items.length}</strong>
+      <span>Жалпы: ${money(total)}</span>
+    </div>
+    ${items.map((item, index) => `
+      <div class="electro-sale-cart-row">
+        <span>${index + 1}. ${escapeHtml(item.productName || "-")}</span>
+        <small>${escapeHtml(item.sku || item.barcode || "код жоқ")} · ${escapeHtml(formatElectroQty(item.qty, item.unit))} · ${money(item.salePrice)} · ${money(item.totalAmount)}</small>
+        <button type="button" data-electro-cart-delete="${escapeHtml(item.id)}">Өшіру</button>
+      </div>
+    `).join("")}
+    <p class="electro-sale-cart-hint">Дайын болғанда <strong>Саттым деп енгізу</strong> басыңыз. Сол кезде склад азаяды және бір чек/накладной жасалады.</p>
+  `;
+}
+
 async function startElectroBarcodeScanner(target = "sale") {
   const status = $("electroScanStatus");
   const video = $("electroScannerVideo");
@@ -9381,6 +9487,81 @@ function saveElectroSale(event) {
   renderElectroSaleReceipt(movement);
 }
 
+function saveElectroSaleMulti(event) {
+  event.preventDefault();
+  state.electro = normalizeElectro(state.electro || {});
+  const out = $("electroInventoryOut");
+  let cartItems = electroSaleCartItems();
+  if (!cartItems.length) {
+    const { product, item } = currentElectroSaleDraftItem();
+    if (!product || !item) {
+      if (out) out.textContent = "Тауар табылмады. Алдымен каталогқа қосыңыз немесе код/атауын дұрыс жазыңыз.";
+      return;
+    }
+    cartItems = [item];
+  }
+  const grouped = cartItems.reduce((map, item) => {
+    map.set(item.productId, Number(map.get(item.productId) || 0) + Number(item.qty || 0));
+    return map;
+  }, new Map());
+  const insufficient = [...grouped.entries()]
+    .map(([productId, qty]) => ({ product: state.electro.products.find(item => item.id === productId), qty }))
+    .filter(row => row.product && row.qty > Number(row.product.stockQty || 0));
+  if (insufficient.length) {
+    const message = insufficient.map(row => `${row.product.name}: қалдық ${formatElectroQty(row.product.stockQty, row.product.unit)}, сатылым ${formatElectroQty(row.qty, row.product.unit)}`).join("\n");
+    if (!confirm(`Кейбір тауарда қалдық жетпейді:\n\n${message}\n\nМинусқа сатуды жалғастырамыз ба?`)) return;
+  }
+  const paymentMethod = $("electroSalePaymentMethod")?.value || "cash";
+  const counterparty = $("electroSaleClient")?.value?.trim() || "Дүкен сатылымы";
+  const comment = $("electroSaleComment")?.value?.trim() || "";
+  const receiptGroupId = `receipt-${Date.now()}`;
+  const movements = [];
+  cartItems.forEach(cartItem => {
+    const product = state.electro.products.find(item => item.id === cartItem.productId);
+    if (!product) return;
+    const qty = Math.max(1, Number(cartItem.qty || 1));
+    const salePrice = Number(cartItem.salePrice || product.salePrice || 0);
+    const before = Number(product.stockQty || 0);
+    product.stockQty = before - qty;
+    product.salePrice = salePrice || product.salePrice;
+    product.updatedAt = nowIso();
+    const movement = normalizeElectroMovement({
+      productId: product.id,
+      type: "sale",
+      sku: product.sku,
+      barcode: product.barcode,
+      productName: product.name,
+      qty,
+      unit: product.unit,
+      purchasePrice: product.purchasePrice,
+      salePrice,
+      totalAmount: qty * salePrice,
+      paymentMethod,
+      counterparty,
+      comment,
+      receiptGroupId,
+      stockBefore: before,
+      stockAfter: product.stockQty
+    });
+    movements.push(movement);
+    addElectroSaleToCfo(product, movement);
+  });
+  if (!movements.length) {
+    if (out) out.textContent = "Чек ішіндегі тауарлар табылмады. Қайтадан тауар таңдаңыз.";
+    return;
+  }
+  state.electro.movements.unshift(...movements);
+  state.electro.lastSaleId = movements[0].id;
+  state.electro.lastSaleGroupId = receiptGroupId;
+  state.electro.saleCart = [];
+  event.target.reset();
+  persist();
+  render();
+  const total = movements.reduce((sum, item) => sum + Number(item.totalAmount || 0), 0);
+  if (out) out.textContent = `Сатылым сақталды.\nТауар саны: ${movements.length}\nЖалпы сумма: ${money(total)}\nЧек/накладной дайын.`;
+  renderElectroSaleReceipt(movements);
+}
+
 function saveElectroStockIn(event) {
   event.preventDefault();
   state.electro = normalizeElectro(state.electro || {});
@@ -9533,7 +9714,50 @@ function saveElectroReceiptProfile(event) {
   if ($("electroSaleReportOut")) $("electroSaleReportOut").textContent = "Реквизит сақталды. Енді чек/накладной печать жасағанда осы деректер шығады.";
 }
 
+function electroReceiptMovements(input) {
+  if (Array.isArray(input)) return input.filter(Boolean);
+  return input ? [input] : [];
+}
+
+function electroReceiptTotals(movements = []) {
+  return {
+    qty: movements.reduce((sum, item) => sum + Number(item.qty || 0), 0),
+    total: movements.reduce((sum, item) => sum + Number(item.totalAmount || 0), 0)
+  };
+}
+
+function electroSaleReceiptTextMulti(input) {
+  const movements = electroReceiptMovements(input);
+  if (!movements.length) return "Сатылым табылмады.";
+  const first = movements[0];
+  const profile = electroReceiptProfile();
+  const totals = electroReceiptTotals(movements);
+  return [
+    profile.sellerName || "SanaBase · Электр дүкені",
+    "Сатылым чек/накладной",
+    "",
+    profile.sellerBin ? `ИИН/БИН: ${profile.sellerBin}` : "",
+    profile.sellerPhone ? `Телефон: ${profile.sellerPhone}` : "",
+    profile.sellerAddress ? `Адрес: ${profile.sellerAddress}` : "",
+    profile.sellerBank ? `Реквизит: ${profile.sellerBank}` : "",
+    "",
+    `Күні: ${formatDate(first.date || first.createdAt)}`,
+    `№: ${first.receiptGroupId || first.id}`,
+    `Клиент: ${first.counterparty || "Дүкен сатылымы"}`,
+    `Төлем түрі: ${electroPaymentMethodLabel(first.paymentMethod)}`,
+    "",
+    "Тауарлар:",
+    ...movements.map((item, index) => `${index + 1}. ${item.productName} · ${item.sku || item.barcode || "-"} · ${formatElectroQty(item.qty, item.unit)} · ${money(item.salePrice)} · ${money(item.totalAmount)}`),
+    "",
+    `Жалпы тауар саны: ${totals.qty}`,
+    `Жалпы сумма: ${money(totals.total)}`,
+    first.comment ? `Комментарий: ${first.comment}` : "",
+    ""
+  ].filter(Boolean).join("\n");
+}
+
 function electroSaleReceiptText(movement) {
+  if (Array.isArray(movement)) return electroSaleReceiptTextMulti(movement);
   if (!movement) return "Сатылым табылмады.";
   const profile = electroReceiptProfile();
   return [
@@ -9562,7 +9786,69 @@ function electroSaleReceiptText(movement) {
   ].filter(Boolean).join("\n");
 }
 
+function electroSaleReceiptHtmlMulti(input) {
+  const movements = electroReceiptMovements(input);
+  const profile = electroReceiptProfile();
+  const first = movements[0];
+  if (!first) return `<section class="receipt-doc"><p>Сатылым табылмады.</p></section>`;
+  const totals = electroReceiptTotals(movements);
+  const docNo = String(first.receiptGroupId || first.id || "").slice(0, 18).toUpperCase();
+  return `
+    <section class="receipt-doc">
+      <header>
+        <div>
+          <h1>Сатылым чек / Накладной</h1>
+          <p>№ ${escapeHtml(docNo)} · ${escapeHtml(formatDate(first.date || first.createdAt))}</p>
+        </div>
+        <div class="stamp">SanaBase</div>
+      </header>
+      <div class="parties">
+        <article>
+          <h3>Сатушы</h3>
+          <p><strong>${escapeHtml(profile.sellerName || "ИП / дүкен атауы")}</strong></p>
+          <p>ИИН/БИН: ${escapeHtml(profile.sellerBin || "________________")}</p>
+          <p>Телефон: ${escapeHtml(profile.sellerPhone || "________________")}</p>
+          <p>Адрес: ${escapeHtml(profile.sellerAddress || "________________")}</p>
+          <p>Реквизит: ${escapeHtml(profile.sellerBank || "________________")}</p>
+        </article>
+        <article>
+          <h3>Сатып алушы</h3>
+          <p><strong>${escapeHtml(first.counterparty || "Дүкен сатылымы")}</strong></p>
+          <p>Төлем түрі: ${escapeHtml(electroPaymentMethodLabel(first.paymentMethod))}</p>
+          <p>Комментарий: ${escapeHtml(first.comment || "-")}</p>
+        </article>
+      </div>
+      <table>
+        <thead>
+          <tr><th>№</th><th>Тауар</th><th>Код</th><th>Саны</th><th>Бағасы</th><th>Сумма</th></tr>
+        </thead>
+        <tbody>
+          ${movements.map((item, index) => `
+            <tr>
+              <td>${index + 1}</td>
+              <td>${escapeHtml(item.productName || "-")}</td>
+              <td>${escapeHtml(item.sku || item.barcode || "-")}</td>
+              <td>${escapeHtml(formatElectroQty(item.qty, item.unit))}</td>
+              <td>${money(item.salePrice)}</td>
+              <td>${money(item.totalAmount)}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+      <div class="totals">
+        <p>Жалпы тауар саны: <strong>${escapeHtml(String(totals.qty))}</strong></p>
+        <p>Жалпы сумма: <strong>${money(totals.total)}</strong></p>
+      </div>
+      <div class="signatures">
+        <span>Сатушы: ____________________</span>
+        <span>Сатып алушы: ____________________</span>
+      </div>
+    </section>
+  `;
+}
+
 function electroSaleReceiptHtml(movement) {
+  if (Array.isArray(movement)) return electroSaleReceiptHtmlMulti(movement);
   const profile = electroReceiptProfile();
   const docNo = String(movement.id || "").slice(0, 8).toUpperCase();
   return `
@@ -9624,6 +9910,11 @@ function renderElectroSaleReceipt(movement) {
 
 function latestElectroSale() {
   state.electro = normalizeElectro(state.electro || {});
+  const groupId = state.electro.lastSaleGroupId || "";
+  if (groupId) {
+    const groupRows = (state.electro.movements || []).filter(item => item.type === "sale" && item.receiptGroupId === groupId);
+    if (groupRows.length) return groupRows;
+  }
   return (state.electro.movements || []).find(item => item.id === state.electro.lastSaleId)
     || (state.electro.movements || []).find(item => item.type === "sale");
 }
@@ -9633,6 +9924,7 @@ function printLastElectroSale() {
   const text = electroSaleReceiptText(movement);
   if ($("electroSaleReportOut")) $("electroSaleReportOut").textContent = text;
   if (!movement) return;
+  return openElectroReceiptWindow(movement, { mode: "print" });
   const win = window.open("", "_blank", "width=760,height=900");
   if (!win) return;
   win.document.write(`
@@ -9654,7 +9946,69 @@ function printLastElectroSale() {
   win.print();
 }
 
+function saveLastElectroSalePdf() {
+  const movement = latestElectroSale();
+  const text = electroSaleReceiptText(movement);
+  if ($("electroSaleReportOut")) {
+    $("electroSaleReportOut").textContent = `${text}\n\nPDF сақтау: ашылған print терезесінде Destination/Printer ішінен "Save as PDF" таңдаңыз.`;
+  }
+  if (!movement) return;
+  openElectroReceiptWindow(movement, { mode: "pdf" });
+}
+
+function openElectroReceiptWindow(movement, options = {}) {
+  const win = window.open("", "_blank", "width=760,height=900");
+  if (!win) return;
+  const isPdf = options.mode === "pdf";
+  const title = isPdf ? "Сатылым чек PDF" : "Сатылым чек";
+  const hint = isPdf
+    ? `<div class="pdf-hint"><strong>PDF сақтау:</strong> Print терезесінде Destination/Printer ішінен <strong>Save as PDF</strong> таңдаңыз.</div>`
+    : "";
+  win.document.write(`
+    <html><head><title>${escapeHtml(title)}</title><style>
+      body{font-family:Arial,sans-serif;margin:0;color:#111;background:#f4f4f4}
+      .receipt-doc{width:190mm;min-height:260mm;margin:12mm auto;background:#fff;padding:14mm;box-sizing:border-box}
+      header,.parties,.signatures{display:flex;justify-content:space-between;gap:18px}
+      header{border-bottom:2px solid #111;padding-bottom:12px;margin-bottom:16px}
+      h1{font-size:24px;margin:0 0 6px} h3{margin:0 0 8px}
+      p{margin:4px 0}.stamp{border:2px solid #111;border-radius:50%;width:82px;height:82px;display:grid;place-items:center;font-weight:700}
+      .parties article{width:50%;border:1px solid #bbb;padding:10px}
+      table{width:100%;border-collapse:collapse;margin:18px 0} th,td{border:1px solid #222;padding:8px;font-size:13px;text-align:left} th{background:#f1f1f1}
+      .totals{text-align:right;font-size:16px}.signatures{margin-top:32px}.note{margin-top:28px;color:#555;font-size:12px}
+      .pdf-hint{width:190mm;margin:10px auto 0;background:#fff7d6;border:1px solid #e0b84f;border-radius:10px;padding:10px 14px;box-sizing:border-box}
+      @media print{body{background:#fff}.pdf-hint{display:none}.receipt-doc{margin:0;width:auto;min-height:auto}}
+    </style></head><body>${hint}${electroSaleReceiptHtml(movement)}</body></html>
+  `);
+  win.document.close();
+  win.focus();
+  win.print();
+}
+
+function electroSaleWhatsappTextMulti(input) {
+  const movements = electroReceiptMovements(input);
+  if (!movements.length) return "Сатылым табылмады.";
+  const first = movements[0];
+  const profile = electroReceiptProfile();
+  const totals = electroReceiptTotals(movements);
+  return [
+    `Сәлеметсіз бе${first.counterparty ? `, ${first.counterparty}` : ""}!`,
+    "",
+    "Сіздің сатып алған тауарларыңыз:",
+    ...movements.map((item, index) => `${index + 1}. ${item.productName} · ${formatElectroQty(item.qty, item.unit)} · ${money(item.totalAmount)}${item.sku || item.barcode ? ` · код: ${item.sku || item.barcode}` : ""}`),
+    "",
+    `Жалпы сумма: ${money(totals.total)}`,
+    `Төлем түрі: ${electroPaymentMethodLabel(first.paymentMethod)}`,
+    "",
+    profile.sellerName ? `${profile.sellerName}` : "SanaBase / Электр дүкені",
+    profile.sellerPhone ? `Телефон: ${profile.sellerPhone}` : "",
+    profile.sellerAddress ? `Адрес: ${profile.sellerAddress}` : "",
+    "",
+    "Рахмет!"
+  ].filter(Boolean).join("\n");
+}
+
 function electroSaleWhatsappText(movement) {
+  if (Array.isArray(movement)) return electroSaleWhatsappTextMulti(movement);
   if (!movement) return "Сатылым табылмады.";
   const profile = electroReceiptProfile();
   return [
@@ -9919,11 +10273,13 @@ function handleElectroActions(event) {
   const editProduct = event.target.closest("[data-electro-product-edit]")?.dataset.electroProductEdit;
   const deleteProduct = event.target.closest("[data-electro-product-delete]")?.dataset.electroProductDelete;
   const explainProduct = event.target.closest("[data-electro-product-explain]")?.dataset.electroProductExplain;
+  const deleteCartItem = event.target.closest("[data-electro-cart-delete]")?.dataset.electroCartDelete;
   const deleteMovement = event.target.closest("[data-electro-movement-delete]")?.dataset.electroMovementDelete;
   const lessonDone = event.target.closest("[data-electro-lesson]")?.dataset.electroLesson;
   if (editProduct) return fillElectroProductForm(editProduct);
   if (deleteProduct) return deleteElectroProduct(deleteProduct);
   if (explainProduct) return explainElectroProduct(explainProduct);
+  if (deleteCartItem) return deleteElectroSaleCartItem(deleteCartItem);
   if (deleteMovement) return deleteElectroMovement(deleteMovement);
   if (lessonDone) return toggleElectroLesson(lessonDone);
 }
@@ -10019,6 +10375,7 @@ function renderElectro() {
   ].map(([label, value]) => `<article><span>${label}</span><strong>${value}</strong></article>`).join("");
   renderElectroSelects();
   renderElectroProducts();
+  renderElectroSaleCart();
   renderElectroMovements();
   renderElectroBrands();
   renderElectroChina();

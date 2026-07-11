@@ -1681,12 +1681,69 @@ textarea:focus, input:focus, select:focus { border-color: var(--leaf); }
   padding: 12px;
 }
 
+.electro-sale-cart {
+  border: 1px solid rgba(38, 80, 74, .22);
+  border-radius: 14px;
+  padding: 14px;
+  background: rgba(255, 255, 255, .78);
+  color: #26403b;
+  box-shadow: 0 12px 30px rgba(18, 41, 36, .08);
+}
+
+.electro-sale-cart p {
+  margin: 0;
+}
+
+.electro-sale-cart-head,
+.electro-sale-cart-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px 12px;
+  align-items: center;
+}
+
+.electro-sale-cart-head {
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(38, 80, 74, .14);
+}
+
+.electro-sale-cart-row {
+  padding: 10px 0;
+  border-bottom: 1px dashed rgba(38, 80, 74, .18);
+}
+
+.electro-sale-cart-row span,
+.electro-sale-cart-row small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.electro-sale-cart-row small {
+  color: #65756f;
+}
+
+.electro-sale-cart-row button {
+  padding: 7px 10px;
+}
+
+.electro-sale-cart-hint {
+  margin-top: 10px !important;
+  color: #65756f;
+  font-size: .92rem;
+}
+
 @media (max-width: 900px) {
   .electro-hero,
   .electro-grid,
   .electro-inventory-layout,
   .electro-list,
   .electro-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .electro-sale-cart-head,
+  .electro-sale-cart-row {
     grid-template-columns: 1fr;
   }
 }

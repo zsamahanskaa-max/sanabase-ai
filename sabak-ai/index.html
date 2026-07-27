@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="kk">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Сабақ AI</title>
+  <style>
+    :root{--bg:#f5f7fb;--card:#fff;--text:#182033;--muted:#6c7485;--accent:#5b5bd6;--line:#e5e8f0;--danger:#c0392b}
+    *{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--text)}
+    header{padding:22px 18px;background:linear-gradient(135deg,#5b5bd6,#8b5cf6);color:#fff;position:sticky;top:0;z-index:5}
+    header h1{margin:0;font-size:24px}header p{margin:6px 0 0;opacity:.9}
+    main{max-width:1100px;margin:0 auto;padding:18px;display:grid;grid-template-columns:300px 1fr;gap:18px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:0 8px 24px rgba(31,41,55,.06)}
+    h2,h3{margin-top:0}.stack{display:grid;gap:10px}.row{display:flex;gap:10px;flex-wrap:wrap}.grow{flex:1}
+    input,select,textarea,button{font:inherit}input,select,textarea{width:100%;border:1px solid var(--line);border-radius:12px;padding:11px;background:#fff}
+    textarea{min-height:140px;resize:vertical}button{border:0;border-radius:12px;padding:11px 14px;background:var(--accent);color:#fff;font-weight:700;cursor:pointer}
+    button.secondary{background:#eef0ff;color:#4646b4}button.ghost{background:#f1f3f7;color:#30384a}button.danger{background:#ffe9e6;color:var(--danger)}
+    .lesson{border:1px solid var(--line);border-radius:14px;padding:12px;cursor:pointer}.lesson:hover{border-color:#b8b8f6}.lesson.active{border-color:var(--accent);background:#f5f4ff}
+    .lesson strong{display:block}.small{font-size:13px;color:var(--muted)}.pill{display:inline-block;background:#eff0ff;color:#4b4bb7;padding:4px 8px;border-radius:999px;font-size:12px}
+    .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}.tabs button{background:#f1f3f7;color:#394055}.tabs button.active{background:var(--accent);color:#fff}
+    .hidden{display:none}.drop{border:2px dashed #cfd4e3;border-radius:16px;padding:24px;text-align:center;background:#fafbff}.empty{text-align:center;color:var(--muted);padding:40px 10px}
+    audio{width:100%}.status{padding:10px 12px;background:#eefaf2;color:#267344;border-radius:12px}.warn{background:#fff5df;color:#815b00}
+    @media(max-width:800px){main{grid-template-columns:1fr}header{position:static}}
+  </style>
+</head>
+<body>
+<header><h1>🎓 Сабақ AI</h1><p>Сабақты сақтаңыз, мәтінге айналдырыңыз, конспект жасаңыз және тыңдаңыз.</p></header>
+<main>
+  <aside class="card stack">
+    <div class="row"><h2 class="grow">Сабақтар</h2><button id="newBtn">+ Жаңа</button></div>
+    <input id="search" placeholder="Сабақтан іздеу..." />
+    <div id="lessonList" class="stack"></div>
+    <div class="small">Файлдар осы құрылғының браузерлік қоймасында сақталады. Маңызды аудиоларды Google Drive/iCloud-қа да көшіріңіз.</div>
+  </aside>
+
+  <section class="card" id="workspace">
+    <div id="empty" class="empty"><h2>Алғашқы сабағыңызды қосыңыз</h2><p>Аудио немесе PDF жүктеп, пән мен тақырыпты жазыңыз.</p><button onclick="document.getElementById('newBtn').click()">Сабақ қосу</button></div>
+    <div id="editor" class="hidden">
+      <div class="row">
+        <input class="grow" id="title" placeholder="Сабақ тақырыбы" />
+        <input id="subject" placeholder="Пән" style="max-width:220px" />
+      </div>
+      <div class="tabs" style="margin-top:14px">
+        <button class="active" data-tab="files">Файлдар</button>
+        <button data-tab="text">Толық мәтін</button>
+        <button data-tab="notes">Конспект</button>
+        <button data-tab="listen">Тыңдау</button>
+      </div>
+
+      <div id="tab-files" class="tab">
+        <div class="drop">
+          <h3>Аудио немесе PDF жүктеу</h3>
+          <input id="fileInput" type="file" accept="audio/*,.pdf" multiple />
+          <p class="small">Ұзақ аудио да қабылданады. Браузер жады шектеулі болуы мүмкін, сондықтан түпнұсқаны бұлтта сақтаңыз.</p>
+        </div>
+        <div id="files" class="stack" style="margin-top:14px"></div>
+      </div>
+
+      <div id="tab-text" class="tab hidden">
+        <div class="status warn">Автоматты аудио→мәтін үшін серверлік Whisper API қажет. Қазір мәтінді қолмен кіргізуге немесе сырттан дайын транскрипт қоюға болады.</div>
+        <textarea id="transcript" placeholder="Сабақ мәтіні осында шығады немесе дайын мәтінді осында қойыңыз..."></textarea>
+        <div class="row"><button id="saveText">Мәтінді сақтау</button><button class="secondary" id="makeNotes">Конспект жасау</button></div>
+      </div>
+
+      <div id="tab-notes" class="tab hidden">
+        <textarea id="notes" placeholder="Қысқаша конспект..."></textarea>
+        <div class="row"><button id="saveNotes">Конспектті сақтау</button><button class="secondary" id="downloadTxt">TXT жүктеу</button></div>
+      </div>
+
+      <div id="tab-listen" class="tab hidden stack">
+        <h3>Мәтінді дауыстап оқу</h3>
+        <select id="voice"></select>
+        <div class="row"><button id="speak">▶ Оқу</button><button class="ghost" id="pause">⏸ Кідірту</button><button class="danger" id="stop">⏹ Тоқтату</button></div>
+        <p class="small">Құрылғыңыздағы қазақша немесе орысша дауысты таңдаңыз.</p>
+      </div>
+
+      <hr style="border:0;border-top:1px solid var(--line);margin:18px 0" />
+      <div class="row"><span id="saved" class="small grow"></span><button class="danger" id="deleteLesson">Сабақты өшіру</button></div>
+    </div>
+  </section>
+</main>
+<script>
+const DB='sabak-ai-db', STORE='lessons'; let db, currentId=null, voices=[];
+function openDB(){return new Promise((res,rej)=>{const r=indexedDB.open(DB,1);r.onupgradeneeded=()=>r.result.createObjectStore(STORE,{keyPath:'id'});r.onsuccess=()=>{db=r.result;res()};r.onerror=()=>rej(r.error)})}
+function tx(mode='readonly'){return db.transaction(STORE,mode).objectStore(STORE)}
+function all(){return new Promise((res,rej)=>{const r=tx().getAll();r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
+function get(id){return new Promise((res,rej)=>{const r=tx().get(id);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
+function put(v){return new Promise((res,rej)=>{const r=tx('readwrite').put(v);r.onsuccess=()=>res();r.onerror=()=>rej(r.error)})}
+function del(id){return new Promise((res,rej)=>{const r=tx('readwrite').delete(id);r.onsuccess=()=>res();r.onerror=()=>rej(r.error)})}
+const $=id=>document.getElementById(id);
+async function renderList(){const q=$('search').value.toLowerCase();const items=(await all()).sort((a,b)=>b.updated-a.updated).filter(x=>(x.title+' '+x.subject).toLowerCase().includes(q));$('lessonList').innerHTML='';items.forEach(x=>{const d=document.createElement('div');d.className='lesson'+(x.id===currentId?' active':'');d.innerHTML=`<strong>${esc(x.title||'Атаусыз сабақ')}</strong><span class="pill">${esc(x.subject||'Пән жоқ')}</span><div class="small">${new Date(x.updated).toLocaleString()}</div>`;d.onclick=()=>loadLesson(x.id);$('lessonList').appendChild(d)});}
+function esc(s=''){return s.replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+async function createLesson(){const id=crypto.randomUUID();await put({id,title:'Жаңа сабақ',subject:'',transcript:'',notes:'',files:[],updated:Date.now()});await loadLesson(id)}
+async function loadLesson(id){currentId=id;const x=await get(id);$('empty').classList.add('hidden');$('editor').classList.remove('hidden');$('title').value=x.title;$('subject').value=x.subject;$('transcript').value=x.transcript;$('notes').value=x.notes;renderFiles(x);$('saved').textContent='Сақталған: '+new Date(x.updated).toLocaleString();renderList()}
+async function saveFields(){if(!currentId)return;const x=await get(currentId);x.title=$('title').value;x.subject=$('subject').value;x.transcript=$('transcript').value;x.notes=$('notes').value;x.updated=Date.now();await put(x);$('saved').textContent='Сақталды: '+new Date(x.updated).toLocaleString();renderList()}
+function renderFiles(x){$('files').innerHTML='';(x.files||[]).forEach((f,i)=>{const d=document.createElement('div');d.className='card';const url=URL.createObjectURL(f.blob);d.innerHTML=`<strong>${esc(f.name)}</strong><div class="small">${Math.round(f.blob.size/1024/1024*10)/10} МБ</div>`;if(f.type.startsWith('audio/')){const a=document.createElement('audio');a.controls=true;a.src=url;d.appendChild(a)}else{const b=document.createElement('button');b.className='secondary';b.textContent='PDF ашу';b.onclick=()=>window.open(url,'_blank');d.appendChild(b)}const rm=document.createElement('button');rm.className='danger';rm.textContent='Өшіру';rm.style.marginLeft='8px';rm.onclick=async()=>{x.files.splice(i,1);x.updated=Date.now();await put(x);renderFiles(x)};d.appendChild(rm);$('files').appendChild(d)})}
+$('newBtn').onclick=createLesson;$('search').oninput=renderList;
+['title','subject'].forEach(id=>$(id).addEventListener('change',saveFields));$('saveText').onclick=saveFields;$('saveNotes').onclick=saveFields;
+$('fileInput').onchange=async e=>{if(!currentId)return;const x=await get(currentId);for(const file of e.target.files)x.files.push({name:file.name,type:file.type,blob:file});x.updated=Date.now();await put(x);renderFiles(x);renderList();e.target.value=''};
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.querySelectorAll('.tab').forEach(x=>x.classList.add('hidden'));$('tab-'+b.dataset.tab).classList.remove('hidden')});
+$('makeNotes').onclick=()=>{const t=$('transcript').value.trim();if(!t)return alert('Алдымен сабақ мәтінін енгізіңіз.');const s=t.split(/(?<=[.!?])\s+/).filter(Boolean);$('notes').value='НЕГІЗГІ КОНСПЕКТ\n\n'+s.slice(0,12).map((x,i)=>`${i+1}. ${x}`).join('\n');saveFields()};
+$('downloadTxt').onclick=()=>{const blob=new Blob([`Пән: ${$('subject').value}\nТақырып: ${$('title').value}\n\n${$('notes').value}`],{type:'text/plain;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=($('title').value||'konspekt')+'.txt';a.click()};
+$('deleteLesson').onclick=async()=>{if(confirm('Бұл сабақты толық өшіреміз бе?')){await del(currentId);currentId=null;$('editor').classList.add('hidden');$('empty').classList.remove('hidden');renderList()}};
+function loadVoices(){voices=speechSynthesis.getVoices();$('voice').innerHTML='';voices.forEach((v,i)=>{const o=document.createElement('option');o.value=i;o.textContent=`${v.name} (${v.lang})`;if(/kk|ru/i.test(v.lang))o.selected=true;$('voice').appendChild(o)})}speechSynthesis.onvoiceschanged=loadVoices;loadVoices();
+$('speak').onclick=()=>{speechSynthesis.cancel();const text=$('notes').value||$('transcript').value;if(!text)return alert('Оқылатын мәтін жоқ.');const u=new SpeechSynthesisUtterance(text);u.voice=voices[+$('voice').value]||null;u.rate=1;speechSynthesis.speak(u)};$('pause').onclick=()=>speechSynthesis.paused?speechSynthesis.resume():speechSynthesis.pause();$('stop').onclick=()=>speechSynthesis.cancel();
+openDB().then(renderList).catch(e=>alert('Қойманы ашу қатесі: '+e.message));
+</script>
+</body>
+</html>
